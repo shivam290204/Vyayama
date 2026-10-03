@@ -1,0 +1,108 @@
+{
+  "conditions": [
+    {
+      "key": "knee_pain",
+      "label": "Knee pain",
+      "description": "Discomfort in one or both knees.",
+      "avoid_exercise_tags": ["knee", "high_impact"],
+      "safe_alternatives": [
+        "Small, comfortable-range leg movements",
+        "Swimming or water walking",
+        "Stationary cycling at an easy pace",
+        "Glute bridges"
+      ],
+      "notes": "General information only. Move within a comfortable range, stop if something hurts, and follow your doctor's or physiotherapist's guidance."
+    },
+    {
+      "key": "back_pain",
+      "label": "Back pain",
+      "description": "Discomfort in the lower or upper back.",
+      "avoid_exercise_tags": ["lower_back", "heavy_lifting"],
+      "safe_alternatives": [
+        "Gentle walking",
+        "Slow core-stability moves such as bird-dog",
+        "Cat-cow stretches",
+        "Swimming"
+      ],
+      "notes": "Keep movements slow and controlled, and stop if you feel pain. Ask your doctor which activities are suitable for you."
+    },
+    {
+      "key": "neck_shoulder_pain",
+      "label": "Neck or shoulder pain",
+      "description": "Stiffness or discomfort around the neck or shoulders.",
+      "avoid_exercise_tags": ["shoulder", "neck", "overhead"],
+      "safe_alternatives": [
+        "Walking and leg-focused workouts",
+        "Light band work below shoulder height",
+        "Gentle shoulder rolls within a comfortable range",
+        "Core exercises that do not load the neck"
+      ],
+      "notes": "Avoid positions that increase discomfort. Check with your doctor if the pain continues."
+    },
+    {
+      "key": "diabetes",
+      "label": "Diabetes",
+      "description": "A condition affecting blood sugar.",
+      "avoid_exercise_tags": [],
+      "safe_alternatives": [
+        "Regular low-to-moderate activity such as walking",
+        "Light strength sessions"
+      ],
+      "notes": "Talk to your doctor about exercise and meal timing that is right for you. This app does not give medicine or blood sugar advice."
+    },
+    {
+      "key": "high_blood_pressure",
+      "label": "High blood pressure",
+      "description": "Blood pressure that is higher than recommended.",
+      "avoid_exercise_tags": ["heavy_lifting", "breath_hold", "intense_cardio"],
+      "safe_alternatives": [
+        "Brisk walking",
+        "Easy cycling",
+        "Gentle stretching and mobility",
+        "Light resistance work with steady breathing"
+      ],
+      "notes": "Breathe steadily and avoid holding your breath during effort. Ask your doctor what activity level suits you."
+    },
+    {
+      "key": "asthma",
+      "label": "Asthma",
+      "description": "A condition affecting the airways.",
+      "avoid_exercise_tags": ["intense_cardio"],
+      "safe_alternatives": [
+        "Walking at a comfortable pace",
+        "Yoga and gentle stretching",
+        "Strength work with plenty of rest breaks"
+      ],
+      "notes": "Warm up gradually, rest when you need to, and follow your doctor's advice about exercising."
+    },
+    {
+      "key": "heart_condition",
+      "label": "Heart condition",
+      "description": "Any diagnosed heart-related condition.",
+      "avoid_exercise_tags": ["intense_cardio", "heavy_lifting", "high_impact", "breath_hold"],
+      "safe_alternatives": [
+        "Short, easy walks if your doctor agrees",
+        "Gentle stretching and mobility"
+      ],
+      "notes": "Please get your doctor's approval before starting or changing any exercise. Stop and seek medical help if you feel unwell."
+    },
+    {
+      "key": "other",
+      "label": "Other",
+      "description": "A condition that is not listed here.",
+      "avoid_exercise_tags": [],
+      "safe_alternatives": [
+        "Start with gentle walking and stretching"
+      ],
+      "notes": "If you have a condition that is not listed, please check with your doctor before starting a program."
+    },
+    {
+      "key": "none",
+      "label": "None of these",
+      "description": "No conditions to share.",
+      "avoid_exercise_tags": [],
+      "safe_alternatives": [],
+      "notes": ""
+    }
+  ]
+}

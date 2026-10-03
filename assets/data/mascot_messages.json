@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "moods": {
+    "neutral": [
+      "Hey {name}, I'm just getting my bearings. Give me a second!",
+      "Hi {name}! Ready when you are.",
+      "Warming up my sprout... almost ready, {name}.",
+      "Hello {name}! Let's see how today looks.",
+      "One moment, {name}. Stretching my arms."
+    ],
+    "happy": [
+      "Good to see you, {name}! What's the plan today?",
+      "Hey {name}! I'm feeling good. A little movement would make it great.",
+      "You're here, {name}, and that's already a win.",
+      "Small steps count, {name}. Ready for one?",
+      "Hi {name}! Let's make today a good one."
+    ],
+    "happy_morning": [
+      "Good morning, {name}! A short walk would be a great start.",
+      "Rise and shine, {name}! Water first, then a stretch?",
+      "Morning, {name}! Today is a fresh page. Let's write something active on it.",
+      "Hi {name}! The day is young and so is our streak."
+    ],
+    "happy_afternoon": [
+      "Good afternoon, {name}! Time for a quick movement break?",
+      "Hey {name}! Halfway through the day. A few squats would wake us up.",
+      "Afternoon, {name}! Stand up, stretch, shake it out.",
+      "Hi {name}! A short walk now will feel great later."
+    ],
+    "happy_evening": [
+      "Good evening, {name}! Still time for a little workout.",
+      "Hey {name}! How about a gentle evening walk?",
+      "Evening, {name}! Let's finish the day on a high note.",
+      "Hi {name}! A few stretches before dinner?"
+    ],
+    "happy_night": [
+      "Hi {name}! A slow stretch before bed could feel lovely.",
+      "Night owl, {name}? Let's keep it gentle and wind down soon.",
+      "Hey {name}! Today was a good day. Rest is coming."
+    ],
+    "proud": [
+      "You did it, {name}! I'm so proud of you.",
+      "Workout done! You showed up, {name}, and I noticed.",
+      "That's how it's done, {name}! Rest up, you earned it.",
+      "Look at you go, {name}! Today's workout is in the bag.",
+      "Proud of you, {name}. Consistency looks good on you."
+    ],
+    "sad": [
+      "You missed your workout, {name}. I was waiting for you!",
+      "Aww, that block slipped by, {name}. Still time to catch up?",
+      "I saved a spot for you, {name}. Want to start now?",
+      "Missed it? It happens, {name}. Even five minutes counts.",
+      "I'm a little droopy without you, {name}. Cheer me up with a short one?",
+      "The time passed, but the day isn't over, {name}. Let's do something small."
+    ],
+    "angry": [
+      "Hmph! You missed it again, {name}. I'm only grumpy because I miss our workouts.",
+      "Steam is coming out of my ears, {name}! Just five minutes and I'll calm down.",
+      "It's been a few days, {name}. One tiny workout and all is forgiven?",
+      "Grr... that's several days off, {name}. I'm not mad at you, just at the couch.",
+      "Fine, I'm a little cross, {name}. One short session and we're best friends again.",
+      "You missed it again, {name}, and I'm about to stomp! Come back, we'll start easy."
+    ],
+    "sleepy": [
+      "Zzz... it's late, {name}. Time to rest those legs.",
+      "Yawn... sleep is part of fitness too, {name}.",
+      "Sweet dreams, {name}. We'll move tomorrow.",
+      "I can barely keep my eyes open, {name}. Let's call it a day.",
+      "Shhh... tuck in, {name}. Recovery happens while you sleep."
+    ],
+    "celebrating": [
+      "Woo-hoo, {name}! That deserves a happy dance!",
+      "You did it! Confetti time, {name}!",
+      "New milestone, {name}! I'm jumping with joy!",
+      "Challenge complete! You're on fire, {name}!",
+      "Look at that streak, {name}! Party at my place!"
+    ],
+    "worried": [
+      "{name}, your friend already sent theirs. Don't break the streak!",
+      "Psst {name}! Your streak buddy is waiting on you.",
+      "Uh-oh, {name}. The streak clock is ticking. A quick snap will save it.",
+      "Your friend sent a snap, {name}. Your turn before the day ends!",
+      "I'm nibbling my sprout here, {name}. Send your snap and we're safe.",
+      "The 🔥 is at risk, {name}. One exercise photo keeps it going."
+    ]
+  }
+}

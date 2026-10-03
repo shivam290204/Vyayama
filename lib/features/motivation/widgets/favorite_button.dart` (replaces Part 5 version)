@@ -1,0 +1,36 @@
+import 'package:flutter/material.dart';
+
+/// Heart toggle with a 48dp tap target and a clear tooltip.
+class FavoriteButton extends StatelessWidget {
+  /// Creates the button.
+  const FavoriteButton({
+    super.key,
+    required this.isFavorite,
+    required this.onPressed,
+    this.color,
+  });
+
+  /// Whether the item is currently a favorite.
+  final bool isFavorite;
+
+  /// Called when pressed.
+  final VoidCallback onPressed;
+
+  /// Icon colour, for use on coloured cards. Defaults to the theme
+  /// (error colour when favorited, normal icon colour otherwise).
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final iconColor = color ?? (isFavorite ? scheme.error : null);
+    return IconButton(
+      tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      onPressed: onPressed,
+      icon: Icon(
+        isFavorite ? Icons.favorite : Icons.favorite_border,
+        color: iconColor,
+      ),
+    );
+  }
+}

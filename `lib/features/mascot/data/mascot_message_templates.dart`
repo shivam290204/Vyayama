@@ -1,0 +1,40 @@
+/// Message templates grouped by key (a mood name, or `happy_<daypart>`).
+///
+/// Templates may contain the `{name}` placeholder.
+class MascotMessageTemplates {
+  /// Creates templates from a map of key to message list.
+  const MascotMessageTemplates(this.byKey);
+
+  /// Parses the JSON shape `{ "moods": { "sad": ["..."] } }`.
+  factory MascotMessageTemplates.fromJson(Map<String, dynamic> json) {
+    final moods =
+        (json['moods'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+    return MascotMessageTemplates({
+      for (final e in moods.entries)
+        e.key: List<String>.unmodifiable(
+          (e.value as List<dynamic>).cast<String>(),
+        ),
+    });
+  }
+
+  /// Built-in minimal messages used if the JSON asset cannot be loaded.
+  static const MascotMessageTemplates fallback = MascotMessageTemplates({
+    'neutral': ['Hi {name}!'],
+    'happy': ['Good to see you, {name}!'],
+    'proud': ['You did it, {name}! I am proud of you.'],
+    'sad': ['You missed it, {name}. Want to start now?'],
+    'angry': ['Hmph, {name}! A short workout would calm me down.'],
+    'sleepy': ['Zzz... time to rest, {name}.'],
+    'celebrating': ['Woo-hoo, {name}! Time to celebrate!'],
+    'worried': ['{name}, do not break the streak!'],
+  });
+
+  /// Templates by key.
+  final Map<String, List<String>> byKey;
+
+  /// Returns the list for [key], or an empty list.
+  List<String> forKey(String key) => byKey[key] ?? const <String>[];
+
+  /// Serialises back to the JSON shape.
+  Map<String, dynamic> toJson() => {'version': 1, 'moods': byKey};
+}

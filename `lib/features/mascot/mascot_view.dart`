@@ -1,0 +1,52 @@
+import 'package:fitbuddy/features/mascot/fallback_mascot.dart';
+import 'package:fitbuddy/features/mascot/mascot_constants.dart';
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+import 'package:fitbuddy/features/mascot/rive_mascot.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+/// Checks once whether the Rive file is bundled.
+abstract final class RiveAvailability {
+  static Future<bool>? _result;
+
+  /// True when `assets/rive/mascot.riv` can be loaded. Cached after the
+  /// first call.
+  static Future<bool> check() => _result ??= rootBundle
+      .load(MascotAssets.rivePath)
+      .then<bool>((_) => true, onError: (Object _) => false);
+}
+
+/// The FitBuddy mascot.
+///
+/// Uses the Rive animation when `assets/rive/mascot.riv` exists, otherwise
+/// an original drawn character.
+class MascotView extends StatelessWidget {
+  /// Creates the mascot for [mood] at [size] logical pixels.
+  const MascotView({super.key, required this.mood, this.size = 200});
+
+  /// Mood to show.
+  final MascotMood mood;
+
+  /// Width and height of the mascot.
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'FitBuddy mascot, feeling ${mood.label}',
+      image: true,
+      child: ExcludeSemantics(
+        child: SizedBox.square(
+          dimension: size,
+          child: FutureBuilder<bool>(
+            future: RiveAvailability.check(),
+            builder: (context, snapshot) {
+              if (snapshot.data == true) return RiveMascot(mood: mood);
+              return FallbackMascot(mood: mood, size: size);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,210 @@
+import 'dart:math' as math;
+
+import 'package:fitbuddy/features/mascot/mascot_face_painter.dart';
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+import 'package:flutter/material.dart';
+
+/// Paints the original FitBuddy character: a round bean with a sprout
+/// antenna, stubby arms and feet. Colours come from the [ColorScheme].
+class MascotPainter extends CustomPainter {
+  /// Creates the painter. [t] is the animation value from 0 to 1.
+  const MascotPainter({
+    required this.mood,
+    required this.t,
+    required this.scheme,
+  });
+
+  /// Mood to draw.
+  final MascotMood mood;
+
+  /// Looping animation value from 0 to 1.
+  final double t;
+
+  /// Theme colours.
+  final ColorScheme scheme;
+
+  Color _a(Color c, double o) => c.withAlpha((o * 255).round());
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    canvas.save();
+    canvas.translate((size.width - s) / 2, (size.height - s) / 2);
+    final phase = math.sin(t * 2 * math.pi);
+    final motion = _motion(phase, s);
+    _paintShadow(canvas, s, motion);
+    final c = Offset(0.5 * s, 0.55 * s) + motion;
+    final squash = mood == MascotMood.sleepy ? 1 + 0.025 * phase : 1.0;
+    _paintFeet(canvas, s, c);
+    _paintArms(canvas, s, c, phase);
+    _paintBody(canvas, s, c, squash);
+    _paintSprout(canvas, s, c);
+    MascotFace.paint(canvas, s: s, c: c, mood: mood, scheme: scheme, t: t);
+    if (mood == MascotMood.celebrating) _paintConfetti(canvas, s);
+    canvas.restore();
+  }
+
+  Offset _motion(double phase, double s) {
+    switch (mood) {
+      case MascotMood.celebrating:
+        return Offset(0, -phase.abs() * 0.07 * s);
+      case MascotMood.happy:
+        return Offset(0, -phase * 0.02 * s);
+      case MascotMood.proud:
+        return Offset(0, -phase * 0.012 * s);
+      case MascotMood.angry:
+        return Offset(math.sin(t * 2 * math.pi * 6) * 0.006 * s, 0);
+      case MascotMood.worried:
+        return Offset(math.sin(t * 2 * math.pi * 8) * 0.004 * s, 0);
+      case MascotMood.sad:
+        return Offset(0, phase.abs() * 0.006 * s);
+      case MascotMood.sleepy:
+        return Offset(0, phase * 0.008 * s);
+      case MascotMood.neutral:
+        return Offset(0, -phase * 0.01 * s);
+    }
+  }
+
+  double _armAngle(double phase) {
+    switch (mood) {
+      case MascotMood.celebrating:
+        return math.pi - 0.5 + 0.2 * phase;
+      case MascotMood.happy:
+        return 0.5;
+      case MascotMood.proud:
+        return 0.7;
+      case MascotMood.sad:
+        return 0.1;
+      case MascotMood.angry:
+        return 0.25;
+      case MascotMood.sleepy:
+        return 0.2;
+      case MascotMood.worried:
+        return 0.9;
+      case MascotMood.neutral:
+        return 0.35;
+    }
+  }
+
+  void _paintShadow(Canvas canvas, double s, Offset motion) {
+    final lift = (-motion.dy / (0.07 * s)).clamp(0.0, 1.0).toDouble();
+    final w = s * 0.46 * (1 - 0.25 * lift);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(0.5 * s, 0.93 * s),
+        width: w,
+        height: s * 0.05,
+      ),
+      Paint()..color = _a(scheme.onSurface, 0.14),
+    );
+  }
+
+  void _paintFeet(Canvas canvas, double s, Offset c) {
+    final paint = Paint()..color = scheme.primary;
+    for (final dx in [-0.14, 0.14]) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: c + Offset(dx * s, 0.285 * s),
+          width: 0.16 * s,
+          height: 0.07 * s,
+        ),
+        paint,
+      );
+    }
+  }
+
+  void _paintArms(Canvas canvas, double s, Offset c, double phase) {
+    final paint = Paint()..color = scheme.primary;
+    final angle = _armAngle(phase);
+    void arm(Offset pivot, double theta) {
+      canvas.save();
+      canvas.translate(pivot.dx, pivot.dy);
+      canvas.rotate(theta);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(0, 0.06 * s),
+          width: 0.09 * s,
+          height: 0.17 * s,
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+
+    arm(c + Offset(-0.29 * s, 0), angle);
+    arm(c + Offset(0.29 * s, 0), -angle);
+  }
+
+  void _paintBody(Canvas canvas, double s, Offset c, double squash) {
+    final h = 0.56 * s * squash;
+    final bottom = c.dy + 0.28 * s;
+    final rect = Rect.fromCenter(
+      center: Offset(c.dx, bottom - h / 2),
+      width: 0.62 * s,
+      height: h,
+    );
+    final body = RRect.fromRectAndRadius(rect, Radius.circular(0.28 * s));
+    canvas.drawRRect(body, Paint()..color = scheme.primaryContainer);
+    canvas.drawRRect(
+      body,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.014
+        ..color = scheme.primary,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: c + Offset(0, 0.2 * s),
+        width: 0.36 * s,
+        height: 0.14 * s,
+      ),
+      Paint()..color = _a(scheme.surface, 0.55),
+    );
+  }
+
+  void _paintSprout(Canvas canvas, double s, Offset c) {
+    final top = Offset(c.dx, c.dy - 0.28 * s);
+    final droop = mood == MascotMood.sad || mood == MascotMood.sleepy;
+    final sway = math.sin(t * 2 * math.pi) * 0.015 * s;
+    final tip = droop
+        ? top + Offset(0.07 * s, -0.03 * s)
+        : top + Offset(sway, -0.11 * s);
+    final ctrl = top + Offset(droop ? 0 : -sway, -0.09 * s);
+    final path = Path()
+      ..moveTo(top.dx, top.dy)
+      ..quadraticBezierTo(ctrl.dx, ctrl.dy, tip.dx, tip.dy);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = s * 0.016
+        ..color = scheme.primary,
+    );
+    canvas.drawCircle(tip, s * 0.03, Paint()..color = scheme.tertiary);
+  }
+
+  void _paintConfetti(Canvas canvas, double s) {
+    final colors = [
+      scheme.primary,
+      scheme.secondary,
+      scheme.tertiary,
+      scheme.error,
+    ];
+    const n = 9;
+    for (var i = 0; i < n; i++) {
+      final a = math.pi + i * math.pi / (n - 1);
+      final wobble = math.sin((t + i / n) * 2 * math.pi);
+      final r = (0.4 + 0.05 * wobble) * s;
+      final p = Offset(
+        0.5 * s + math.cos(a) * r,
+        0.42 * s + math.sin(a) * r * 0.85,
+      );
+      canvas.drawCircle(p, s * 0.016, Paint()..color = colors[i % 4]);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant MascotPainter old) =>
+      old.mood != mood || old.t != t || old.scheme != scheme;
+}

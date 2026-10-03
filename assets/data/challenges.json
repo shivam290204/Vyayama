@@ -1,0 +1,261 @@
+{
+  "version": 1,
+  "challenges": [
+    {
+      "id": "ch-001",
+      "title": "Walk 6,000 steps",
+      "description": "Spread your steps through the day. Every step counts.",
+      "type": "steps",
+      "target_value": 6000,
+      "xp": 20
+    },
+    {
+      "id": "ch-002",
+      "title": "Do 20 squats",
+      "description": "Bodyweight squats, split into sets if you like. Go only as deep as feels comfortable.",
+      "type": "reps",
+      "target_value": 20,
+      "xp": 15
+    },
+    {
+      "id": "ch-003",
+      "title": "Drink 8 glasses of water",
+      "description": "Sip through the day and keep a bottle nearby.",
+      "type": "water",
+      "target_value": 8,
+      "xp": 15
+    },
+    {
+      "id": "ch-004",
+      "title": "Be active for 20 minutes",
+      "description": "Walk, dance, cycle or play. Anything that gets you moving counts.",
+      "type": "active_minutes",
+      "target_value": 20,
+      "xp": 20
+    },
+    {
+      "id": "ch-005",
+      "title": "Stretch for 5 minutes",
+      "description": "Gentle stretches for your neck, shoulders, back and legs.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-006",
+      "title": "Complete today's workout",
+      "description": "Finish your planned workout from start to end.",
+      "type": "workout",
+      "target_value": 1,
+      "xp": 30
+    },
+    {
+      "id": "ch-007",
+      "title": "Do 10 push-ups",
+      "description": "Wall, knee or full push-ups all count. Pick the version that suits you.",
+      "type": "reps",
+      "target_value": 10,
+      "xp": 15
+    },
+    {
+      "id": "ch-008",
+      "title": "Walk 8,000 steps",
+      "description": "One good walk or a few short ones add up.",
+      "type": "steps",
+      "target_value": 8000,
+      "xp": 25
+    },
+    {
+      "id": "ch-009",
+      "title": "Take 3 movement breaks",
+      "description": "Stand up and move for two minutes, three times today.",
+      "type": "count",
+      "target_value": 3,
+      "xp": 10
+    },
+    {
+      "id": "ch-010",
+      "title": "Walk after a meal",
+      "description": "A relaxed 15-minute stroll after eating.",
+      "type": "active_minutes",
+      "target_value": 15,
+      "xp": 15
+    },
+    {
+      "id": "ch-011",
+      "title": "Do 15 lunges",
+      "description": "Alternate legs and keep your steps slow and steady.",
+      "type": "reps",
+      "target_value": 15,
+      "xp": 15
+    },
+    {
+      "id": "ch-012",
+      "title": "Start the day with water",
+      "description": "Drink a glass of water soon after you wake up.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-013",
+      "title": "Walk 4,000 steps",
+      "description": "A gentle target for a busy or slower day.",
+      "type": "steps",
+      "target_value": 4000,
+      "xp": 10
+    },
+    {
+      "id": "ch-014",
+      "title": "Do 30 jumping jacks",
+      "description": "Prefer low impact? Step side to side with arm raises instead.",
+      "type": "reps",
+      "target_value": 30,
+      "xp": 15
+    },
+    {
+      "id": "ch-015",
+      "title": "Be active for 30 minutes",
+      "description": "Break it up however you like. Short bursts count too.",
+      "type": "active_minutes",
+      "target_value": 30,
+      "xp": 25
+    },
+    {
+      "id": "ch-016",
+      "title": "Take the stairs",
+      "description": "Choose the stairs over the lift once today, if you can.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-017",
+      "title": "Walk 10,000 steps",
+      "description": "A big one! Plan a longer walk to help you get there.",
+      "type": "steps",
+      "target_value": 10000,
+      "xp": 30
+    },
+    {
+      "id": "ch-018",
+      "title": "Do 20 glute bridges",
+      "description": "Lie on your back, lift your hips, and squeeze at the top.",
+      "type": "reps",
+      "target_value": 20,
+      "xp": 15
+    },
+    {
+      "id": "ch-019",
+      "title": "Breathe slowly for 2 minutes",
+      "description": "Slow, deep breaths to reset your mind.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-020",
+      "title": "Dance to a favorite song",
+      "description": "No rules. Just move to a track you love.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-021",
+      "title": "Do 10 minutes of yoga",
+      "description": "Follow a video or flow on your own. Go gently.",
+      "type": "active_minutes",
+      "target_value": 10,
+      "xp": 15
+    },
+    {
+      "id": "ch-022",
+      "title": "Drink 6 glasses of water",
+      "description": "A lighter hydration goal. Keep a bottle nearby.",
+      "type": "water",
+      "target_value": 6,
+      "xp": 10
+    },
+    {
+      "id": "ch-023",
+      "title": "Do 25 calf raises",
+      "description": "Rise onto your toes slowly. Hold a wall for balance if you like.",
+      "type": "reps",
+      "target_value": 25,
+      "xp": 10
+    },
+    {
+      "id": "ch-024",
+      "title": "Take a brisk 10-minute walk",
+      "description": "Walk fast enough to feel your heart rate rise a little.",
+      "type": "active_minutes",
+      "target_value": 10,
+      "xp": 10
+    },
+    {
+      "id": "ch-025",
+      "title": "Do 15 wall push-ups",
+      "description": "A friendly warm-up for your arms and chest.",
+      "type": "reps",
+      "target_value": 15,
+      "xp": 10
+    },
+    {
+      "id": "ch-026",
+      "title": "Walk 5,000 steps",
+      "description": "A steady middle-of-the-road goal for today.",
+      "type": "steps",
+      "target_value": 5000,
+      "xp": 15
+    },
+    {
+      "id": "ch-027",
+      "title": "Add veggies to 3 meals",
+      "description": "Add a serving of vegetables to three meals or snacks today.",
+      "type": "count",
+      "target_value": 3,
+      "xp": 15
+    },
+    {
+      "id": "ch-028",
+      "title": "Screens off before bed",
+      "description": "Put your phone away 30 minutes before bedtime.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-029",
+      "title": "Cool down after exercise",
+      "description": "Finish a workout with a slow walk and a stretch.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 10
+    },
+    {
+      "id": "ch-030",
+      "title": "Do 20 crunches",
+      "description": "Or pick a gentler core move like dead bugs. Keep your neck relaxed.",
+      "type": "reps",
+      "target_value": 20,
+      "xp": 15
+    },
+    {
+      "id": "ch-031",
+      "title": "Walk 7,000 steps",
+      "description": "A short extra walk can close the gap on a typical day.",
+      "type": "steps",
+      "target_value": 7000,
+      "xp": 20
+    },
+    {
+      "id": "ch-032",
+      "title": "Try a new exercise",
+      "description": "Pick any exercise you have never tried and give it a go.",
+      "type": "checkoff",
+      "target_value": 1,
+      "xp": 15
+    }
+  ]
+}

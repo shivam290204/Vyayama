@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "memes": [
+    { "id": "m-001", "emoji": "👟", "tone": "primary", "caption": "My workout plan: 10% exercise, 90% finding my other shoe." },
+    { "id": "m-002", "emoji": "🥱", "tone": "secondary", "caption": "Stretching is just yawning with extra steps." },
+    { "id": "m-003", "emoji": "🚶", "tone": "tertiary", "caption": "\"Just a five-minute walk.\" Forty minutes later: still walking." },
+    { "id": "m-004", "emoji": "💧", "tone": "inverse", "caption": "Water: the original sports drink. Your bottle is calling." },
+    { "id": "m-005", "emoji": "🤝", "tone": "primary", "caption": "Warm-up: where my muscles and I agree to be friends." },
+    { "id": "m-006", "emoji": "👣", "tone": "secondary", "caption": "Step counter at 9,999. Time to pace around the kitchen." },
+    { "id": "m-007", "emoji": "🛋️", "tone": "tertiary", "caption": "Rest day: the workout nobody argues with." },
+    { "id": "m-008", "emoji": "🪜", "tone": "inverse", "caption": "Plot twist: the stairs were the gym all along." },
+    { "id": "m-009", "emoji": "🦵", "tone": "primary", "caption": "My legs after leg day: \"We need to talk.\" Also my legs: \"Thanks, though.\"" },
+    { "id": "m-010", "emoji": "🚪", "tone": "secondary", "caption": "The hardest part of any workout: the 30 seconds between the couch and the door." },
+    { "id": "m-011", "emoji": "🎧", "tone": "tertiary", "caption": "Headphones on, world off, legs on autopilot." },
+    { "id": "m-012", "emoji": "🧘", "tone": "inverse", "caption": "Yoga mat unrolled: 50% done. Totally counts." },
+    { "id": "m-013", "emoji": "💦", "tone": "primary", "caption": "Friendly reminder from your mascot: have you had water lately?" },
+    { "id": "m-014", "emoji": "🌅", "tone": "secondary", "caption": "\"I'm not a morning person.\" Also me: loves the morning walk." },
+    { "id": "m-015", "emoji": "🌳", "tone": "tertiary", "caption": "Bad day? Walk it out. Good day? Walk it out. Any day? Walk it out." },
+    { "id": "m-016", "emoji": "🏃", "tone": "inverse", "caption": "Treadmill: you run for ages, go nowhere, and feel great anyway." },
+    { "id": "m-017", "emoji": "👕", "tone": "primary", "caption": "Personal record unlocked: put on workout clothes without negotiating." },
+    { "id": "m-018", "emoji": "😌", "tone": "secondary", "caption": "Pause. Roll your shoulders. Unclench your jaw. Carry on." },
+    { "id": "m-019", "emoji": "🛏️", "tone": "tertiary", "caption": "My bed: \"Five more minutes.\" My alarm: \"Run.\" We compromised on a stretch." },
+    { "id": "m-020", "emoji": "☀️", "tone": "inverse", "caption": "Sunshine plus sneakers equals instant good mood." },
+    { "id": "m-021", "emoji": "🧦", "tone": "primary", "caption": "Matching socks: optional. Showing up: the real outfit." },
+    { "id": "m-022", "emoji": "⏱️", "tone": "secondary", "caption": "Set a timer for 10 minutes. Surprise: you keep going." },
+    { "id": "m-023", "emoji": "🐢", "tone": "tertiary", "caption": "The tortoise did not skip leg day and neither will you." },
+    { "id": "m-024", "emoji": "🎵", "tone": "inverse", "caption": "Exercise tip: pick the song that makes you want to dance, then dance." }
+  ]
+}

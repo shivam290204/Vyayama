@@ -1,0 +1,86 @@
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+import 'package:fitbuddy/features/mascot/mascot_painter.dart';
+import 'package:flutter/material.dart';
+
+/// Original drawn mascot shown when the Rive file is not available.
+///
+/// Bounces gently; the motion stops when the system asks for reduced motion.
+class FallbackMascot extends StatefulWidget {
+  /// Creates the drawn mascot.
+  const FallbackMascot({super.key, required this.mood, required this.size});
+
+  /// Mood to show.
+  final MascotMood mood;
+
+  /// Width and height in logical pixels.
+  final double size;
+
+  @override
+  State<FallbackMascot> createState() => _FallbackMascotState();
+}
+
+class _FallbackMascotState extends State<FallbackMascot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: _durationFor(widget.mood),
+  );
+  bool _reduceMotion = false;
+
+  static Duration _durationFor(MascotMood mood) => switch (mood) {
+        MascotMood.celebrating => const Duration(milliseconds: 700),
+        MascotMood.happy => const Duration(milliseconds: 1400),
+        MascotMood.angry => const Duration(milliseconds: 900),
+        MascotMood.worried => const Duration(milliseconds: 1100),
+        MascotMood.sad => const Duration(milliseconds: 3000),
+        MascotMood.sleepy => const Duration(milliseconds: 3600),
+        MascotMood.proud => const Duration(milliseconds: 1800),
+        MascotMood.neutral => const Duration(milliseconds: 2000),
+      };
+
+  void _sync() {
+    _controller.duration = _durationFor(widget.mood);
+    if (_reduceMotion) {
+      _controller
+        ..stop()
+        ..value = 0.25;
+    } else {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant FallbackMascot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mood != widget.mood) _sync();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) => CustomPaint(
+        size: Size.square(widget.size),
+        painter: MascotPainter(
+          mood: widget.mood,
+          t: _controller.value,
+          scheme: scheme,
+        ),
+      ),
+    );
+  }
+}

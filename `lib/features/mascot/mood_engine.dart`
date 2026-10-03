@@ -1,0 +1,111 @@
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+
+/// Everything [MoodEngine] needs to choose a mood. Pure Dart, no Flutter.
+class MoodInputs {
+  /// Creates the inputs. Only [now] is required.
+  const MoodInputs({
+    required this.now,
+    this.workoutDoneToday = false,
+    this.missedBlockNow = false,
+    this.daysSkippedInARow = 0,
+    this.streakMilestoneHit = false,
+    this.challengeJustCompleted = false,
+    this.snapStreakAtRisk = false,
+    this.sleepStartMinutes = defaultSleepStartMinutes,
+    this.wakeMinutes = defaultWakeMinutes,
+  });
+
+  /// Default bedtime: 22:00, in minutes after midnight.
+  static const int defaultSleepStartMinutes = 22 * 60;
+
+  /// Default wake time: 06:00, in minutes after midnight.
+  static const int defaultWakeMinutes = 6 * 60;
+
+  /// Current local time.
+  final DateTime now;
+
+  /// The user finished today's workout.
+  final bool workoutDoneToday;
+
+  /// A scheduled block has just passed without being completed.
+  final bool missedBlockNow;
+
+  /// Consecutive days without a workout.
+  final int daysSkippedInARow;
+
+  /// A streak milestone was just reached.
+  final bool streakMilestoneHit;
+
+  /// The daily challenge was just completed.
+  final bool challengeJustCompleted;
+
+  /// A friend sent a Snap Streak photo and the user has not yet (spec 9.6).
+  final bool snapStreakAtRisk;
+
+  /// Start of the sleep window, minutes after midnight.
+  final int sleepStartMinutes;
+
+  /// End of the sleep window, minutes after midnight.
+  final int wakeMinutes;
+
+  /// Whether [now] falls inside the sleep window (handles midnight wrap).
+  bool get isSleepTime {
+    if (sleepStartMinutes == wakeMinutes) return false;
+    final m = now.hour * 60 + now.minute;
+    if (sleepStartMinutes > wakeMinutes) {
+      return m >= sleepStartMinutes || m < wakeMinutes;
+    }
+    return m >= sleepStartMinutes && m < wakeMinutes;
+  }
+
+  /// Returns a copy with the given fields replaced.
+  MoodInputs copyWith({
+    DateTime? now,
+    bool? workoutDoneToday,
+    bool? missedBlockNow,
+    int? daysSkippedInARow,
+    bool? streakMilestoneHit,
+    bool? challengeJustCompleted,
+    bool? snapStreakAtRisk,
+    int? sleepStartMinutes,
+    int? wakeMinutes,
+  }) {
+    return MoodInputs(
+      now: now ?? this.now,
+      workoutDoneToday: workoutDoneToday ?? this.workoutDoneToday,
+      missedBlockNow: missedBlockNow ?? this.missedBlockNow,
+      daysSkippedInARow: daysSkippedInARow ?? this.daysSkippedInARow,
+      streakMilestoneHit: streakMilestoneHit ?? this.streakMilestoneHit,
+      challengeJustCompleted:
+          challengeJustCompleted ?? this.challengeJustCompleted,
+      snapStreakAtRisk: snapStreakAtRisk ?? this.snapStreakAtRisk,
+      sleepStartMinutes: sleepStartMinutes ?? this.sleepStartMinutes,
+      wakeMinutes: wakeMinutes ?? this.wakeMinutes,
+    );
+  }
+}
+
+/// Decides the mascot mood (spec 9.3 plus the Snap Streak rule from 9.6).
+///
+/// Priority, highest first: celebrating, proud, angry, worried, sad,
+/// sleepy, happy.
+class MoodEngine {
+  /// Creates the engine.
+  const MoodEngine();
+
+  /// Days skipped in a row at which the mascot turns angry.
+  static const int angryThreshold = 3;
+
+  /// Returns the mood for [i].
+  MascotMood decide(MoodInputs i) {
+    if (i.streakMilestoneHit || i.challengeJustCompleted) {
+      return MascotMood.celebrating;
+    }
+    if (i.workoutDoneToday) return MascotMood.proud;
+    if (i.daysSkippedInARow >= angryThreshold) return MascotMood.angry;
+    if (i.snapStreakAtRisk) return MascotMood.worried;
+    if (i.missedBlockNow) return MascotMood.sad;
+    if (i.isSleepTime) return MascotMood.sleepy;
+    return MascotMood.happy;
+  }
+}

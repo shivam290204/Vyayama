@@ -1,0 +1,191 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:fitbuddy/features/mascot/data/mascot_message_templates.dart';
+import 'package:fitbuddy/features/mascot/data/mascot_messages_repository.dart';
+import 'package:fitbuddy/features/mascot/mascot_message_picker.dart';
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+import 'package:fitbuddy/features/mascot/mood_engine.dart';
+import 'package:fitbuddy/features/profile/profile_providers.dart';
+import 'package:fitbuddy/features/schedule/clock_providers.dart';
+import 'package:fitbuddy/features/schedule/providers.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final snapStreakAtRiskProvider = Provider<bool>((ref) => false);
+
+/// Mock-able signals that Antigravity will later feed from real data
+/// (workout logs, streaks, challenge completion).
+@immutable
+class MascotSignals {
+  /// Creates the signals.
+  const MascotSignals({
+    this.workoutDoneToday = false,
+    this.daysSkippedInARow = 0,
+    this.streakMilestoneHit = false,
+    this.challengeJustCompleted = false,
+  });
+
+  /// Today's workout is finished.
+  final bool workoutDoneToday;
+
+  /// Consecutive days without a workout.
+  final int daysSkippedInARow;
+
+  /// A streak milestone was just reached (auto-clears).
+  final bool streakMilestoneHit;
+
+  /// The daily challenge was just completed (auto-clears).
+  final bool challengeJustCompleted;
+
+  /// Returns a copy with the given fields replaced.
+  MascotSignals copyWith({
+    bool? workoutDoneToday,
+    int? daysSkippedInARow,
+    bool? streakMilestoneHit,
+    bool? challengeJustCompleted,
+  }) {
+    return MascotSignals(
+      workoutDoneToday: workoutDoneToday ?? this.workoutDoneToday,
+      daysSkippedInARow: daysSkippedInARow ?? this.daysSkippedInARow,
+      streakMilestoneHit: streakMilestoneHit ?? this.streakMilestoneHit,
+      challengeJustCompleted:
+          challengeJustCompleted ?? this.challengeJustCompleted,
+    );
+  }
+}
+
+/// Holds the mock [MascotSignals]. Other features call its methods,
+/// for example the challenges feature calls [celebrateChallenge].
+class MascotSignalsNotifier extends Notifier<MascotSignals> {
+  Timer? _celebrationTimer;
+
+  @override
+  MascotSignals build() {
+    ref.onDispose(() => _celebrationTimer?.cancel());
+    return const MascotSignals();
+  }
+
+  /// Marks today's workout as done and resets the skipped-days counter.
+  void markWorkoutDone() {
+    state = state.copyWith(workoutDoneToday: true, daysSkippedInARow: 0);
+  }
+
+  /// Clears today's workout flag.
+  void markWorkoutNotDone() {
+    state = state.copyWith(workoutDoneToday: false);
+  }
+
+  /// Sets the number of days skipped in a row (never below zero).
+  void setDaysSkipped(int days) {
+    state = state.copyWith(daysSkippedInARow: days < 0 ? 0 : days);
+  }
+
+  /// Triggers the celebrating mood for a streak milestone (8 seconds).
+  void celebrateMilestone() => _celebrate(milestone: true);
+
+  /// Triggers the celebrating mood for a finished challenge (8 seconds).
+  void celebrateChallenge() => _celebrate(challenge: true);
+
+  void _celebrate({bool milestone = false, bool challenge = false}) {
+    state = state.copyWith(
+      streakMilestoneHit: milestone || state.streakMilestoneHit,
+      challengeJustCompleted: challenge || state.challengeJustCompleted,
+    );
+    _celebrationTimer?.cancel();
+    _celebrationTimer = Timer(const Duration(seconds: 8), () {
+      state = state.copyWith(
+        streakMilestoneHit: false,
+        challengeJustCompleted: false,
+      );
+    });
+  }
+}
+
+/// Mock signals (swap for real data later).
+final mascotSignalsProvider =
+    NotifierProvider<MascotSignalsNotifier, MascotSignals>(
+  MascotSignalsNotifier.new,
+);
+
+/// Combined engine inputs: mock signals, the clock, missed blocks from the
+/// schedule, and the Snap Streak risk flag from the contract provider.
+final moodInputsProvider = Provider<MoodInputs>((ref) {
+  final signals = ref.watch(mascotSignalsProvider);
+  final now = ref.watch(nowProvider).asData?.value ?? ref.read(clockProvider)();
+  final missed = ref.watch(missedBlockNowProvider);
+  final atRisk = ref.watch(snapStreakAtRiskProvider);
+  return MoodInputs(
+    now: now,
+    workoutDoneToday: signals.workoutDoneToday,
+    missedBlockNow: missed,
+    daysSkippedInARow: signals.daysSkippedInARow,
+    streakMilestoneHit: signals.streakMilestoneHit,
+    challengeJustCompleted: signals.challengeJustCompleted,
+    snapStreakAtRisk: atRisk,
+  );
+});
+
+/// Debug-only forced mood. `null` means "use the engine".
+class MascotDebugMoodNotifier extends Notifier<MascotMood?> {
+  @override
+  MascotMood? build() => null;
+
+  /// Forces [mood], or clears the override when null.
+  void force(MascotMood? mood) => state = mood;
+}
+
+/// Debug-only mood override, ignored in release builds.
+final mascotDebugMoodProvider =
+    NotifierProvider<MascotDebugMoodNotifier, MascotMood?>(
+  MascotDebugMoodNotifier.new,
+);
+
+/// The mascot's current mood.
+final moodProvider = Provider<MascotMood>((ref) {
+  if (kDebugMode) {
+    final forced = ref.watch(mascotDebugMoodProvider);
+    if (forced != null) return forced;
+  }
+  return const MoodEngine().decide(ref.watch(moodInputsProvider));
+});
+
+/// Where message templates come from.
+final mascotMessagesRepositoryProvider = Provider<MascotMessagesRepository>(
+  (ref) => AssetMascotMessagesRepository(),
+);
+
+/// Loaded message templates.
+final mascotTemplatesProvider = FutureProvider<MascotMessageTemplates>(
+  (ref) => ref.watch(mascotMessagesRepositoryProvider).load(),
+);
+
+/// Counter that selects which message variant is shown.
+class MascotVariantNotifier extends Notifier<int> {
+  @override
+  int build() => math.Random().nextInt(1000);
+
+  /// Shows the next message variant.
+  void next() => state = state + 1;
+}
+
+/// Message variant counter. Call `.notifier.next()` on mascot tap.
+final mascotVariantProvider = NotifierProvider<MascotVariantNotifier, int>(
+  MascotVariantNotifier.new,
+);
+
+/// The speech-bubble text for the current mood, with the user's name.
+final mascotMessageProvider = Provider<String>((ref) {
+  final mood = ref.watch(moodProvider);
+  final variant = ref.watch(mascotVariantProvider);
+  final templates = ref.watch(mascotTemplatesProvider).asData?.value ??
+      MascotMessageTemplates.fallback;
+  final name = ref.watch(currentProfileProvider).asData?.value?.name;
+  return const MascotMessagePicker().pick(
+    templates: templates,
+    mood: mood,
+    name: name,
+    now: ref.read(clockProvider)(),
+    variant: variant,
+  );
+});

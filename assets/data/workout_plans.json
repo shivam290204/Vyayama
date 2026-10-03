@@ -1,0 +1,140 @@
+{
+  "plans": [
+    {"id":"plan_lose_beginner","title":"Fat-Burn Starter","goal":"lose","level":"beginner","is_system":true,"owner_id":null,
+     "days":[
+      {"day_number":1,"name":"Full-Body Starter","exercises":[
+        {"exercise_id":"ex_bodyweight_squat","sets":3,"reps":10},
+        {"exercise_id":"ex_incline_pushup","sets":3,"reps":8},
+        {"exercise_id":"ex_glute_bridge","sets":3,"reps":12},
+        {"exercise_id":"ex_dead_bug","sets":3,"reps":8},
+        {"exercise_id":"ex_march_in_place","sets":2,"duration_sec":45,"rest_sec":30}]},
+      {"day_number":3,"name":"Cardio Steps","exercises":[
+        {"exercise_id":"ex_brisk_walk","sets":1,"duration_sec":600},
+        {"exercise_id":"ex_step_jacks","sets":3,"duration_sec":40,"rest_sec":30},
+        {"exercise_id":"ex_calf_raise","sets":3,"reps":15},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":20}]},
+      {"day_number":5,"name":"Strength & Core","exercises":[
+        {"exercise_id":"ex_lunge","sets":3,"reps":8},
+        {"exercise_id":"ex_bird_dog","sets":3,"reps":8},
+        {"exercise_id":"ex_superman","sets":3,"reps":10},
+        {"exercise_id":"ex_bicycle_crunch","sets":3,"reps":12}]},
+      {"day_number":6,"name":"Stretch & Flow","exercises":[
+        {"exercise_id":"ex_sun_salutation","sets":3,"reps":5},
+        {"exercise_id":"ex_cat_cow","sets":2,"duration_sec":45,"rest_sec":15},
+        {"exercise_id":"ex_child_pose","sets":2,"duration_sec":45,"rest_sec":15},
+        {"exercise_id":"ex_quad_stretch","sets":2,"duration_sec":30,"rest_sec":15}]}
+     ]},
+    {"id":"plan_gain_beginner","title":"Lean Muscle Builder","goal":"gain","level":"beginner","is_system":true,"owner_id":null,
+     "days":[
+      {"day_number":1,"name":"Push Day","exercises":[
+        {"exercise_id":"ex_incline_pushup","sets":3,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_shoulder_press","sets":3,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_chair_dips","sets":3,"reps":8,"rest_sec":60},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":30}]},
+      {"day_number":2,"name":"Pull Day","exercises":[
+        {"exercise_id":"ex_dumbbell_row","sets":3,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_band_pull_apart","sets":3,"reps":15},
+        {"exercise_id":"ex_dumbbell_curl","sets":3,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_superman","sets":3,"reps":10}]},
+      {"day_number":4,"name":"Leg Day","exercises":[
+        {"exercise_id":"ex_goblet_squat","sets":3,"reps":10,"rest_sec":75},
+        {"exercise_id":"ex_dumbbell_rdl","sets":3,"reps":10,"rest_sec":75},
+        {"exercise_id":"ex_lunge","sets":3,"reps":8},
+        {"exercise_id":"ex_calf_raise","sets":3,"reps":15},
+        {"exercise_id":"ex_glute_bridge","sets":3,"reps":12}]},
+      {"day_number":5,"name":"Full Body","exercises":[
+        {"exercise_id":"ex_bodyweight_squat","sets":3,"reps":12},
+        {"exercise_id":"ex_floor_press","sets":3,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_dead_bug","sets":3,"reps":10},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":30}]}
+     ]},
+    {"id":"plan_maintain_beginner","title":"Stay Active Weekly","goal":"maintain","level":"beginner","is_system":true,"owner_id":null,
+     "days":[
+      {"day_number":1,"name":"Walk & Core","exercises":[
+        {"exercise_id":"ex_brisk_walk","sets":1,"duration_sec":900},
+        {"exercise_id":"ex_dead_bug","sets":3,"reps":8},
+        {"exercise_id":"ex_bird_dog","sets":3,"reps":8}]},
+      {"day_number":2,"name":"Lower Body","exercises":[
+        {"exercise_id":"ex_bodyweight_squat","sets":3,"reps":10},
+        {"exercise_id":"ex_glute_bridge","sets":3,"reps":12},
+        {"exercise_id":"ex_calf_raise","sets":3,"reps":15},
+        {"exercise_id":"ex_clamshell","sets":2,"reps":12,"rest_sec":30}]},
+      {"day_number":4,"name":"Upper Body","exercises":[
+        {"exercise_id":"ex_incline_pushup","sets":3,"reps":8},
+        {"exercise_id":"ex_dumbbell_curl","sets":2,"reps":10},
+        {"exercise_id":"ex_shoulder_press","sets":2,"reps":10},
+        {"exercise_id":"ex_band_pull_apart","sets":3,"reps":12}]},
+      {"day_number":5,"name":"Light Cardio","exercises":[
+        {"exercise_id":"ex_march_in_place","sets":3,"duration_sec":60,"rest_sec":30},
+        {"exercise_id":"ex_step_jacks","sets":3,"duration_sec":40,"rest_sec":30},
+        {"exercise_id":"ex_jumping_jacks","sets":2,"duration_sec":30,"rest_sec":30}]},
+      {"day_number":6,"name":"Yoga & Stretch","exercises":[
+        {"exercise_id":"ex_sun_salutation","sets":3,"reps":5},
+        {"exercise_id":"ex_cat_cow","sets":2,"duration_sec":45,"rest_sec":15},
+        {"exercise_id":"ex_child_pose","sets":2,"duration_sec":45,"rest_sec":15},
+        {"exercise_id":"ex_hamstring_stretch","sets":2,"duration_sec":30,"rest_sec":15},
+        {"exercise_id":"ex_shoulder_stretch","sets":2,"duration_sec":30,"rest_sec":15}]}
+     ]},
+    {"id":"plan_lose_intermediate","title":"Calorie Crusher","goal":"lose","level":"intermediate","is_system":true,"owner_id":null,
+     "days":[
+      {"day_number":1,"name":"HIIT Circuit","exercises":[
+        {"exercise_id":"ex_burpee","sets":3,"reps":8,"rest_sec":45},
+        {"exercise_id":"ex_high_knees","sets":3,"duration_sec":30,"rest_sec":30},
+        {"exercise_id":"ex_jumping_jacks","sets":3,"duration_sec":45,"rest_sec":30},
+        {"exercise_id":"ex_bodyweight_squat","sets":4,"reps":15},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":45}]},
+      {"day_number":2,"name":"Lower-Body Strength","exercises":[
+        {"exercise_id":"ex_goblet_squat","sets":4,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_dumbbell_rdl","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_lunge","sets":3,"reps":12},
+        {"exercise_id":"ex_glute_bridge","sets":3,"reps":15},
+        {"exercise_id":"ex_calf_raise","sets":3,"reps":20,"rest_sec":30}]},
+      {"day_number":3,"name":"Jog & Core","exercises":[
+        {"exercise_id":"ex_light_jog","sets":1,"duration_sec":1200},
+        {"exercise_id":"ex_bicycle_crunch","sets":3,"reps":20},
+        {"exercise_id":"ex_dead_bug","sets":3,"reps":12},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":45}]},
+      {"day_number":5,"name":"Upper Body & Cardio","exercises":[
+        {"exercise_id":"ex_pushup","sets":3,"reps":12},
+        {"exercise_id":"ex_dumbbell_row","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_shoulder_press","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_step_jacks","sets":3,"duration_sec":45,"rest_sec":30},
+        {"exercise_id":"ex_jumping_jacks","sets":3,"duration_sec":45,"rest_sec":30}]},
+      {"day_number":6,"name":"Flow & Recover","exercises":[
+        {"exercise_id":"ex_sun_salutation","sets":4,"reps":6},
+        {"exercise_id":"ex_cat_cow","sets":2,"duration_sec":60,"rest_sec":15},
+        {"exercise_id":"ex_child_pose","sets":2,"duration_sec":60,"rest_sec":15},
+        {"exercise_id":"ex_brisk_walk","sets":1,"duration_sec":1200}]}
+     ]},
+    {"id":"plan_gain_intermediate","title":"Strength Builder","goal":"gain","level":"intermediate","is_system":true,"owner_id":null,
+     "days":[
+      {"day_number":1,"name":"Chest & Triceps","exercises":[
+        {"exercise_id":"ex_pushup","sets":4,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_floor_press","sets":4,"reps":10,"rest_sec":75},
+        {"exercise_id":"ex_chair_dips","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_shoulder_press","sets":3,"reps":10,"rest_sec":60}]},
+      {"day_number":2,"name":"Back & Biceps","exercises":[
+        {"exercise_id":"ex_dumbbell_row","sets":4,"reps":10,"rest_sec":75},
+        {"exercise_id":"ex_band_pull_apart","sets":4,"reps":15},
+        {"exercise_id":"ex_dumbbell_curl","sets":4,"reps":10,"rest_sec":60},
+        {"exercise_id":"ex_superman","sets":3,"reps":12}]},
+      {"day_number":4,"name":"Legs & Glutes","exercises":[
+        {"exercise_id":"ex_goblet_squat","sets":4,"reps":10,"rest_sec":90},
+        {"exercise_id":"ex_dumbbell_rdl","sets":4,"reps":10,"rest_sec":90},
+        {"exercise_id":"ex_lunge","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_glute_bridge","sets":4,"reps":12},
+        {"exercise_id":"ex_calf_raise","sets":4,"reps":15,"rest_sec":30}]},
+      {"day_number":5,"name":"Shoulders & Core","exercises":[
+        {"exercise_id":"ex_shoulder_press","sets":4,"reps":10,"rest_sec":75},
+        {"exercise_id":"ex_plank","sets":3,"duration_sec":60},
+        {"exercise_id":"ex_bicycle_crunch","sets":3,"reps":20},
+        {"exercise_id":"ex_dead_bug","sets":3,"reps":12}]},
+      {"day_number":6,"name":"Full Body","exercises":[
+        {"exercise_id":"ex_bodyweight_squat","sets":4,"reps":15},
+        {"exercise_id":"ex_pushup","sets":3,"reps":15,"rest_sec":60},
+        {"exercise_id":"ex_dumbbell_row","sets":3,"reps":12,"rest_sec":60},
+        {"exercise_id":"ex_burpee","sets":3,"reps":8,"rest_sec":60},
+        {"exercise_id":"ex_brisk_walk","sets":1,"duration_sec":600}]}
+     ]}
+  ]
+}

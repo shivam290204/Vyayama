@@ -1,0 +1,51 @@
+import 'package:fitbuddy/features/mascot/mascot_constants.dart';
+import 'package:fitbuddy/features/mascot/mascot_mood.dart';
+import 'package:flutter/material.dart';
+import 'package:rive/rive.dart';
+
+/// Plays `assets/rive/mascot.riv` and drives its `mood` number input.
+class RiveMascot extends StatefulWidget {
+  /// Creates the Rive-powered mascot.
+  const RiveMascot({super.key, required this.mood});
+
+  /// Mood to show.
+  final MascotMood mood;
+
+  @override
+  State<RiveMascot> createState() => _RiveMascotState();
+}
+
+class _RiveMascotState extends State<RiveMascot> {
+  SMINumber? _moodInput;
+
+  void _onInit(Artboard artboard) {
+    final controller = StateMachineController.fromArtboard(
+      artboard,
+      MascotAssets.stateMachine,
+    );
+    if (controller == null) return;
+    artboard.addController(controller);
+    final input = controller.findInput<double>(MascotAssets.moodInput);
+    if (input is SMINumber) {
+      _moodInput = input;
+      input.value = widget.mood.riveValue;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RiveMascot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mood != widget.mood) {
+      _moodInput?.value = widget.mood.riveValue;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RiveAnimation.asset(
+      MascotAssets.rivePath,
+      fit: BoxFit.contain,
+      onInit: _onInit,
+    );
+  }
+}
