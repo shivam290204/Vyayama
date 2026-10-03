@@ -44,7 +44,7 @@ class SessionExerciseView extends StatelessWidget {
               textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
           const SizedBox(height: 12),
           ExerciseAnimation(
-              asset: ex.animationAsset, label: ex.name, height: 180),
+              asset: ex.animationAsset, poses: ex.poses, label: ex.name, height: 180),
           const SizedBox(height: 16),
           Text(
             'Set ${state.setIndex + 1} of ${item.sets}',

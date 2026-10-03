@@ -59,7 +59,6 @@ class MascotSoundService {
 
     if (newMood == MascotMood.happy || newMood == MascotMood.proud || newMood == MascotMood.celebrating) {
       try {
-        await _player.play(AssetSource('audio/happy.mp3'));
         HapticFeedback.lightImpact();
       } catch (e) {
         // fail silently

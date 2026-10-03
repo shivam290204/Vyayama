@@ -15,6 +15,11 @@ class Exercise {
     required this.contraindications,
     required this.met,
     this.animationAsset,
+    this.formChecklist = const [],
+    this.poses = const [],
+    this.semanticDescription = '',
+    this.reviewedBy,
+    this.reviewedAt,
   });
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
@@ -28,6 +33,11 @@ class Exercise {
       contraindications: jsonStringList(json['contraindications']),
       met: (json['met'] as num?)?.toDouble() ?? 3.0,
       animationAsset: json['animation_asset'] as String?,
+      formChecklist: jsonStringList(json['form_checklist']),
+      poses: jsonStringList(json['poses']),
+      semanticDescription: (json['semantic_description'] as String?) ?? '',
+      reviewedBy: json['reviewed_by'] as String?,
+      reviewedAt: json['reviewed_at'] as String?,
     );
   }
 
@@ -40,6 +50,11 @@ class Exercise {
   final List<String> contraindications;
   final double met;
   final String? animationAsset;
+  final List<String> formChecklist;
+  final List<String> poses;
+  final String semanticDescription;
+  final String? reviewedBy;
+  final String? reviewedAt;
 
   /// Contraindication tags of this exercise that match [tags]
   /// (case-insensitive). Empty means no conflict.
@@ -66,6 +81,11 @@ class Exercise {
         'animation_asset': animationAsset,
         'contraindications': contraindications,
         'met': met,
+        'form_checklist': formChecklist,
+        'poses': poses,
+        'semantic_description': semanticDescription,
+        'reviewed_by': reviewedBy,
+        'reviewed_at': reviewedAt,
       };
 
   @override

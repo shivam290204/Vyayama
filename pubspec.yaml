@@ -50,6 +50,7 @@ dependencies:
   freezed_annotation: ^2.4.4
   json_annotation: ^4.9.0
   audioplayers: ^6.8.1
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -70,3 +71,4 @@ flutter:
     - assets/lottie/
     - assets/images/
     - assets/audio/
+    - assets/exercises/

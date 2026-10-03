@@ -63,6 +63,7 @@ class _Body extends StatelessWidget {
         children: [
           ExerciseAnimation(
             asset: exercise.animationAsset,
+            poses: exercise.poses,
             label: exercise.name,
             height: 240,
           ),

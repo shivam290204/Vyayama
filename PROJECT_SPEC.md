@@ -49,8 +49,17 @@ Adults 18+ who want to lose weight, gain weight, or stay fit, including beginner
 | Auth | Supabase Auth | Email and password, Google sign-in (Apple sign-in required later for iOS release) |
 | Database | Supabase Postgres | Row Level Security on every user table |
 | Mascot animation | **Rive** (`rive` package) | One character with a state machine: moods as inputs |
-| Exercise animations | **Lottie** (`lottie`) or short looping video | Use licensed or free assets, not scraped |
+| Exercise animations | **SVG Alternating Poses** (`flutter_svg`) for MVP, falling back to **Lottie** (`lottie`) if assets exist. | Renderer pattern implemented for future **Rive** swap. Form checklist added for safety. |
 | Health data | `health` package | Apple HealthKit and Android Health Connect |
+
+### Animation Asset Strategy & Effort
+For the MVP, we rely on alternating SVG poses (Start and Finish). This reduces asset creation effort significantly (rough guesses are <15 minutes for SVGs vs >3 hours for Lottie/Rive per exercise; to be revisited after creating real assets), making it manageable by a solo developer without animation experience. 
+
+*Note: The current SVGs are simple AI-made placeholders. No exercises are trainer-reviewed yet. See [REVIEW_CHECKLIST.md](./REVIEW_CHECKLIST.md) for the safety approval process before launch.*
+
+The threshold for evaluating a switch from bundled SVGs/Lottie to remote assets or Rive is: **When app download size grows noticeably, or when we need to update exercises without pushing an app release.**
+
+*Future Rive Swap: The renderer factory pattern easily supports a `RiveRenderer`. Before implementation, we must check the latest `rive` package version on pub.dev to ensure compatibility.*
 | Local notifications and alarms | `flutter_local_notifications` + `timezone` | Reminders must work offline |
 | Push notifications | Firebase Cloud Messaging (`firebase_messaging`) | Needed from Milestone 12 for friend requests, snaps, and streak alerts |
 | Local storage | `shared_preferences` (settings), bundled JSON assets (exercises, quotes) | |
