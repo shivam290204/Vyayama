@@ -16,7 +16,7 @@ dependencies:
   go_router: ^14.6.2
 
   # Backend and config
-  supabase_flutter: ^2.8.0
+  supabase_flutter: ^2.18.0
   flutter_dotenv: ^5.2.1
 
   # UI and animation
@@ -70,5 +70,6 @@ flutter:
     - assets/rive/
     - assets/lottie/
     - assets/images/
+    - assets/images/mascot/
     - assets/audio/
     - assets/exercises/

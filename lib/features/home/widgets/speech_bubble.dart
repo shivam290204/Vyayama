@@ -16,6 +16,10 @@ class SpeechBubble extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final isDark = scheme.brightness == Brightness.dark;
+    final bubbleColor = scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.6 : 0.9);
+    final borderColor = scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5);
+
     return Semantics(
       liveRegion: true,
       container: true,
@@ -26,8 +30,9 @@ class SpeechBubble extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 420),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
+              color: bubbleColor,
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: 1),
             ),
             child: AnimatedSwitcher(
               duration:
@@ -36,14 +41,17 @@ class SpeechBubble extends StatelessWidget {
                 message,
                 key: ValueKey<String>(message),
                 textAlign: TextAlign.center,
-                style: text.titleMedium?.copyWith(color: scheme.onSurface),
+                style: text.titleMedium?.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
           ExcludeSemantics(
             child: CustomPaint(
               size: const Size(24, 12),
-              painter: _TailPainter(scheme.surfaceContainerHighest),
+              painter: _TailPainter(bubbleColor),
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/features/challenges/providers.dart';
 import 'package:fitbuddy/features/challenges/widgets/challenge_summary_card.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
@@ -10,6 +11,7 @@ import 'package:fitbuddy/features/mascot/mascot_debug_panel.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_boost_card.dart';
 import 'package:fitbuddy/features/schedule/providers.dart';
+import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,20 +35,23 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => _refresh(ref),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
-                  child: const _HomeContent(),
+      backgroundColor: Colors.transparent, // Let GlowBackground show through
+      body: GlowBackground(
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: () => _refresh(ref),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: const _HomeContent(),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -59,8 +64,7 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return const StaggeredEntrance(
       children: [
         GreetingHeader(),
         SizedBox(height: 16),

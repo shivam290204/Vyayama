@@ -10,12 +10,19 @@ import 'package:fitbuddy/features/mascot/providers.dart';
 import 'package:fitbuddy/features/schedule/clock_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
+import 'package:fitbuddy/features/challenges/data/supabase_challenge_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 /// XP for the first workout of a day (counts as a streak activity).
 const int workoutActivityXp = 20;
 
-/// Challenge storage. Antigravity swaps in the Supabase implementation here.
+/// Challenge storage. Swapped in the Supabase implementation.
 final challengeRepositoryProvider = Provider<ChallengeRepository>(
-  (ref) => MockChallengeRepository(),
+  (ref) => SupabaseChallengeRepository(
+    client: Supabase.instance.client,
+    prefs: ref.watch(sharedPreferencesProvider),
+  ),
 );
 
 /// All challenges available for the daily rotation.

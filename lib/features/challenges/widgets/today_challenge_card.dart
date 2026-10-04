@@ -66,10 +66,28 @@ class _Shell extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(padding: const EdgeInsets.all(20), child: child),
-      );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(24), child: child),
+    );
+  }
 }
 
 class _Content extends StatelessWidget {

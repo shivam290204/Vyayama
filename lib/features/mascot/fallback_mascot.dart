@@ -1,7 +1,6 @@
+import 'dart:math' as math;
 import 'package:fitbuddy/features/mascot/mascot_mood.dart';
-import 'package:fitbuddy/features/mascot/mascot_painter.dart';
 import 'package:flutter/material.dart';
-import 'package:fitbuddy/core/theme/app_theme.dart';
 
 class FallbackMascot extends StatefulWidget {
   const FallbackMascot({super.key, required this.mood, required this.size});
@@ -22,7 +21,7 @@ class _FallbackMascotState extends State<FallbackMascot>
 
   late final AnimationController _bounceController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 500), // Base bounce duration
+    duration: const Duration(milliseconds: 500),
   );
 
   double _bounceCount = 0;
@@ -74,64 +73,50 @@ class _FallbackMascotState extends State<FallbackMascot>
     super.dispose();
   }
 
-  MascotConfig _getConfigForMood(MascotMood mood, ColorScheme scheme) {
-    final accent = AppPalette.accent;
-
+  String _getAssetForMood(MascotMood mood) {
     switch (mood) {
-      case MascotMood.neutral:
-        return MascotConfig(bodyColor: accent, curvature: 0.15, wobble: 0, scaleY: 1.0, eyeOpenness: 1.0, eyebrowsAmount: 0);
-      case MascotMood.happy:
-        return MascotConfig(bodyColor: accent, curvature: 1.0, wobble: 0, scaleY: 1.0, eyeOpenness: 1.0, eyebrowsAmount: 0);
-      case MascotMood.proud:
-        return MascotConfig(bodyColor: accent, curvature: 0.8, wobble: 0, scaleY: 1.0, eyeOpenness: 0.5, eyebrowsAmount: 0);
-      case MascotMood.celebrating:
-        return MascotConfig(bodyColor: accent, curvature: 1.2, wobble: 0, scaleY: 1.0, eyeOpenness: 1.0, eyebrowsAmount: 0);
-      case MascotMood.sad:
-        // Desaturate slightly by lerping with grey/surface
-        return MascotConfig(bodyColor: Color.lerp(accent, scheme.surfaceContainerHighest, 0.4) ?? accent, curvature: -0.9, wobble: 0, scaleY: 0.95, eyeOpenness: 1.0, eyebrowsAmount: 0);
       case MascotMood.angry:
-        return MascotConfig(bodyColor: AppPalette.error, curvature: -0.4, wobble: 0, scaleY: 1.0, eyeOpenness: 1.0, eyebrowsAmount: 1.0);
+        return 'assets/images/mascot/anger.png';
+      case MascotMood.sad:
       case MascotMood.worried:
-        return MascotConfig(bodyColor: accent, curvature: -0.3, wobble: 0.6, scaleY: 1.0, eyeOpenness: 1.0, eyebrowsAmount: 0);
+        return 'assets/images/mascot/sad.png';
+      case MascotMood.happy:
+      case MascotMood.proud:
+      case MascotMood.celebrating:
+      case MascotMood.neutral:
       case MascotMood.sleepy:
-        return MascotConfig(bodyColor: Color.lerp(accent, Colors.black, 0.2) ?? accent, curvature: 0.1, wobble: 0, scaleY: 1.0, eyeOpenness: 0.1, eyebrowsAmount: 0);
+        return 'assets/images/mascot/happy.png';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final targetConfig = _getConfigForMood(widget.mood, scheme);
+    final assetPath = _getAssetForMood(widget.mood);
 
-    return TweenAnimationBuilder<MascotConfig>(
-      tween: _MascotConfigTween(end: targetConfig),
-      duration: _reduceMotion ? Duration.zero : const Duration(milliseconds: 250),
-      builder: (context, config, _) {
-        return AnimatedBuilder(
-          animation: Listenable.merge([_loopController, _bounceController]),
-          builder: (context, _) => CustomPaint(
-            size: Size.square(widget.size),
-            painter: MascotPainter(
-              config: config,
-              loopTime: _loopController.value,
-              bounceTime: _bounceController.value,
-              bounceCount: _bounceCount,
-              tearColor: AppPalette.primary,
-              onBodyColor: AppPalette.darkBackground, // Original dark text for eyes/mouth on accent/red
-            ),
-          ),
+    return AnimatedBuilder(
+      animation: Listenable.merge([_loopController, _bounceController]),
+      builder: (context, child) {
+        double yOffset = 0.0;
+        if (_bounceController.isAnimating && _bounceCount > 0) {
+          final t = _bounceController.value * _bounceCount * math.pi;
+          yOffset = -math.sin(t).abs() * (widget.size * 0.1);
+        } else if (_loopController.isAnimating) {
+          yOffset = -math.sin(_loopController.value * math.pi * 2) *
+              (widget.size * 0.02);
+        }
+
+        return Transform.translate(
+          offset: Offset(0, yOffset),
+          child: child,
         );
       },
+      child: Image.asset(
+        assetPath,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        key: ValueKey(assetPath),
+      ),
     );
-  }
-}
-
-class _MascotConfigTween extends Tween<MascotConfig> {
-  _MascotConfigTween({required super.end});
-  
-  @override
-  MascotConfig lerp(double t) {
-    if (begin == null) return end!;
-    return MascotConfig.lerp(begin!, end!, t);
   }
 }

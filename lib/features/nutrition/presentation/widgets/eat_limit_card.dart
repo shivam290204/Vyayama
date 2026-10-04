@@ -46,49 +46,92 @@ class _TipGroup extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
     final tips = ref.watch(tipsByCategoryProvider(category));
+    final isEatMore = category == DietTip.eatMore;
+    final iconColor = isEatMore ? Colors.green : Colors.red;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        shape: const Border(),
-        collapsedShape: const Border(),
-        initiallyExpanded: initiallyExpanded,
-        leading: Icon(icon, semanticLabel: title),
-        title: Text(title, style: text.titleMedium),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        expandedCrossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          AsyncValueView<List<DietTip>>(
-            value: tips,
-            onRetry: () => ref.invalidate(dietTipsProvider),
-            builder: (list) {
-              if (list.isEmpty) {
-                return Text(
-                  'Nothing to show right now.',
-                  style: text.bodyMedium,
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  for (final tip in list)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(tip.title, style: text.titleSmall),
-                          const SizedBox(height: 2),
-                          Text(tip.body, style: text.bodyMedium),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            },
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          shape: const Border(),
+          collapsedShape: const Border(),
+          initiallyExpanded: initiallyExpanded,
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, semanticLabel: title),
+          ),
+          title: Text(title, style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          childrenPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            AsyncValueView<List<DietTip>>(
+              value: tips,
+              onRetry: () => ref.invalidate(dietTipsProvider),
+              builder: (list) {
+                if (list.isEmpty) {
+                  return Text(
+                    'Nothing to show right now.',
+                    style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    for (final tip in list)
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: scheme.outline.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(isEatMore ? Icons.check : Icons.close, color: iconColor, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(tip.title, style: text.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text(tip.body, style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

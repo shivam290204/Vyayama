@@ -1,6 +1,10 @@
 import 'package:fitbuddy/features/dashboard/body_metrics.dart';
 import 'package:flutter/foundation.dart';
 
+// TODO: Make daily targets editable in Settings later.
+// When implemented, store user overrides in SharedPreferences or Supabase
+// and merge them with the goal-based defaults below.
+
 /// Daily goals for the progress rings, adjusted by the user's goal.
 @immutable
 class DailyTargets {
@@ -27,14 +31,20 @@ class DailyTargets {
         ),
       FitGoal.maintain => const DailyTargets(
           steps: defaultSteps,
-          activeMinutes: 30,
-          activeCalories: 300,
+          activeMinutes: defaultActiveMinutes,
+          activeCalories: defaultCalories,
         ),
     };
   }
 
   /// Default daily step target (spec 5.3).
   static const int defaultSteps = 8000;
+
+  /// Default daily active minutes.
+  static const int defaultActiveMinutes = 30;
+
+  /// Default daily active calories.
+  static const int defaultCalories = 400;
 
   /// Daily steps.
   final int steps;
@@ -45,3 +55,4 @@ class DailyTargets {
   /// Daily active calories.
   final int activeCalories;
 }
+

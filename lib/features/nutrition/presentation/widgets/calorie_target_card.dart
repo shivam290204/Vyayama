@@ -39,24 +39,42 @@ class _MissingInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Card(
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Your daily calorie estimate', style: text.titleMedium),
+            Text('Your daily calorie estimate', style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
               'Add your age, height and weight in your profile to see an '
               'estimate.',
-              style: text.bodyMedium,
+              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 12),
-            FilledButton(
+            const SizedBox(height: 16),
+            FilledButton.icon(
               style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: () => context.go(AppRoutes.profile),
-              child: const Text('Open profile'),
+              icon: const Icon(Icons.person),
+              label: const Text('Open profile'),
             ),
           ],
         ),
@@ -76,25 +94,58 @@ class _EstimateBody extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     final activity = ref.watch(activityLevelProvider);
+    final isDark = scheme.brightness == Brightness.dark;
     final goals = <NutritionGoal>[
       if (!isMinor) NutritionGoal.lose,
       NutritionGoal.maintain,
       NutritionGoal.gain,
     ];
-    final range =
-        '${formatKcal(estimate.lowKcal)} to ${formatKcal(estimate.highKcal)}';
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Your daily calorie estimate', style: text.titleMedium),
-            const SizedBox(height: 12),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.local_fire_department, color: scheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Daily Calorie Target', style: text.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text('Your Goal', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
             SegmentedButton<NutritionGoal>(
-              style: SegmentedButton.styleFrom(minimumSize: const Size(48, 48)),
-              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                backgroundColor: scheme.surface.withValues(alpha: 0.5),
+              ),
+              showSelectedIcon: true,
               segments: <ButtonSegment<NutritionGoal>>[
                 for (final goal in goals)
                   ButtonSegment<NutritionGoal>(
@@ -107,8 +158,8 @@ class _EstimateBody extends ConsumerWidget {
                   .read(goalOverrideProvider.notifier)
                   .select(selection.first),
             ),
-            const SizedBox(height: 12),
-            Text('How active are you?', style: text.labelLarge),
+            const SizedBox(height: 24),
+            Text('Activity Level', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -120,47 +171,69 @@ class _EstimateBody extends ConsumerWidget {
                     selected: level == activity,
                     onSelected: (_) =>
                         ref.read(activityLevelProvider.notifier).select(level),
+                    backgroundColor: scheme.surface.withValues(alpha: 0.5),
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               activity.description,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
             ),
-            const SizedBox(height: 16),
-            Semantics(
-              label: 'Estimated daily calories, $range kilocalories',
-              child: ExcludeSemantics(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      range,
-                      style: text.headlineMedium?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: scheme.surface.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Recommended Range',
+                    style: text.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${formatKcal(estimate.lowKcal)} - ${formatKcal(estimate.highKcal)}',
+                    style: text.displaySmall?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w800,
                     ),
-                    Text('kcal per day (estimate)', style: text.bodyMedium),
-                  ],
-                ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text('kcal per day', style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Resting Energy:', style: text.bodyMedium),
+                      Text('${formatKcal(estimate.bmr.round())} kcal', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('With Activity:', style: text.bodyMedium),
+                      Text('${formatKcal(estimate.tdee.round())} kcal', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Resting energy about ${formatKcal(estimate.bmr.round())} kcal. '
-              'With your activity about ${formatKcal(estimate.tdee.round())} '
-              'kcal.',
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
             if (estimate.floorApplied)
-              _Note(
+              const _Note(
                 'We kept this at a safe minimum. Very low targets are not '
                 'recommended.',
               ),
             if (estimate.weightLossRestricted)
-              _Note(
+              const _Note(
                 'Weight-loss targets are not shown for under 18s, so this is '
                 'a maintenance estimate.',
               ),

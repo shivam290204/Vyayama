@@ -68,42 +68,58 @@ class _BadgeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
     return Semantics(
       button: true,
       label: '${badge.title}, ${isEarned ? 'earned' : 'locked'}. '
           '${badge.description}',
       excludeSemantics: true,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+      child: GestureDetector(
         onTap: () => _showDetails(context),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: isEarned
-                    ? scheme.primaryContainer
-                    : scheme.surfaceContainerHighest,
-                child: Icon(
-                  isEarned ? _iconFor(badge.id) : Icons.lock_outline,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isEarned 
+                  ? scheme.primary.withValues(alpha: 0.2) 
+                  : scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+                border: Border.all(
                   color: isEarned
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurfaceVariant,
+                      ? scheme.primary.withValues(alpha: 0.5)
+                      : scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+                  width: isEarned ? 2 : 1,
                 ),
+                boxShadow: isEarned ? [
+                  BoxShadow(
+                    color: scheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  )
+                ] : [],
               ),
-              const SizedBox(height: 6),
-              Text(
-                badge.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: text.labelSmall?.copyWith(
-                  color: isEarned ? scheme.onSurface : scheme.onSurfaceVariant,
-                ),
+              child: Icon(
+                isEarned ? _iconFor(badge.id) : Icons.lock_outline,
+                color: isEarned
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                size: 28,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              badge.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: text.labelSmall?.copyWith(
+                fontWeight: isEarned ? FontWeight.bold : FontWeight.normal,
+                color: isEarned ? scheme.onSurface : scheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
         ),
       ),
     );

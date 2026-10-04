@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/meme_card.dart';
 import 'package:fitbuddy/features/schedule/clock_providers.dart';
@@ -72,13 +73,10 @@ class DailyBoostCard extends ConsumerWidget {
       },
     );
 
-    return Card(
+    return BouncingCard(
       margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.dailyBoost),
-        child: content,
-      ),
+      onTap: () => context.push(AppRoutes.dailyBoost),
+      child: content,
     );
   }
 }

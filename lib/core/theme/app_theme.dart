@@ -4,21 +4,19 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 
 abstract final class AppPalette {
-  // Dark mode
-  static const Color darkBackground = Color(0xFF14141A);
-  static const Color darkSurface = Color(0xFF21212B);
-  static const Color darkText = Color(0xFFF2F2F7);
+  // Dark mode (Midnight)
+  static const Color darkBackground = Color(0xFF121212);
+  static const Color darkSurface = Color(0xFF1E1E1E);
+  static const Color darkText = Color(0xFFF5F5F5);
 
-  // Light mode
-  static const Color lightBackground = Color(0xFFF7F6FB);
+  // Light mode (Clean)
+  static const Color lightBackground = Color(0xFFF8F9FA);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightText = Color(0xFF14141A);
+  static const Color lightText = Color(0xFF121212);
 
-  // Shared
-  // Original primary #7B61FF failed WCAG AA (4.21:1) with white text.
-  // Darkened to #7356FF to hit 4.65:1 contrast ratio.
-  static const Color primary = Color(0xFF7356FF);
-  static const Color accent = Color(0xFFC8F169);
+  // Shared (Ember & Sharp Blue)
+  static const Color primary = Color(0xFFFF5722); // Deep Orange
+  static const Color accent = Color(0xFF00C6FF); // Sharp Cyan/Blue
   static const Color error = Color(0xFFFF5D5D);
 }
 
@@ -49,8 +47,8 @@ abstract final class AppTheme {
       onPrimaryContainer: AppPalette.primary,
       secondaryContainer: AppPalette.accent.withValues(alpha: isDark ? 0.15 : 1.0),
       onSecondaryContainer: isDark ? AppPalette.accent : AppPalette.darkText,
-      surfaceContainerHighest: isDark ? const Color(0xFF2C2C35) : const Color(0xFFEBEBF0),
-      outline: isDark ? const Color(0xFF3A3A4A) : const Color(0xFFD1D1D6),
+      surfaceContainerHighest: isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0),
+      outline: isDark ? const Color(0xFF424242) : const Color(0xFFBDBDBD),
     );
 
     final base = ThemeData(useMaterial3: true, colorScheme: scheme);
@@ -72,6 +70,7 @@ abstract final class AppTheme {
     return base.copyWith(
       textTheme: textTheme,
       scaffoldBackgroundColor: scheme.surface,
+      splashFactory: InkRipple.splashFactory,
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -127,8 +126,14 @@ abstract final class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: surface,
-        shape: roundedLg,
+        color: surface.withValues(alpha: isDark ? 0.6 : 0.9), // Translucency for glassmorphism
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(
+            color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
+            width: 1,
+          ),
+        ),
       ),
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),

@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:fitbuddy/features/schedule/data/time_block.dart';
 import 'package:fitbuddy/features/schedule/widgets/block_type_ui.dart';
 import 'package:flutter/material.dart';
@@ -58,15 +59,13 @@ class TimeBlockCard extends StatelessWidget {
         ? shape.copyWith(side: BorderSide(color: scheme.primary.withValues(alpha: 0.5), width: 1))
         : shape;
 
-    return Card(
+    return BouncingCard(
       color: background,
-      margin: EdgeInsets.zero,
       shape: borderShape,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+      margin: EdgeInsets.zero,
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
           child: Padding(
             padding: EdgeInsets.symmetric(
               horizontal: 12,
@@ -133,7 +132,6 @@ class TimeBlockCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

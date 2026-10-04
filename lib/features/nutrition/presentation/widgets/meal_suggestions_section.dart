@@ -99,25 +99,43 @@ class _EmptyMeals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: <Widget>[
-            Icon(
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5)),
+      ),
+      child: Column(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
               Icons.restaurant_menu,
               size: 40,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: scheme.onSurfaceVariant,
               semanticLabel: 'No meals found',
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'No meals match these choices. Try another diet type or turn '
-              'off the conditions filter.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No meals match these choices.',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try another diet type or turn off the conditions filter to see more options.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
@@ -138,22 +156,78 @@ class _MealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      child: ListTile(
-        isThreeLine: true,
-        leading: Icon(_icon, semanticLabel: meal.mealType.label),
-        title: Text(meal.name),
-        subtitle: Text(
-          '${meal.description}\n'
-          'About ${meal.calories} kcal · ${meal.proteinG} g protein',
+    final text = Theme.of(context).textTheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.4 : 0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: isDark ? 0.2 : 0.5),
         ),
-        trailing: meal.cuisine == 'indian'
-            ? Icon(
-                Icons.location_on_outlined,
-                color: scheme.onSurfaceVariant,
-                semanticLabel: 'Indian dish',
-              )
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(_icon, color: scheme.primary, size: 32, semanticLabel: meal.mealType.label),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(meal.name, style: text.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                      ),
+                      if (meal.cuisine == 'indian')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text('Indian', style: text.labelSmall?.copyWith(color: Colors.orange)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(meal.description, style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text('${meal.calories} kcal', style: text.labelMedium?.copyWith(color: Colors.orange, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 16),
+                      Icon(Icons.fitness_center, size: 16, color: Colors.green),
+                      const SizedBox(width: 4),
+                      Text('${meal.proteinG}g protein', style: text.labelMedium?.copyWith(color: Colors.green, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

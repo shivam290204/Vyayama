@@ -22,14 +22,59 @@ class GreetingHeader extends ConsumerWidget {
       DayPart.night => 'Hello',
     };
     final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    
+    IconData timeIcon;
+    Color iconColor;
+    switch (DayPart.of(now)) {
+      case DayPart.morning:
+        timeIcon = Icons.wb_twilight;
+        iconColor = Colors.orangeAccent;
+        break;
+      case DayPart.afternoon:
+        timeIcon = Icons.wb_sunny;
+        iconColor = Colors.amber;
+        break;
+      case DayPart.evening:
+      case DayPart.night:
+        timeIcon = Icons.nights_stay;
+        iconColor = scheme.primary;
+        break;
+    }
+
     return Semantics(
       header: true,
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$greeting, $who!', style: text.headlineSmall),
-          const SizedBox(height: 2),
-          Text(formatLongDate(now), style: text.bodyMedium),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(timeIcon, color: iconColor, size: 28),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$greeting, $who!',
+                  style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatLongDate(now),
+                  style: text.bodyLarge?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

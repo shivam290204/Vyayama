@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:fitbuddy/features/challenges/providers.dart';
 import 'package:fitbuddy/features/schedule/format_utils.dart';
 import 'package:flutter/material.dart';
@@ -103,9 +104,8 @@ class ChallengeSummaryCard extends ConsumerWidget {
         );
       }
     }
-    return Card(
+    return BouncingCard(
       margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
       child: body,
     );
   }

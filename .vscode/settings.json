@@ -1,5 +1,6 @@
 {
   "deno.enablePaths": [
     "supabase/functions"
-  ]
+  ],
+  "cmake.sourceDirectory": "E:/FitBuddy/windows"
 }

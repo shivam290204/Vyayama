@@ -1,50 +1,90 @@
+import 'dart:async';
+
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
+import 'package:fitbuddy/features/dashboard/daily_targets.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
+import 'package:fitbuddy/features/home/widgets/progress_ring.dart';
 import 'package:fitbuddy/features/schedule/format_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Compact row with today's steps, calories and active minutes.
-/// Tapping opens the Dashboard.
-class SummaryRow extends ConsumerWidget {
+/// Animated circular progress rings for today's steps, calories, and active
+/// minutes. Tapping opens the Dashboard.
+///
+/// Live-updates every 60 seconds while visible and the app is in the
+/// foreground. Cancels the timer on dispose and when backgrounded.
+class SummaryRow extends ConsumerStatefulWidget {
   /// Creates the row.
   const SummaryRow({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SummaryRow> createState() => _SummaryRowState();
+}
+
+class _SummaryRowState extends ConsumerState<SummaryRow>
+    with WidgetsBindingObserver {
+  Timer? _refreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _stopTimer();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh immediately on app resume.
+      ref.invalidate(recentStatsProvider);
+      _startTimer();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _stopTimer();
+    }
+  }
+
+  void _startTimer() {
+    _stopTimer();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted) ref.invalidate(recentStatsProvider);
+    });
+  }
+
+  void _stopTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final stats = ref.watch(todayStatsProvider);
-    return Card(
+    final targets = ref.watch(dailyTargetsProvider);
+
+    return BouncingCard(
       margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.dashboard),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 72),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: stats.when(
-              loading: () => const Center(
-                child: SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(strokeWidth: 3),
-                ),
-              ),
-              error: (_, __) => Row(
-                children: [
-                  const SizedBox(width: 8),
-                  const Icon(Icons.error_outline, semanticLabel: 'Error'),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Text("Couldn't load your activity")),
-                  TextButton(
-                    onPressed: () => ref.invalidate(recentStatsProvider),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-              data: (s) => _Stats(stats: s),
+      onTap: () => context.push(AppRoutes.dashboard),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 120),
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: stats.when(
+            loading: () => _LoadingSkeleton(),
+            error: (_, __) => _ErrorState(
+              onRetry: () => ref.invalidate(recentStatsProvider),
             ),
+            data: (s) => _RingsRow(stats: s, targets: targets),
           ),
         ),
       ),
@@ -52,14 +92,20 @@ class SummaryRow extends ConsumerWidget {
   }
 }
 
-class _Stats extends StatelessWidget {
-  const _Stats({required this.stats});
+class _RingsRow extends StatelessWidget {
+  const _RingsRow({required this.stats, required this.targets});
 
   final DailyStats stats;
+  final DailyTargets targets;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final trackColor = scheme.surfaceContainerHighest;
+
+    // Lighter tint of primary for active minutes.
+    final primaryTint = Color.lerp(scheme.primary, scheme.surface, 0.35)!;
+
     return Semantics(
       button: true,
       label: "Today's activity. Open dashboard",
@@ -68,24 +114,40 @@ class _Stats extends StatelessWidget {
           '${stats.activeMinutes} active minutes',
       excludeSemantics: true,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _Stat(
-            icon: Icons.directions_walk,
-            color: scheme.primary,
-            value: formatInt(stats.steps),
-            label: 'steps',
+          Flexible(
+            child: ProgressRing(
+              value: stats.steps,
+              goal: targets.steps,
+              ringColor: scheme.primary,
+              trackColor: trackColor,
+              icon: Icons.directions_walk,
+              label: 'steps',
+              semanticGoalLabel: 'Steps',
+            ),
           ),
-          _Stat(
-            icon: Icons.local_fire_department,
-            color: scheme.tertiary,
-            value: formatInt(stats.calories),
-            label: 'kcal',
+          Flexible(
+            child: ProgressRing(
+              value: stats.calories,
+              goal: targets.activeCalories,
+              ringColor: scheme.secondary,
+              trackColor: trackColor,
+              icon: Icons.local_fire_department,
+              label: 'kcal',
+              semanticGoalLabel: 'Calories',
+            ),
           ),
-          _Stat(
-            icon: Icons.timer_outlined,
-            color: scheme.secondary,
-            value: '${stats.activeMinutes}',
-            label: 'min active',
+          Flexible(
+            child: ProgressRing(
+              value: stats.activeMinutes,
+              goal: targets.activeMinutes,
+              ringColor: primaryTint,
+              trackColor: trackColor,
+              icon: Icons.timer_outlined,
+              label: 'min active',
+              semanticGoalLabel: 'Active minutes',
+            ),
           ),
         ],
       ),
@@ -93,35 +155,35 @@ class _Stats extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.icon,
-    required this.color,
-    required this.value,
-    required this.label,
-  });
+class _LoadingSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        Flexible(child: ProgressRingSkeleton()),
+        Flexible(child: ProgressRingSkeleton()),
+        Flexible(child: ProgressRingSkeleton()),
+      ],
+    );
+  }
+}
 
-  final IconData icon;
-  final Color color;
-  final String value;
-  final String label;
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(value, style: text.titleMedium),
-          ),
-          Text(label, style: text.bodySmall, textAlign: TextAlign.center),
-        ],
-      ),
+    return Row(
+      children: [
+        const SizedBox(width: 8),
+        const Icon(Icons.error_outline, semanticLabel: 'Error'),
+        const SizedBox(width: 12),
+        const Expanded(child: Text("Couldn't load your activity")),
+        TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
     );
   }
 }

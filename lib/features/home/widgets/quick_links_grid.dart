@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -44,26 +45,23 @@ class QuickLinksGrid extends StatelessWidget {
           button: true,
           label: link.label,
           excludeSemantics: true,
-          child: Card(
+          child: BouncingCard(
             margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => context.push(link.path),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(link.icon, size: 28, color: scheme.primary),
-                    const SizedBox(height: 6),
-                    Text(
-                      link.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: text.labelLarge,
-                    ),
-                  ],
-                ),
+            onTap: () => context.push(link.path),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(link.icon, size: 28, color: scheme.primary),
+                  const SizedBox(height: 6),
+                  Text(
+                    link.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.labelLarge,
+                  ),
+                ],
               ),
             ),
           ),
