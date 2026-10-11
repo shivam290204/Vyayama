@@ -13,32 +13,17 @@ class ConditionsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final rules = ref.watch(conditionRulesProvider);
     final selected = ref.watch(selectedConditionKeysProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('Health conditions', style: text.titleMedium),
-        const SizedBox(height: 4),
-        Text(
-          'Pick anything that applies so we can suggest gentler exercise '
-          'options. You can change this anytime.',
-          style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 12),
-        AsyncValueView<List<ConditionRule>>(
-          value: rules,
-          onRetry: () => ref.invalidate(conditionRulesProvider),
-          builder: (ruleList) => AsyncValueView<List<String>>(
-            value: selected,
-            onRetry: () => ref.invalidate(selectedConditionKeysProvider),
-            builder: (keys) => _ConditionsBody(rules: ruleList, keys: keys),
-          ),
-        ),
-      ],
+    return AsyncValueView<List<ConditionRule>>(
+      value: rules,
+      onRetry: () => ref.invalidate(conditionRulesProvider),
+      builder: (ruleList) => AsyncValueView<List<String>>(
+        value: selected,
+        onRetry: () => ref.invalidate(selectedConditionKeysProvider),
+        builder: (keys) => _ConditionsBody(rules: ruleList, keys: keys),
+      ),
     );
   }
 }
@@ -66,6 +51,7 @@ class _ConditionsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final hasCondition = keys.any((k) => k != 'none');
     final chosen = rules
         .where((r) => keys.contains(r.key) && r.key != 'none')
@@ -79,12 +65,11 @@ class _ConditionsBody extends ConsumerWidget {
           runSpacing: 8,
           children: <Widget>[
             for (final rule in rules)
-              FilterChip(
-                avatar: Icon(_iconFor(rule.key), size: 18),
-                label: Text(rule.label),
-                tooltip: rule.description,
+              _AnimatedChip(
+                rule: rule,
                 selected: keys.contains(rule.key),
-                onSelected: (_) => _toggle(context, ref, rule.key),
+                onToggle: () => _toggle(context, ref, rule.key),
+                scheme: scheme,
               ),
           ],
         ),
@@ -97,6 +82,64 @@ class _ConditionsBody extends ConsumerWidget {
           ConditionDetailsCard(rule: rule),
         ],
       ],
+    );
+  }
+}
+
+/// A condition chip with animated selection state, gradient when selected.
+class _AnimatedChip extends StatelessWidget {
+  const _AnimatedChip({
+    required this.rule,
+    required this.selected,
+    required this.onToggle,
+    required this.scheme,
+  });
+
+  final ConditionRule rule;
+  final bool selected;
+  final VoidCallback onToggle;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutBack,
+      tween: Tween(begin: 1.0, end: selected ? 1.05 : 1.0),
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: child,
+        );
+      },
+      child: FilterChip(
+        avatar: Icon(
+          _iconFor(rule.key),
+          size: 18,
+          color: selected ? scheme.onPrimary : scheme.primary,
+        ),
+        label: Text(
+          rule.label,
+          style: TextStyle(
+            color: selected ? scheme.onPrimary : null,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+        tooltip: rule.description,
+        selected: selected,
+        selectedColor: scheme.primary,
+        checkmarkColor: scheme.onPrimary,
+        onSelected: (_) => onToggle(),
+        backgroundColor: scheme.surface.withValues(alpha: 0.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: selected
+                ? scheme.primary
+                : scheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
     );
   }
 }

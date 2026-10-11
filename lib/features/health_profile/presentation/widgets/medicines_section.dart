@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicine_edit_sheet.dart';
@@ -12,42 +13,28 @@ class MedicinesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final medicines = ref.watch(medicinesProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: Text('Medicine reminders', style: text.titleMedium),
-            ),
-            FilledButton.tonalIcon(
-              style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
-              onPressed: () => showMedicineEditSheet(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Reminders only. We never suggest doses or give medical advice.',
-          style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 12),
+
         AsyncValueView<List<Medicine>>(
           value: medicines,
           onRetry: () => ref.invalidate(medicinesProvider),
           builder: (list) => list.isEmpty
               ? const _EmptyMedicines()
-              : Column(
-                  children: <Widget>[
-                    for (final medicine in list)
-                      _MedicineTile(medicine: medicine),
-                  ],
+              : GlassCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: <Widget>[
+                      for (var i = 0; i < list.length; i++) ...[
+                        _MedicineTile(medicine: list[i]),
+                        if (i < list.length - 1)
+                          Divider(height: 1, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2)),
+                      ],
+                    ],
+                  ),
                 ),
         ),
       ],
@@ -61,22 +48,41 @@ class _EmptyMedicines extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return GlassCard(
+      padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
         child: Column(
           children: <Widget>[
-            Icon(
-              Icons.medication_outlined,
-              size: 40,
-              color: scheme.onSurfaceVariant,
-              semanticLabel: 'No medicine reminders yet',
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.medication_outlined,
+                size: 48,
+                color: scheme.primary,
+                semanticLabel: 'No medicine reminders yet',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No reminders yet',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(
-              'No reminders yet. Tap Add to create one.',
+              'Tap the Add button to create your first medicine reminder.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
             ),
           ],
         ),
@@ -138,18 +144,35 @@ class _MedicineTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
     final times =
         medicine.reminderTimes.map((t) => t.format(context)).join(', ');
-    return Card(
-      child: ListTile(
-        minVerticalPadding: 12,
-        onTap: () => showMedicineEditSheet(context, medicine: medicine),
-        leading: const Icon(
-          Icons.medication_outlined,
-          semanticLabel: 'Medicine',
+
+    return ListTile(
+      minVerticalPadding: 16,
+      onTap: () => showMedicineEditSheet(context, medicine: medicine),
+      leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.medication_outlined,
+            color: scheme.secondary,
+            semanticLabel: 'Medicine',
+            size: 22,
+          ),
         ),
-        title: Text(medicine.name),
-        subtitle: Text(times),
+        title: Text(
+          medicine.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(times),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -183,7 +206,6 @@ class _MedicineTile extends ConsumerWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

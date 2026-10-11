@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/features/challenges/providers.dart';
 import 'package:fitbuddy/features/challenges/widgets/challenge_summary_card.dart';
@@ -7,10 +8,14 @@ import 'package:fitbuddy/features/home/widgets/mascot_section.dart';
 import 'package:fitbuddy/features/home/widgets/quick_links_grid.dart';
 import 'package:fitbuddy/features/home/widgets/summary_row.dart';
 import 'package:fitbuddy/features/home/widgets/time_blocks_section.dart';
+import 'package:fitbuddy/features/home/widgets/today_workout_card.dart';
+import 'package:fitbuddy/features/home/widgets/wellness_summary_cards.dart';
 import 'package:fitbuddy/features/mascot/mascot_debug_panel.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_boost_card.dart';
+import 'package:fitbuddy/features/nutrition/providers.dart';
 import 'package:fitbuddy/features/schedule/providers.dart';
+import 'package:fitbuddy/features/sleep/providers.dart';
 import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,7 +33,9 @@ class HomeScreen extends ConsumerWidget {
       ..invalidate(todayCompletionsProvider)
       ..invalidate(challengesProvider)
       ..invalidate(quotesProvider)
-      ..invalidate(memesProvider);
+      ..invalidate(memesProvider)
+      ..invalidate(waterProvider)
+      ..invalidate(sleepSettingsProvider);
     await ref.read(recentStatsProvider.future);
   }
 
@@ -40,9 +47,12 @@ class HomeScreen extends ConsumerWidget {
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () => _refresh(ref),
+            color: Theme.of(context).colorScheme.primary,
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
                 Center(
                   child: ConstrainedBox(
@@ -67,42 +77,60 @@ class _HomeContent extends StatelessWidget {
     return const StaggeredEntrance(
       children: [
         GreetingHeader(),
-        SizedBox(height: 16),
+        SizedBox(height: 12),
         MascotSection(),
-        SizedBox(height: 24),
-        _SectionTitle("Today's plan"),
-        TimeBlocksSection(),
-        SizedBox(height: 16),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: "Today's activity",
+          icon: Icons.insights_rounded,
+          delay: Duration(milliseconds: 150),
+        ),
         SummaryRow(),
-        SizedBox(height: 24),
-        _SectionTitle("Today's challenge"),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: "Today's workout",
+          icon: Icons.fitness_center_rounded,
+          delay: Duration(milliseconds: 250),
+        ),
+        TodayWorkoutCard(),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: "Daily schedule",
+          icon: Icons.calendar_today_rounded,
+          delay: Duration(milliseconds: 350),
+        ),
+        TimeBlocksSection(),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: "Wellness & sleep",
+          icon: Icons.spa_rounded,
+          delay: Duration(milliseconds: 400),
+        ),
+        WellnessSummaryCards(),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: "Today's challenge",
+          icon: Icons.emoji_events_rounded,
+          delay: Duration(milliseconds: 450),
+        ),
         ChallengeSummaryCard(),
         SizedBox(height: 16),
-        _SectionTitle('Daily Boost'),
+        AnimatedSectionHeader(
+          title: 'Daily Boost',
+          icon: Icons.bolt_rounded,
+          delay: Duration(milliseconds: 500),
+        ),
         DailyBoostCard(),
-        SizedBox(height: 24),
-        _SectionTitle('Explore'),
+        SizedBox(height: 20),
+        AnimatedSectionHeader(
+          title: 'Explore',
+          icon: Icons.explore_rounded,
+          delay: Duration(milliseconds: 550),
+        ),
         QuickLinksGrid(),
         SizedBox(height: 16),
         MascotDebugPanel(),
       ],
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Semantics(
-        header: true,
-        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-      ),
     );
   }
 }

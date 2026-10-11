@@ -30,16 +30,16 @@ class GreetingHeader extends ConsumerWidget {
     switch (DayPart.of(now)) {
       case DayPart.morning:
         timeIcon = Icons.wb_twilight;
-        iconColor = Colors.orangeAccent;
+        iconColor = const Color(0xFFFFB49F); // Soft Coral morning glow
         break;
       case DayPart.afternoon:
         timeIcon = Icons.wb_sunny;
-        iconColor = Colors.amber;
+        iconColor = scheme.tertiary; // Lime Green midday energy
         break;
       case DayPart.evening:
       case DayPart.night:
         timeIcon = Icons.nights_stay;
-        iconColor = scheme.primary;
+        iconColor = scheme.primary; // Forest Green evening calm
         break;
     }
 
@@ -50,15 +50,28 @@ class GreetingHeader extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const BrandMark(size: 32, showBackground: false),
+              const BrandMark(size: 28, showBackground: false),
               const SizedBox(width: 10),
-              Text(
-                'VYAYAMA',
-                style: text.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  color: scheme.primary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'VYAYAMA',
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  Text(
+                    'Every effort counts.',
+                    style: text.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

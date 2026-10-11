@@ -1,3 +1,5 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 
 /// Banner shown whenever the user has selected any condition.
@@ -9,21 +11,30 @@ class ConsultDoctorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
     return Semantics(
       container: true,
       liveRegion: true,
-      child: Container(
+      child: GlassCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: scheme.tertiaryContainer,
-          borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  AppPalette.softCoral.withValues(alpha: 0.15),
+                  AppPalette.charcoalGreen.withValues(alpha: 0.5),
+                ]
+              : [
+                  AppPalette.softCoral.withValues(alpha: 0.35),
+                  AppPalette.softCoral.withValues(alpha: 0.15),
+                ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Icon(
               Icons.medical_services_outlined,
-              color: scheme.onTertiaryContainer,
+              color: isDark ? AppPalette.softCoral : const Color(0xFFC04B35),
               semanticLabel: 'Doctor advice',
             ),
             const SizedBox(width: 12),
@@ -33,15 +44,20 @@ class ConsultDoctorBanner extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     'Please consult your doctor before starting a program',
-                    style: text.titleSmall
-                        ?.copyWith(color: scheme.onTertiaryContainer),
+                    style: text.titleSmall?.copyWith(
+                      color: isDark ? AppPalette.offWhite : const Color(0xFF5C1B10),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'We use your answers only to suggest gentler options. '
                     'They are not a substitute for professional advice.',
-                    style: text.bodySmall
-                        ?.copyWith(color: scheme.onTertiaryContainer),
+                    style: text.bodySmall?.copyWith(
+                      color: isDark
+                          ? AppPalette.darkTextMuted
+                          : const Color(0xFF7A2E20),
+                    ),
                   ),
                 ],
               ),

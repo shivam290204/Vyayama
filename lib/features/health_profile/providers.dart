@@ -6,7 +6,7 @@ import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/data/mock_health_repository.dart';
 import 'package:fitbuddy/features/health_profile/data/profile_snapshot.dart';
 import 'package:fitbuddy/features/health_profile/domain/condition_tags.dart';
-import 'package:fitbuddy/features/health_profile/reminders/mock_reminder_scheduler.dart';
+import 'package:fitbuddy/features/health_profile/reminders/local_reminder_scheduler.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_builders.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
@@ -19,10 +19,9 @@ final healthRepositoryProvider = Provider<HealthRepository>(
   (ref) => MockHealthRepository(),
 );
 
-/// Reminder scheduler. Antigravity: override with a
-/// `flutter_local_notifications` implementation.
+/// Reminder scheduler backed by flutter_local_notifications.
 final reminderSchedulerProvider = Provider<ReminderScheduler>(
-  (ref) => MockReminderScheduler(),
+  (ref) => LocalReminderScheduler(),
 );
 
 /// Plain-value view of the signed-in user's profile (shared by nutrition,

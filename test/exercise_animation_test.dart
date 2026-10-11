@@ -102,4 +102,20 @@ void main() {
     expect(find.text('Start'), findsOneWidget);
     expect(find.text('Finish'), findsOneWidget);
   });
+
+  testWidgets('Renders CharacterPoseRenderer when characterAsset is provided',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      buildApp(
+        const ExerciseAnimation(
+          asset: null,
+          characterAsset: 'assets/exercises/squat.png',
+          label: 'Squat',
+        ),
+      ),
+    );
+
+    expect(find.text('Form Guide'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
 }

@@ -96,6 +96,31 @@ class StreakStatusPanel extends StatelessWidget {
                 ],
               ),
             ),
+            if (status == PairStatus.atRisk || status == PairStatus.broken) ...[
+              const SizedBox(width: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.asset(
+                  'assets/images/mascot/sad.png',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ] else if (status == PairStatus.completedToday || count >= 3) ...[
+              const SizedBox(width: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.asset(
+                  'assets/images/mascot/thumbs_up.png',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            ],
           ],
         ),
       ),

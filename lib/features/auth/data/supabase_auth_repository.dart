@@ -93,12 +93,40 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> deleteAccount() async {
+    final userId = _client.currentUser?.id;
+    if (userId == null) throw const AuthFailure('Not signed in.');
+
     try {
-      // Deleting a user requires admin privileges or an Edge Function.
-      // For now, this is a placeholder or calls a custom RPC.
-      throw const AuthFailure('Account deletion requires contacting support.');
+      final supaClient = supa.Supabase.instance.client;
+
+      // 1. Clean up user's snap images from storage (best-effort)
+      try {
+        final res = await supaClient
+            .from('snaps')
+            .select('image_path')
+            .eq('sender_id', userId);
+
+        final paths = (res as List)
+            .map((r) => r['image_path'] as String?)
+            .whereType<String>()
+            .toList();
+
+        if (paths.isNotEmpty) {
+          await supaClient.storage.from('snaps').remove(paths);
+        }
+      } catch (_) {
+        // Storage cleanup is best-effort before SQL cascade
+      }
+
+      // 2. Call delete_my_account() RPC which cascades all tables and deletes auth user
+      await supaClient.rpc('delete_my_account');
+
+      // 3. Clear local session
+      await signOut();
+    } on supa.AuthException catch (e) {
+      throw AuthFailure(e.message);
     } catch (e) {
-      throw AuthFailure(e.toString());
+      throw AuthFailure('Failed to delete account: $e');
     }
   }
 }

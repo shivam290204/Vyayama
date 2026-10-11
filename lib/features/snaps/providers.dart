@@ -1,13 +1,18 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/mock_snap_repository.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:fitbuddy/features/snaps/data/snap_image_processor.dart';
 import 'package:fitbuddy/features/snaps/data/snap_repository.dart';
 import 'package:fitbuddy/features/snaps/data/snap_verification_service.dart';
+import 'package:fitbuddy/features/snaps/data/supabase_snap_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Swap for a Supabase-backed repository later. Keep it a singleton per user.
+/// Provides [SupabaseSnapRepository] when configured, falling back to mock.
 final snapRepositoryProvider = Provider<SnapRepository>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseSnapRepository();
+  }
   return MockSnapRepository(
     currentUserId: ref.watch(currentUserIdProvider),
     clock: ref.watch(clockProvider),
@@ -15,6 +20,9 @@ final snapRepositoryProvider = Provider<SnapRepository>((ref) {
 });
 
 final snapImageUrlSignerProvider = Provider<SnapImageUrlSigner>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseSnapImageUrlSigner();
+  }
   return MockSnapImageUrlSigner();
 });
 
@@ -23,8 +31,11 @@ final snapPreCheckProvider = Provider<SnapPreCheck>((ref) => MlKitSnapPreCheck()
 final snapImageProcessorProvider =
     Provider<SnapImageProcessor>((ref) => const SnapImageProcessor());
 
-/// Swap for a service that calls the `verify-snap` Edge Function.
+/// Provides [SupabaseSnapVerificationService] when configured, falling back to mock.
 final snapVerificationServiceProvider = Provider<SnapVerificationService>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseSnapVerificationService();
+  }
   return MockSnapVerificationService(
     ref.watch(snapRepositoryProvider) as MockSnapRepository,
     ref.watch(snapStreakRepositoryProvider),

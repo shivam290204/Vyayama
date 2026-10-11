@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/snaps/snap_verification_service.dart';
 
 class PreviewScreen extends StatefulWidget {
@@ -114,7 +115,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           if (_verificationState == SnapVerificationState.idle)
             TextButton(
               onPressed: _sendSnap,
-              child: const Text('Send', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text('Send', style: TextStyle(color: AppPalette.limeGreen, fontWeight: FontWeight.bold, fontSize: 16)),
             ),
         ],
       ),
@@ -167,7 +168,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           onSelected: (val) {
                             setState(() => _selectedActivity = val ? act : null);
                           },
-                          selectedColor: Colors.blue,
+                          selectedColor: AppPalette.forestGreen,
                           backgroundColor: Colors.white24,
                           labelStyle: TextStyle(
                             color: isSelected ? Colors.white : Colors.white70,
@@ -204,7 +205,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   value: _postToFeed,
                   onChanged: (val) => setState(() => _postToFeed = val),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: Colors.blue,
+                  activeThumbColor: AppPalette.limeGreen,
                 ),
               ],
             ),
@@ -218,11 +219,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_verificationState == SnapVerificationState.sending || _verificationState == SnapVerificationState.verifying)
-                      const CircularProgressIndicator(color: Colors.blue),
+                      const CircularProgressIndicator(color: AppPalette.limeGreen),
                     if (_verificationState == SnapVerificationState.verified)
-                      const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                      const Icon(Icons.check_circle, color: AppPalette.limeGreen, size: 64),
                     if (_verificationState == SnapVerificationState.rejected)
-                      const Icon(Icons.error, color: Colors.red, size: 64),
+                      const Icon(Icons.error, color: AppPalette.softCoral, size: 64),
                     const SizedBox(height: 16),
                     Text(
                       _verificationState == SnapVerificationState.sending ? 'Processing Snap...' :

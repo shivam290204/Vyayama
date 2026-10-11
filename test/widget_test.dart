@@ -4,13 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fitbuddy/app.dart';
 
+import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
 
   testWidgets('App smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: VyayamaApp()));
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const VyayamaApp(),
+      ),
+    );
     await tester.pump();
     expect(find.byType(VyayamaApp), findsOneWidget);
   });

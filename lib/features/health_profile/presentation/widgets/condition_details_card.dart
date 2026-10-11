@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/data/condition_rule.dart';
 import 'package:flutter/material.dart';
 
@@ -17,8 +18,8 @@ class ConditionDetailsCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return GlassCard(
+      padding: EdgeInsets.zero,
       child: ExpansionTile(
         shape: const Border(),
         collapsedShape: const Border(),

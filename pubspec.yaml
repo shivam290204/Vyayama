@@ -8,6 +8,9 @@ environment:
   flutter: ">=3.27.0"
 
 dependencies:
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   flutter:
     sdk: flutter
 
@@ -28,7 +31,7 @@ dependencies:
   shared_preferences: ^2.3.3
 
   # Health, reminders, push
-  health: ^11.1.0
+  health: 13.3.1
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.0
   firebase_core: ^3.8.1
@@ -51,6 +54,7 @@ dependencies:
   json_annotation: ^4.9.0
   audioplayers: ^6.8.1
   flutter_svg: ^2.3.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +67,7 @@ dev_dependencies:
   json_serializable: ^6.9.0
 
 flutter:
+  generate: true
   uses-material-design: true
   assets:
     - .env

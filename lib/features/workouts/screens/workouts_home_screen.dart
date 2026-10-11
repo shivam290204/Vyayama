@@ -28,6 +28,7 @@ class WorkoutsHomeScreen extends StatelessWidget {
           children: [MyPlanTab(), BrowsePlansTab(), ExerciseLibraryTab()],
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'workouts_create_plan_fab',
           onPressed: () => context.push(AppRoutes.planBuilder),
           icon: const Icon(Icons.add),
           label: const Text('Create plan'),

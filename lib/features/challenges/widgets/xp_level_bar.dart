@@ -78,7 +78,7 @@ class XpLevelBar extends StatelessWidget {
                       value: value,
                       minHeight: 12,
                       backgroundColor: scheme.surfaceContainerHighest,
-                      color: scheme.primary,
+                      color: scheme.tertiary,
                     ),
                   );
                 },

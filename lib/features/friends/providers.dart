@@ -1,12 +1,17 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/data/friend_repository.dart';
 import 'package:fitbuddy/features/friends/data/mock_friend_repository.dart';
+import 'package:fitbuddy/features/friends/data/supabase_friend_repository.dart';
 import 'package:fitbuddy/features/snap_streaks/data/snap_streak.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Swap this for a Supabase-backed repository later.
+/// Provides [SupabaseFriendRepository] when configured, falling back to mock.
 final friendRepositoryProvider = Provider<FriendRepository>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseFriendRepository();
+  }
   return MockFriendRepository(currentUserId: ref.watch(currentUserIdProvider));
 });
 

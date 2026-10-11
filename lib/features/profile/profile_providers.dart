@@ -1,14 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/profile/data/mock_profile_repository.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/data/profile_repository.dart';
+import 'package:fitbuddy/features/profile/data/supabase_profile_repository.dart';
 
-/// Swap this for a Supabase-backed repository later.
-final profileRepositoryProvider = Provider<ProfileRepository>(
-  (ref) => MockProfileRepository(),
-);
+/// Provides [SupabaseProfileRepository] when configured, falling back to mock.
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseProfileRepository();
+  }
+  return MockProfileRepository();
+});
 
 /// The signed-in user's profile (null when logged out).
 class CurrentProfileNotifier extends AsyncNotifier<Profile?> {

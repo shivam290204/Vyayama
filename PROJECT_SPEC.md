@@ -767,16 +767,27 @@ For each milestone: **Plan → Implement → Test → Show evidence → Update P
 ## 15. Progress Log (Agent: update after each milestone)
 
 ```
-Current milestone: 1 (not started)
+Current milestone: 2-5 (Core Backend, Workouts, Device Integrations, Social)
 
 Completed:
-- (none yet)
+- Milestone 1: Skeleton, theme, navigation, and folder structure.
+- UI layer for all core screens and features with rich animations and responsive layouts.
+- Supabase SQL migrations (001 through 100) verified and complete with Row Level Security.
+- Authentication (Supabase Email & Google) active.
+- Core User Data: SupabaseProfileRepository implemented and connected to onboardingProvider & currentProfileProvider.
+- Workouts & Progress: SupabaseWorkoutRepository and SupabaseWorkoutLogRepository implemented with offline asset fallback; SupabaseDailyStatsRepository connected.
+- Device Integrations: NotificationService and LocalReminderScheduler implemented with flutter_local_notifications and timezone; HealthService implemented with health package (HealthKit & Health Connect).
+- Social & Storage: SupabaseFriendRepository implemented (friends graph, username search, blocks, reports); SupabaseSnapRepository, SupabaseSnapImageUrlSigner, and SupabaseSnapVerificationService wired to verify-snap Edge Function.
+- Account Lifecycle: deleteAccount wired to delete_my_account RPC with storage file cleanup.
+- Test suites: Profile, Onboarding Flow & Redirects, Workout & DailyStats models, Notification Service, and Social models all passing.
 
 Known issues / TODO:
-- (none yet)
+- Team repository Supabase implementation (teams and team_members tables).
+- Verify real device push notifications after user supplies FCM google-services.json.
 
 Decisions made:
-- (none yet)
+- Kept graceful offline/unconfigured fallbacks via Env.isSupabaseConfigured so all features run in development, test environments, and web previews without blocking.
+- Preserved all UI design, animations, and theme systems without regressions.
 ```
 
 ---

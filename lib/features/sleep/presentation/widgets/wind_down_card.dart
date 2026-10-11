@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/sleep/data/wind_down_items.dart';
 import 'package:fitbuddy/features/sleep/providers.dart';
 import 'package:flutter/material.dart';
@@ -15,43 +16,40 @@ class WindDownCard extends ConsumerWidget {
     final done = ref.watch(windDownProvider);
     final notifier = ref.read(windDownProvider.notifier);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text('Wind-down checklist', style: text.titleMedium),
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '${done.length} of ${kWindDownItems.length} done. Do what '
+                  'feels good tonight.',
+                  style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 ),
-                if (done.isNotEmpty)
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                    ),
-                    onPressed: notifier.reset,
-                    child: const Text('Clear'),
-                  ),
-              ],
-            ),
-            Text(
-              '${done.length} of ${kWindDownItems.length} done. Do what '
-              'feels good tonight.',
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 4),
-            for (final item in kWindDownItems)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(item.title),
-                value: done.contains(item.id),
-                onChanged: (_) => notifier.toggle(item.id),
               ),
-          ],
-        ),
+              if (done.isNotEmpty)
+                TextButton(
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  onPressed: notifier.reset,
+                  child: const Text('Clear'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final item in kWindDownItems)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w500)),
+              value: done.contains(item.id),
+              onChanged: (_) => notifier.toggle(item.id),
+            ),
+        ],
       ),
     );
   }

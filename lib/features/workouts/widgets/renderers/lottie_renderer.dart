@@ -8,7 +8,8 @@ class LottieRenderer implements ExerciseRenderer {
 
   @override
   bool canHandle(String? asset, List<String> poses) {
-    return asset != null && asset.endsWith('.json');
+    if (asset == null || !asset.endsWith('.json')) return false;
+    return true;
   }
 
   @override

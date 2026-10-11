@@ -202,10 +202,16 @@ class _MealCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.2),
+                            color: scheme.tertiaryContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text('Indian', style: text.labelSmall?.copyWith(color: Colors.orange)),
+                          child: Text(
+                            'Indian',
+                            style: text.labelSmall?.copyWith(
+                              color: scheme.onTertiaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -214,13 +220,25 @@ class _MealCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                      const Icon(Icons.local_fire_department, size: 16, color: Color(0xFFFFB49F)),
                       const SizedBox(width: 4),
-                      Text('${meal.calories} kcal', style: text.labelMedium?.copyWith(color: Colors.orange, fontWeight: FontWeight.w600)),
+                      Text(
+                        '${meal.calories} kcal',
+                        style: text.labelMedium?.copyWith(
+                          color: isDark ? const Color(0xFFFFB49F) : const Color(0xFFC04B35),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Icon(Icons.fitness_center, size: 16, color: Colors.green),
+                      Icon(Icons.fitness_center, size: 16, color: scheme.tertiary),
                       const SizedBox(width: 4),
-                      Text('${meal.proteinG}g protein', style: text.labelMedium?.copyWith(color: Colors.green, fontWeight: FontWeight.w600)),
+                      Text(
+                        '${meal.proteinG}g protein',
+                        style: text.labelMedium?.copyWith(
+                          color: isDark ? scheme.tertiary : const Color(0xFF2E7D32),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ],

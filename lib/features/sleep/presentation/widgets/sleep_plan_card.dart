@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/sleep/data/day_time_convert.dart';
 import 'package:fitbuddy/features/sleep/domain/sleep_planner.dart';
 import 'package:fitbuddy/features/sleep/presentation/widgets/sleep_format.dart';
@@ -14,67 +15,65 @@ class SleepPlanCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(sleepPlanProvider);
     final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final bed = plan.bedtime.toTimeOfDay().format(context);
     final wake = plan.wakeTime.toTimeOfDay().format(context);
     final windDown = plan.windDownStart.toTimeOfDay().format(context);
 
-    return Card(
-      color: scheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Your suggested sleep plan',
-              style: text.titleMedium
-                  ?.copyWith(color: scheme.onPrimaryContainer),
-            ),
-            const SizedBox(height: 12),
-            Semantics(
-              label: 'Suggested bedtime $bed. Suggested wake up time $wake.',
-              child: ExcludeSemantics(
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: _TimeBlock(
-                        icon: Icons.bedtime_outlined,
-                        label: 'Bedtime',
-                        value: bed,
-                      ),
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Semantics(
+            label: 'Suggested bedtime $bed. Suggested wake up time $wake.',
+            child: ExcludeSemantics(
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _TimeBlock(
+                      icon: Icons.bedtime_outlined,
+                      label: 'Bedtime',
+                      value: bed,
                     ),
-                    Expanded(
-                      child: _TimeBlock(
-                        icon: Icons.wb_sunny_outlined,
-                        label: 'Wake up',
-                        value: wake,
-                      ),
+                  ),
+                  Expanded(
+                    child: _TimeBlock(
+                      icon: Icons.wb_sunny_outlined,
+                      label: 'Wake up',
+                      value: wake,
                     ),
-                  ],
-                ),
+                  ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/images/mascot/meditation.png',
+                      width: 58,
+                      height: 58,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'About ${formatSleepMinutes(plan.sleepMinutes)} of sleep. '
-              'Start winding down around $windDown.',
-              style: text.bodyMedium
-                  ?.copyWith(color: scheme.onPrimaryContainer),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'About ${formatSleepMinutes(plan.sleepMinutes)} of sleep. '
+            'Start winding down around $windDown.',
+            style: text.bodyMedium,
+          ),
+          if (plan.isNightShift)
+            _Notice(
+              icon: Icons.nights_stay_outlined,
+              message: 'Planned around your night shift, so sleep comes '
+                  'after work.',
             ),
-            if (plan.isNightShift)
-              _Notice(
-                icon: Icons.nights_stay_outlined,
-                message: 'Planned around your night shift, so sleep comes '
-                    'after work.',
-              ),
-            for (final warning in plan.warnings)
-              _Notice(
-                icon: Icons.lightbulb_outline,
-                message: _messageFor(warning),
-              ),
-          ],
-        ),
+          for (final warning in plan.warnings)
+            _Notice(
+              icon: Icons.lightbulb_outline,
+              message: _messageFor(warning),
+            ),
+        ],
       ),
     );
   }

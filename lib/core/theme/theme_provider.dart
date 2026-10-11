@@ -12,7 +12,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
     final saved = ref.watch(sharedPreferencesProvider).getString(_themeModeKey);
     return ThemeMode.values.firstWhere(
       (mode) => mode.name == saved,
-      orElse: () => ThemeMode.system,
+      orElse: () => ThemeMode.light,
     );
   }
 

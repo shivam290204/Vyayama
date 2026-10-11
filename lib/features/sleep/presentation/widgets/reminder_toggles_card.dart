@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/sleep/data/day_time_convert.dart';
 import 'package:fitbuddy/features/sleep/data/sleep_settings.dart';
@@ -13,66 +14,69 @@ class ReminderTogglesCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     final plan = ref.watch(sleepPlanProvider);
     final windDown = plan.windDownStart.toTimeOfDay().format(context);
     final wake = plan.wakeTime.toTimeOfDay().format(context);
+    final isDark = scheme.brightness == Brightness.dark;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('Reminders', style: text.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              'Reminders repeat every day. Please read the alarm tips below '
-              'after turning them on.',
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            AsyncValueView<SleepSettings>(
-              value: ref.watch(sleepSettingsProvider),
-              onRetry: () => ref.invalidate(sleepSettingsProvider),
-              loadingHeight: 100,
-              builder: (settings) {
-                final notifier = ref.read(sleepSettingsProvider.notifier);
-                return Column(
-                  children: <Widget>[
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(
-                        Icons.bedtime_outlined,
-                        semanticLabel: 'Bedtime reminder',
-                      ),
-                      title: const Text('Bedtime reminder'),
-                      subtitle: Text('A wind-down nudge at $windDown'),
-                      value: settings.bedtimeReminderOn,
-                      onChanged: (v) => runSafely(
-                        context,
-                        () => notifier.setBedtimeReminder(v),
-                      ),
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(
-                        Icons.alarm,
-                        semanticLabel: 'Wake-up alarm',
-                      ),
-                      title: const Text('Wake-up alarm'),
-                      subtitle: Text('Alarm-style reminder at $wake'),
-                      value: settings.wakeAlarmOn,
-                      onChanged: (v) =>
-                          runSafely(context, () => notifier.setWakeAlarm(v)),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+    return GlassCard(
+      child: AsyncValueView<SleepSettings>(
+        value: ref.watch(sleepSettingsProvider),
+        onRetry: () => ref.invalidate(sleepSettingsProvider),
+        loadingHeight: 100,
+        builder: (settings) {
+          final notifier = ref.read(sleepSettingsProvider.notifier);
+          return Column(
+            children: <Widget>[
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: isDark ? 0.15 : 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.bedtime_outlined,
+                    color: scheme.primary,
+                    semanticLabel: 'Bedtime reminder',
+                    size: 22,
+                  ),
+                ),
+                title: const Text('Bedtime reminder', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('A wind-down nudge at $windDown'),
+                value: settings.bedtimeReminderOn,
+                onChanged: (v) => runSafely(
+                  context,
+                  () => notifier.setBedtimeReminder(v),
+                ),
+              ),
+              Divider(height: 1, color: scheme.outline.withValues(alpha: 0.2)),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.alarm,
+                    color: scheme.secondary,
+                    semanticLabel: 'Wake-up alarm',
+                    size: 22,
+                  ),
+                ),
+                title: const Text('Wake-up alarm', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('Alarm-style reminder at $wake'),
+                value: settings.wakeAlarmOn,
+                onChanged: (v) =>
+                    runSafely(context, () => notifier.setWakeAlarm(v)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

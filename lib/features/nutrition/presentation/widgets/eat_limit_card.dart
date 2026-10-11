@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/nutrition/data/diet_tip.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
@@ -50,7 +51,9 @@ class _TipGroup extends ConsumerWidget {
     final isDark = scheme.brightness == Brightness.dark;
     final tips = ref.watch(tipsByCategoryProvider(category));
     final isEatMore = category == DietTip.eatMore;
-    final iconColor = isEatMore ? Colors.green : Colors.red;
+    final iconColor = isEatMore
+        ? (isDark ? AppPalette.limeGreen : AppPalette.forestGreen)
+        : (isDark ? AppPalette.softCoral : const Color(0xFFC04B35));
 
     return Container(
       decoration: BoxDecoration(

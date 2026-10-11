@@ -41,8 +41,17 @@ class StateMessage extends StatelessWidget {
             ],
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 16),
-              FilledButton.tonal(
-                style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF14532D),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: const StadiumBorder(),
+                  textStyle: text.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 onPressed: onAction,
                 child: Text(actionLabel!),
               ),

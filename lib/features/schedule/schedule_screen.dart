@@ -19,6 +19,7 @@ class ScheduleScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Schedule')),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'schedule_add_block_fab',
         onPressed: () => editBlockFlow(context, ref),
         icon: const Icon(Icons.add, semanticLabel: 'Add block'),
         label: const Text('Add block'),

@@ -18,12 +18,20 @@ class BrandMark extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     if (!showBackground) {
-      return Image.asset(
-        'assets/images/logo.png',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        semanticLabel: 'Vyayama logo',
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          semanticLabel: 'Vyayama logo',
+          errorBuilder: (_, __, ___) => Icon(
+            Icons.fitness_center_rounded,
+            size: size * 0.6,
+            color: scheme.primary,
+          ),
+        ),
       );
     }
 
@@ -50,9 +58,17 @@ class BrandMark extends StatelessWidget {
             ),
           ],
         ),
-        child: Image.asset(
-          'assets/images/logo.png',
-          fit: BoxFit.contain,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.fitness_center_rounded,
+              size: size * 0.5,
+              color: scheme.primary,
+            ),
+          ),
         ),
       ),
     );

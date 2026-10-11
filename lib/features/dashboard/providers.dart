@@ -1,8 +1,10 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/dashboard/body_metrics.dart';
 import 'package:fitbuddy/features/dashboard/calorie_math.dart';
 import 'package:fitbuddy/features/dashboard/daily_targets.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats_repository.dart';
+import 'package:fitbuddy/features/dashboard/data/supabase_daily_stats_repository.dart';
 import 'package:fitbuddy/features/dashboard/stats_range.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/schedule/clock_providers.dart';
@@ -11,10 +13,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// How many days (including today) the dashboard loads.
 const int recentStatsDays = 14;
 
-/// Daily stats storage. Antigravity swaps in Supabase plus Health data here.
-final dailyStatsRepositoryProvider = Provider<DailyStatsRepository>(
-  (ref) => MockDailyStatsRepository(clock: ref.watch(clockProvider)),
-);
+/// Daily stats storage. Uses Supabase when configured, falling back to mock.
+final dailyStatsRepositoryProvider = Provider<DailyStatsRepository>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseDailyStatsRepository();
+  }
+  return MockDailyStatsRepository(clock: ref.watch(clockProvider));
+});
 
 /// The last 14 days, one entry per day, oldest first (today is last).
 /// Invalidate this provider to refresh (pull-to-refresh, app resume).

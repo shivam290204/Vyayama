@@ -18,12 +18,32 @@ final exerciseLibraryProvider = FutureProvider<List<Exercise>>(
   (ref) => ref.watch(workoutRepositoryProvider).getExercises(),
 );
 
+/// Allows overriding or adding custom YouTube video URLs for exercises dynamically.
+final customExerciseVideosProvider =
+    StateNotifierProvider<CustomExerciseVideosNotifier, Map<String, String>>(
+  (ref) => CustomExerciseVideosNotifier(),
+);
+
+class CustomExerciseVideosNotifier extends StateNotifier<Map<String, String>> {
+  CustomExerciseVideosNotifier() : super(const {});
+
+  void setVideoUrl(String exerciseId, String url) {
+    state = {...state, exerciseId: url.trim()};
+  }
+}
+
 /// One exercise by id (null if unknown).
 final exerciseByIdProvider =
     FutureProvider.family<Exercise?, String>((ref, id) async {
   final all = await ref.watch(exerciseLibraryProvider.future);
+  final overrides = ref.watch(customExerciseVideosProvider);
   for (final e in all) {
-    if (e.id == id) return e;
+    if (e.id == id) {
+      if (overrides.containsKey(id)) {
+        return e.copyWith(videoUrl: overrides[id]);
+      }
+      return e;
+    }
   }
   return null;
 });

@@ -32,8 +32,24 @@ class SessionSummaryView extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          Icon(Icons.emoji_events_rounded,
-              size: 72, color: cs.primary, semanticLabel: 'Workout finished'),
+          Center(
+            child: SizedBox(
+              height: 140,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/mascot/thumbs_up.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.emoji_events_rounded,
+                    size: 72,
+                    color: cs.primary,
+                    semanticLabel: 'Workout finished',
+                  ),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
           Text('Workout finished',
               style: theme.textTheme.headlineMedium,

@@ -1,0 +1,174 @@
+import 'package:fitbuddy/features/friends/data/friend.dart';
+import 'package:fitbuddy/features/friends/data/friend_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Supabase implementation of [FriendRepository] backed by `friendships`,
+/// `friend_profiles` view, `reports`, and friend RPCs.
+class SupabaseFriendRepository implements FriendRepository {
+  SupabaseFriendRepository({SupabaseClient? client})
+      : _client = client ?? Supabase.instance.client;
+
+  final SupabaseClient _client;
+
+  String get _userId {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('User not signed in');
+    return user.id;
+  }
+
+  @override
+  Future<List<FriendUser>> friends() async {
+    try {
+      final res = await _client
+          .from('friend_profiles')
+          .select()
+          .neq('id', _userId);
+
+      return (res as List)
+          .map((r) => FriendUser.fromJson(Map<String, dynamic>.from(r)))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<FriendUser?> getUser(String id) async {
+    try {
+      final res = await _client
+          .from('friend_profiles')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+
+      if (res == null) return null;
+      return FriendUser.fromJson(Map<String, dynamic>.from(res));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<FriendUser?> findByUsername(String exactUsername) async {
+    final query = exactUsername.trim().toLowerCase();
+    if (query.isEmpty) return null;
+
+    try {
+      final res = await _client.rpc(
+        'find_profile_by_username',
+        params: {'p_username': query},
+      );
+
+      if (res == null || (res as List).isEmpty) return null;
+      final row = res.first as Map<String, dynamic>;
+      return FriendUser.fromJson(Map<String, dynamic>.from(row));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<FriendRelation> relationTo(String userId) async {
+    try {
+      final res = await _client
+          .from('friendships')
+          .select()
+          .or('and(requester_id.eq.$_userId,addressee_id.eq.$userId),and(requester_id.eq.$userId,addressee_id.eq.$_userId)')
+          .maybeSingle();
+
+      if (res == null) return FriendRelation.none;
+      final status = res['status'] as String?;
+      if (status == 'accepted') return FriendRelation.friends;
+      if (status == 'pending') {
+        return res['requester_id'] == _userId
+            ? FriendRelation.requestSent
+            : FriendRelation.requestReceived;
+      }
+      return FriendRelation.none;
+    } catch (_) {
+      return FriendRelation.none;
+    }
+  }
+
+  @override
+  Future<void> sendRequest(String addresseeId) async {
+    await _client.from('friendships').insert({
+      'requester_id': _userId,
+      'addressee_id': addresseeId,
+      'status': 'pending',
+    });
+  }
+
+  @override
+  Future<List<FriendRequest>> requests() async {
+    try {
+      final res = await _client
+          .from('friendships')
+          .select('*, requester:profiles!requester_id(id, username, name, avatar_url, timezone), addressee:profiles!addressee_id(id, username, name, avatar_url, timezone)')
+          .eq('status', 'pending');
+
+      final list = <FriendRequest>[];
+      for (final row in res as List) {
+        final rMap = Map<String, dynamic>.from(row);
+        final incoming = rMap['addressee_id'] == _userId;
+        final otherData = incoming ? rMap['requester'] : rMap['addressee'];
+
+        if (otherData != null) {
+          final user = FriendUser.fromJson(Map<String, dynamic>.from(otherData));
+          final friendship = Friendship.fromJson(rMap);
+          list.add(FriendRequest(
+            friendship: friendship,
+            user: user,
+            incoming: incoming,
+          ));
+        }
+      }
+      return list;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<void> acceptRequest(String friendshipId) async {
+    await _client
+        .from('friendships')
+        .update({'status': 'accepted'})
+        .eq('id', friendshipId);
+  }
+
+  @override
+  Future<void> declineRequest(String friendshipId) async {
+    await _client
+        .from('friendships')
+        .update({'status': 'declined'})
+        .eq('id', friendshipId);
+  }
+
+  @override
+  Future<void> cancelRequest(String friendshipId) async {
+    await _client.from('friendships').delete().eq('id', friendshipId);
+  }
+
+  @override
+  Future<void> removeFriend(String friendId) async {
+    await _client.from('friendships').delete().or(
+      'and(requester_id.eq.$_userId,addressee_id.eq.$friendId),and(requester_id.eq.$friendId,addressee_id.eq.$_userId)',
+    );
+  }
+
+  @override
+  Future<void> blockUser(String userId) async {
+    await _client.rpc('block_user', params: {'p_user_id': userId});
+  }
+
+  @override
+  Future<void> reportUser(String userId, String reason) async {
+    await _client.from('reports').insert({
+      'reporter_id': _userId,
+      'reported_user_id': userId,
+      'reason': reason,
+      'status': 'open',
+    });
+  }
+}

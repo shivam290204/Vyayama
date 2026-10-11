@@ -78,14 +78,19 @@ class _FallbackMascotState extends State<FallbackMascot>
       case MascotMood.angry:
         return 'assets/images/mascot/anger.png';
       case MascotMood.sad:
+        return 'assets/images/mascot/Sad_Drooped_Head.png';
       case MascotMood.worried:
-        return 'assets/images/mascot/sad.png';
-      case MascotMood.happy:
-      case MascotMood.proud:
-      case MascotMood.celebrating:
-      case MascotMood.neutral:
+        return 'assets/images/mascot/scratch_head.png';
       case MascotMood.sleepy:
+        return 'assets/images/mascot/meditation.png';
+      case MascotMood.proud:
+        return 'assets/exercises/flex_proud.png';
+      case MascotMood.celebrating:
+        return 'assets/images/mascot/Fire_Determined.png';
+      case MascotMood.happy:
         return 'assets/images/mascot/happy.png';
+      case MascotMood.neutral:
+        return 'assets/images/mascot/standing_hero.png';
     }
   }
 
@@ -110,12 +115,15 @@ class _FallbackMascotState extends State<FallbackMascot>
           child: child,
         );
       },
-      child: Image.asset(
-        assetPath,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        key: ValueKey(assetPath),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Image.asset(
+          assetPath,
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+          key: ValueKey(assetPath),
+        ),
       ),
     );
   }

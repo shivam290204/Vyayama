@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 
 /// The medical disclaimer required by the project spec (Section 12).
@@ -19,28 +20,26 @@ class MedicalDisclaimerCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: 'Medical disclaimer',
-      child: Card(
-        color: scheme.secondaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(
-                Icons.info_outline,
-                color: scheme.onSecondaryContainer,
-                semanticLabel: 'Information',
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  kMedicalDisclaimer,
-                  style: text.bodySmall
-                      ?.copyWith(color: scheme.onSecondaryContainer),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(
+              Icons.info_outline,
+              color: scheme.primary,
+              semanticLabel: 'Information',
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                kMedicalDisclaimer,
+                style: text.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

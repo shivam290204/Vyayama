@@ -101,10 +101,11 @@ class _RingsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final trackColor = scheme.surfaceContainerHighest;
-
-    // Lighter tint of primary for active minutes.
-    final primaryTint = Color.lerp(scheme.primary, scheme.surface, 0.35)!;
+    final limeColor = scheme.tertiary; // Lime Green
+    final coralColor = const Color(0xFFFFB49F); // Soft Coral
+    final activeMinutesColor = isDark ? scheme.primaryContainer : scheme.secondary; // Deep Green / Fresh forest tone
 
     return Semantics(
       button: true,
@@ -120,7 +121,7 @@ class _RingsRow extends StatelessWidget {
             child: ProgressRing(
               value: stats.steps,
               goal: targets.steps,
-              ringColor: scheme.primary,
+              ringColor: limeColor,
               trackColor: trackColor,
               icon: Icons.directions_walk,
               label: 'steps',
@@ -131,7 +132,7 @@ class _RingsRow extends StatelessWidget {
             child: ProgressRing(
               value: stats.calories,
               goal: targets.activeCalories,
-              ringColor: scheme.secondary,
+              ringColor: coralColor,
               trackColor: trackColor,
               icon: Icons.local_fire_department,
               label: 'kcal',
@@ -142,7 +143,7 @@ class _RingsRow extends StatelessWidget {
             child: ProgressRing(
               value: stats.activeMinutes,
               goal: targets.activeMinutes,
-              ringColor: primaryTint,
+              ringColor: activeMinutesColor,
               trackColor: trackColor,
               icon: Icons.timer_outlined,
               label: 'min active',

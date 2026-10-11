@@ -100,6 +100,16 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard> {
                 Expanded(
                   child: Text('Water Tracker', style: text.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                 ),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/images/mascot/happy.png',
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -216,9 +226,9 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (isComplete) ...[
-                          const Icon(Icons.check_circle, color: Colors.blue, size: 16),
+                          Icon(Icons.check_circle, color: scheme.tertiary, size: 16),
                           const SizedBox(width: 6),
-                          Text('Goal reached! ', style: text.bodySmall?.copyWith(color: Colors.blue, fontWeight: FontWeight.bold)),
+                          Text('Goal reached! ', style: text.bodySmall?.copyWith(color: scheme.tertiary, fontWeight: FontWeight.bold)),
                         ],
                         Text(
                           'About 250 ml per glass. Stay hydrated!',

@@ -41,7 +41,7 @@ class MascotSoundService {
   Future<void> _initAudio() async {
     await _player.setAudioContext(AudioContext(
       iOS: AudioContextIOS(
-        category: AVAudioSessionCategory.ambient,
+        category: AVAudioSessionCategory.playback,
         options: const {AVAudioSessionOptions.mixWithOthers},
       ),
       android: AudioContextAndroid(

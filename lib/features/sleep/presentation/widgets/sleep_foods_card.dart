@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/nutrition/data/diet_tip.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
@@ -12,35 +13,22 @@ class SleepFoodsCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('Food and drink near bedtime', style: text.titleMedium),
-            const SizedBox(height: 4),
-            Text(
-              'General ideas only. Everyone is different.',
-              style: text.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const _TipList(
-              title: 'Good choices',
-              icon: Icons.check_circle_outline,
-              category: DietTip.sleepEat,
-            ),
-            const SizedBox(height: 12),
-            const _TipList(
-              title: 'Better to avoid',
-              icon: Icons.remove_circle_outline,
-              category: DietTip.sleepAvoid,
-            ),
-          ],
-        ),
+    return const GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _TipList(
+            title: 'Good choices',
+            icon: Icons.check_circle_outline,
+            category: DietTip.sleepEat,
+          ),
+          SizedBox(height: 24),
+          _TipList(
+            title: 'Better to avoid',
+            icon: Icons.remove_circle_outline,
+            category: DietTip.sleepAvoid,
+          ),
+        ],
       ),
     );
   }
