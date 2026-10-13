@@ -76,9 +76,52 @@ class Exercise {
 
   /// Returns the relative path of the best matching 3D character pose asset.
   String get characterAsset {
+    if (animationAsset != null && animationAsset!.isNotEmpty) {
+      return animationAsset!;
+    }
+
     final clean = '${id.toLowerCase()}_${name.toLowerCase()}';
 
     // Exact and specialized 3D character exercise poses
+    if (clean.contains('calf_raise') || clean.contains('calf raise')) {
+      return 'assets/exercises/calf_raise.png';
+    }
+    if (clean.contains('straight_leg_raise') || clean.contains('straight leg raise')) {
+      return 'assets/exercises/straight_leg_raise.png';
+    }
+    if (clean.contains('goblet_squat') || clean.contains('goblet squat')) {
+      return 'assets/exercises/goblet_squat.png';
+    }
+    if (clean.contains('clamshell')) {
+      return 'assets/exercises/clamshell.png';
+    }
+    if (clean.contains('rdl') || clean.contains('romanian deadlift')) {
+      return 'assets/exercises/dumbbell_rdl.png';
+    }
+    if (clean.contains('floor_press') || clean.contains('floor press')) {
+      return 'assets/exercises/dumbbell_floor_press.png';
+    }
+    if (clean.contains('cross_body') || clean.contains('shoulder_stretch') || clean.contains('shoulder stretch')) {
+      return 'assets/exercises/shoulder_crossbody_stretch.png';
+    }
+    if (clean.contains('band_pull_apart') || clean.contains('pull-apart') || clean.contains('pull apart')) {
+      return 'assets/exercises/band_pull_apart.png';
+    }
+    if (clean.contains('burpee')) {
+      return 'assets/exercises/burpee.png';
+    }
+    if (clean.contains('hamstring_stretch') || clean.contains('hamstring stretch') || clean.contains('hamstring')) {
+      return 'assets/exercises/hamstring_stretch.png';
+    }
+    if (clean.contains('warrior')) {
+      return 'assets/exercises/warrior_pose.png';
+    }
+    if (clean.contains('downward_dog') || clean.contains('downward dog') || clean.contains('downward-facing')) {
+      return 'assets/exercises/downward_dog.png';
+    }
+    if (clean.contains('cobra')) {
+      return 'assets/exercises/cobra_pose.png';
+    }
     if (clean.contains('bicycle_crunch') || clean.contains('bicycle crunch')) {
       return 'assets/exercises/bicycle_crunch.png';
     }
@@ -148,13 +191,37 @@ class Exercise {
     if (clean.contains('lunge')) {
       return 'assets/exercises/lunge.png';
     }
-    if (clean.contains('jog') || clean.contains('run') || clean.contains('walk') || clean.contains('burpee')) {
+    if (clean.contains('jog') || clean.contains('run') || clean.contains('walk')) {
       return 'assets/exercises/running.png';
     }
     if (clean.contains('stretch') || clean.contains('yoga')) {
       return 'assets/exercises/meditation.png';
     }
-    if (clean.contains('press') || clean.contains('raise') || clean.contains('rdl')) {
+    if (clean.contains('tree_pose') || clean.contains('tree pose')) {
+      return 'assets/exercises/tree_pose.png';
+    }
+    if (clean.contains('seated_forward_fold') || clean.contains('forward fold')) {
+      return 'assets/exercises/seated_forward_fold.png';
+    }
+    if (clean.contains('russian_twist') || clean.contains('russian twist')) {
+      return 'assets/exercises/russian_twist.png';
+    }
+    if (clean.contains('mountain_climber') || clean.contains('mountain climber') || clean.contains('mountain_climbers')) {
+      return 'assets/exercises/mountain_climbers.png';
+    }
+    if (clean.contains('side_plank') || clean.contains('side plank')) {
+      return 'assets/exercises/side_plank.png';
+    }
+    if (clean.contains('lateral_raise') || clean.contains('lateral raise')) {
+      return 'assets/exercises/lateral_raise.png';
+    }
+    if (clean.contains('overhead_triceps') || clean.contains('overhead_tricep') || clean.contains('tricep')) {
+      return 'assets/exercises/overhead_triceps_ext.png';
+    }
+    if (clean.contains('reverse_lunge') || clean.contains('reverse lunge')) {
+      return 'assets/exercises/lunge.png';
+    }
+    if (clean.contains('press') || clean.contains('raise')) {
       return 'assets/exercises/flex_proud.png';
     }
 

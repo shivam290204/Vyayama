@@ -61,7 +61,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/calf_raise.png",
       "contraindications": [],
       "instructions": [
         "Stand tall with feet hip-width apart. Rest one hand on a wall or chair for balance.",
@@ -81,7 +81,7 @@
       "muscle_group": "legs",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/dead_bug.png",
+      "animation_asset": "assets/exercises/straight_leg_raise.png",
       "contraindications": [],
       "instructions": [
         "Lie on your back with one knee bent and the other leg straight.",
@@ -93,7 +93,7 @@
         "Arching the lower back off the mat.",
         "Swinging the leg up with momentum."
       ],
-      "video_url": "https://www.youtube.com/watch?v=l443_vA5lqM"
+      "video_url": "https://www.youtube.com/watch?v=JB2oyawG9KI"
     },
     {
       "id": "ex_wall_sit",
@@ -124,7 +124,7 @@
       "muscle_group": "legs",
       "equipment": "dumbbells",
       "met": 5.0,
-      "animation_asset": "assets/exercises/squat.png",
+      "animation_asset": "assets/exercises/goblet_squat.png",
       "contraindications": [
         "knee",
         "lower_back"
@@ -139,7 +139,7 @@
         "Choosing a weight so heavy that your form breaks down.",
         "Letting the chest drop forward."
       ],
-      "video_url": "https://www.youtube.com/watch?v=MxsFDhcyfyE"
+      "video_url": "https://www.youtube.com/watch?v=lRYBbchqxtI"
     },
     {
       "id": "ex_glute_bridge",
@@ -167,7 +167,7 @@
       "muscle_group": "glutes",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/glute_bridge.png",
+      "animation_asset": "assets/exercises/clamshell.png",
       "contraindications": [],
       "instructions": [
         "Lie on your side with knees bent and feet together.",
@@ -179,7 +179,7 @@
         "Rolling the hips backward.",
         "Moving too fast."
       ],
-      "video_url": "https://www.youtube.com/watch?v=XzW3hF4U70U"
+      "video_url": "https://www.youtube.com/watch?v=EG5_gXcfozw"
     },
     {
       "id": "ex_dumbbell_rdl",
@@ -187,7 +187,7 @@
       "muscle_group": "glutes",
       "equipment": "dumbbells",
       "met": 4.0,
-      "animation_asset": "assets/exercises/one_arm_dumbbell_row.png",
+      "animation_asset": "assets/exercises/dumbbell_rdl.png",
       "contraindications": [
         "lower_back"
       ],
@@ -265,7 +265,7 @@
       "muscle_group": "chest",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/pushup.png",
+      "animation_asset": "assets/exercises/dumbbell_floor_press.png",
       "contraindications": [
         "shoulder"
       ],
@@ -279,7 +279,7 @@
         "Letting the elbows flare wide.",
         "Bouncing the arms off the floor."
       ],
-      "video_url": "https://www.youtube.com/watch?v=uUGDRwG475o"
+      "video_url": "https://www.youtube.com/watch?v=TvPviMnKg6s"
     },
     {
       "id": "ex_chair_dips",
@@ -303,7 +303,7 @@
         "Dropping too deep, which strains the shoulders.",
         "Letting the elbows flare out."
       ],
-      "video_url": "https://www.youtube.com/watch?v=tKjcgfu44sI"
+      "video_url": "https://www.youtube.com/watch?v=wjUmnZH528Y"
     },
     {
       "id": "ex_dumbbell_curl",
@@ -353,7 +353,7 @@
       "muscle_group": "shoulders",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/flex_proud.png",
+      "animation_asset": "assets/exercises/shoulder_crossbody_stretch.png",
       "contraindications": [],
       "instructions": [
         "Stand tall and bring one arm across your chest.",
@@ -365,7 +365,7 @@
         "Pulling too hard.",
         "Shrugging the shoulder toward your ear."
       ],
-      "video_url": "https://www.youtube.com/watch?v=d_kR9U21K1A"
+      "video_url": "https://www.youtube.com/watch?v=aIq0fLi8iak"
     },
     {
       "id": "ex_dumbbell_row",
@@ -395,7 +395,7 @@
       "muscle_group": "back",
       "equipment": "resistance_band",
       "met": 2.8,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/band_pull_apart.png",
       "contraindications": [],
       "instructions": [
         "Hold a light resistance band in front of you at shoulder height, hands shoulder-width apart.",
@@ -407,7 +407,7 @@
         "Shrugging the shoulders.",
         "Letting the ribs flare out."
       ],
-      "video_url": "https://www.youtube.com/watch?v=3kOD_8B_VqQ"
+      "video_url": "https://www.youtube.com/watch?v=SuvO4TBwSu4"
     },
     {
       "id": "ex_superman",
@@ -451,7 +451,7 @@
         "Moving too quickly.",
         "Forcing the end of your range of motion."
       ],
-      "video_url": "https://www.youtube.com/watch?v=ESkFlFz41H8"
+      "video_url": "https://www.youtube.com/watch?v=kqnua4rHVVA"
     },
     {
       "id": "ex_plank",
@@ -661,7 +661,7 @@
         "Leaning backward.",
         "Landing heavily on the heels."
       ],
-      "video_url": "https://www.youtube.com/watch?v=D0b8hLg7qvg"
+      "video_url": "https://www.youtube.com/watch?v=WrKc4YsgAEA"
     },
     {
       "id": "ex_burpee",
@@ -669,7 +669,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/jumping_jacks.png",
+      "animation_asset": "assets/exercises/burpee.png",
       "contraindications": [
         "high_impact",
         "knee",
@@ -707,7 +707,7 @@
         "Letting the arms stay low.",
         "Leaning to one side."
       ],
-      "video_url": "https://www.youtube.com/watch?v=E_sDglM64aQ"
+      "video_url": "https://www.youtube.com/watch?v=gY0um7WnPcc"
     },
     {
       "id": "ex_sun_salutation",
@@ -730,7 +730,7 @@
         "Forcing deep bends.",
         "Holding your breath."
       ],
-      "video_url": "https://www.youtube.com/watch?v=725f4kG93gE"
+      "video_url": "https://www.youtube.com/watch?v=73sjOu0g58M"
     },
     {
       "id": "ex_child_pose",
@@ -774,7 +774,7 @@
         "Arching the lower back.",
         "Pulling the foot too hard."
       ],
-      "video_url": "https://www.youtube.com/watch?v=2u7lM3X9FqQ"
+      "video_url": "https://www.youtube.com/watch?v=aNXGOpP37CY"
     },
     {
       "id": "ex_hamstring_stretch",
@@ -782,7 +782,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/quad_stretch.png",
+      "animation_asset": "assets/exercises/hamstring_stretch.png",
       "contraindications": [],
       "instructions": [
         "Lie on your back with both knees bent.",
@@ -794,7 +794,332 @@
         "Lifting the hips off the floor.",
         "Stretching into pain."
       ],
-      "video_url": "https://www.youtube.com/watch?v=j1aAkyb8b4M"
+      "video_url": "https://www.youtube.com/watch?v=qx6TWB1qZPI"
+    },
+    {
+      "id": "ex_warrior_1",
+      "name": "Warrior I Pose (Virabhadrasana I)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/warrior_pose.png",
+      "contraindications": [
+        "knee",
+        "shoulder"
+      ],
+      "instructions": [
+        "Step one foot forward into a lunge with your front knee bent at 90 degrees.",
+        "Turn your back foot out slightly at a 45-degree angle, grounding through your heel.",
+        "Square your hips forward and sweep both arms straight overhead.",
+        "Draw your shoulders down away from your ears and gaze slightly upward.",
+        "Hold for 5 deep breaths, then switch sides."
+      ],
+      "common_mistakes": [
+        "Letting the front knee collapse inward past the ankle.",
+        "Arching the lower back excessively instead of engaging the core."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=kkGY3xBnaGc"
+    },
+    {
+      "id": "ex_downward_dog",
+      "name": "Downward-Facing Dog (Adho Mukha Svanasana)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/downward_dog.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Start on all fours with your hands under shoulders and knees under hips.",
+        "Tuck your toes and press through your hands to lift your hips toward the ceiling.",
+        "Form an inverted V-shape, lengthening through your spine and tailbone.",
+        "Press your heels gently toward the mat and relax your neck between your upper arms.",
+        "Breathe steadily for 5 to 8 slow breaths."
+      ],
+      "common_mistakes": [
+        "Rounding the upper back instead of lengthening the spine.",
+        "Dumping all weight onto the wrists without pressing through fingers."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=WhbfS-GR32U"
+    },
+    {
+      "id": "ex_cobra_pose",
+      "name": "Cobra Pose (Bhujangasana)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.3,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [
+        "lower_back",
+        "wrist"
+      ],
+      "instructions": [
+        "Lie face down on the mat with your legs extended and tops of feet flat.",
+        "Place your palms flat under your shoulders with elbows tucked close to your ribs.",
+        "Inhale and gently press into your hands to lift your chest off the floor.",
+        "Keep a slight bend in your elbows and gaze forward, opening your chest.",
+        "Hold for 15-30 seconds, then gently lower down on an exhale."
+      ],
+      "common_mistakes": [
+        "Crunching the lower back by pushing too high too fast.",
+        "Shrugging the shoulders up toward the ears."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=fOdrW7nf9gw"
+    },
+    {
+      "id": "ex_tree_pose",
+      "name": "Tree Pose (Vrikshasana)",
+      "muscle_group": "flexibility",
+      "equipment": "none",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/tree_pose.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand tall in mountain pose with your weight evenly distributed across both feet.",
+        "Shift weight onto your left foot and place the sole of your right foot against your left inner calf or inner thigh (never directly on the knee).",
+        "Bring your hands together at prayer position in front of your chest or reach them overhead.",
+        "Fix your gaze on a non-moving point in front of you for stability.",
+        "Hold for 30 seconds, breathe calmly, then switch sides."
+      ],
+      "common_mistakes": [
+        "Placing the sole of the foot directly on the knee joint.",
+        "Holding your breath while balancing."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=wdln9qWYloU"
+    },
+    {
+      "id": "ex_seated_forward_fold",
+      "name": "Seated Forward Fold (Paschimottanasana)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Sit on your mat with legs extended straight in front of you and toes flexed back.",
+        "Inhale and lengthen your spine upward, reaching both arms overhead.",
+        "Exhale and hinge forward from the hips, leading with your chest toward your shins.",
+        "Grasp your shins, ankles, or feet without straining or forcing.",
+        "Breathe deeply into the stretch for 30 to 60 seconds."
+      ],
+      "common_mistakes": [
+        "Rounding the upper back aggressively just to touch the toes.",
+        "Tensing the shoulders and neck."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=wVdOp3h1nog"
+    },
+    {
+      "id": "ex_bridge_pose",
+      "name": "Bridge Pose (Setu Bandhasana)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/glute_bridge.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Lie on your back with knees bent and feet flat on the mat, hip-distance apart.",
+        "Place your arms along your sides with palms facing down.",
+        "Press firmly through your feet and lift your hips and chest toward the ceiling.",
+        "Roll your shoulders underneath you and clasp your hands under your pelvis if comfortable.",
+        "Hold for 30 to 45 seconds, breathing smoothly, then release slowly down vertebra by vertebra."
+      ],
+      "common_mistakes": [
+        "Letting the knees splay out wide to the sides.",
+        "Over-arching the lumbar spine."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=5QSVSePZgh8"
+    },
+    {
+      "id": "ex_savasana",
+      "name": "Corpse Pose (Savasana)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 1.5,
+      "animation_asset": "assets/exercises/meditation.png",
+      "contraindications": [],
+      "instructions": [
+        "Lie flat on your back with your legs naturally falling open and arms resting beside your body, palms facing up.",
+        "Close your eyes and release all muscular tension from head to toes.",
+        "Allow your breathing to become natural, slow, and effortless.",
+        "Stay still and quiet, allowing your mind and body to absorb the benefits of practice.",
+        "Rest in this pose for 3 to 5 minutes."
+      ],
+      "common_mistakes": [
+        "Fidgeting or holding onto physical tension in the jaw or shoulders.",
+        "Rushing to stand up quickly at the end."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=9ZsTLblha9o"
+    },
+    {
+      "id": "ex_mountain_pose",
+      "name": "Mountain Pose (Tadasana)",
+      "muscle_group": "flexibility",
+      "equipment": "none",
+      "met": 1.8,
+      "animation_asset": "assets/exercises/standing_hero.png",
+      "contraindications": [],
+      "instructions": [
+        "Stand with feet together or hip-width apart, distributing weight evenly through both feet.",
+        "Ground through the four corners of your feet and engage your quadriceps lightly.",
+        "Draw your tailbone slightly down, lengthen your spine, and relax your shoulders back and down.",
+        "Let your arms hang naturally by your sides with palms facing forward.",
+        "Breathe steadily and hold for 30 to 60 seconds with relaxed focus."
+      ],
+      "common_mistakes": [
+        "Locking knees backward into hyperextension.",
+        "Tensing the shoulders up around the neck."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=5NxDs-ovJU8"
+    },
+    {
+      "id": "ex_russian_twist",
+      "name": "Russian Twist",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 3.8,
+      "animation_asset": "assets/exercises/russian_twist.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Sit on the floor with knees bent and feet flat or slightly elevated for a greater challenge.",
+        "Lean your torso back slightly to engage your core, keeping your spine straight.",
+        "Clasp your hands in front of your chest and rotate your torso smoothly from side to side.",
+        "Tap the floor beside your hip on each side before rotating back.",
+        "Continue for 10-15 controlled repetitions per side."
+      ],
+      "common_mistakes": [
+        "Only moving the arms instead of rotating the entire torso.",
+        "Slumping the spine or rounding the lower back."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=wkD8rjkodUI"
+    },
+    {
+      "id": "ex_mountain_climbers",
+      "name": "Mountain Climbers",
+      "muscle_group": "cardio",
+      "equipment": "none",
+      "met": 8.0,
+      "animation_asset": "assets/exercises/mountain_climbers.png",
+      "contraindications": [
+        "high_impact",
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Start in a high plank position with shoulders directly above wrists and core tight.",
+        "Drive your right knee up toward your chest without letting your hips pike up.",
+        "Quickly switch legs, extending your right leg back while driving your left knee forward.",
+        "Maintain a steady, rhythmic pace while keeping your core braced and back flat.",
+        "Repeat continuously for 30 to 45 seconds."
+      ],
+      "common_mistakes": [
+        "Bouncing hips up in the air.",
+        "Letting the shoulders drift backward away from the hands."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=nmwgirgXLYM"
+    },
+    {
+      "id": "ex_side_plank",
+      "name": "Side Plank",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/side_plank.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Lie on your side with your elbow directly below your shoulder and legs stacked straight.",
+        "Engage your abdominal muscles and lift your hips off the floor until your body forms a straight line.",
+        "Rest your top hand on your hip or extend it toward the ceiling.",
+        "Hold without letting your hips sag toward the mat for 20-40 seconds.",
+        "Switch sides and repeat."
+      ],
+      "common_mistakes": [
+        "Dropping the hips toward the floor.",
+        "Rolling the top shoulder forward."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=Ye7G1wQCMgk"
+    },
+    {
+      "id": "ex_lateral_raise",
+      "name": "Dumbbell Lateral Raise",
+      "muscle_group": "shoulders",
+      "equipment": "dumbbells",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/lateral_raise.png",
+      "contraindications": [
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand tall with feet hip-width apart holding light dumbbells at your sides.",
+        "With a slight bend in your elbows, raise the dumbbells out to the sides until parallel to the floor.",
+        "Lead with the elbows, keeping your palms facing downward at the top.",
+        "Lower the dumbbells back down with control over 2 seconds.",
+        "Perform 10 to 12 controlled reps without swinging."
+      ],
+      "common_mistakes": [
+        "Using momentum or rocking the torso to swing the weights up.",
+        "Lifting the dumbbells above shoulder height which strains the joint."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=3VcKaXpzqRo"
+    },
+    {
+      "id": "ex_reverse_lunge",
+      "name": "Reverse Lunge",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/lunge.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand tall with feet hip-width apart and hands on your hips or held at chest.",
+        "Take a controlled step backward with one leg and lower your hips.",
+        "Bend both knees to roughly 90 degrees, keeping front knee aligned over ankle.",
+        "Drive through the heel of your front foot to return to the standing position.",
+        "Alternate legs for 10-12 repetitions per leg."
+      ],
+      "common_mistakes": [
+        "Leaning too far forward over the front knee.",
+        "Slamming the back knee into the floor."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=D7KaRcUTQeE"
+    },
+    {
+      "id": "ex_overhead_triceps_ext",
+      "name": "Overhead Dumbbell Triceps Extension",
+      "muscle_group": "arms",
+      "equipment": "dumbbells",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/overhead_triceps_ext.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Stand or sit upright holding a single dumbbell vertically overhead with both hands cup-gripping the top plate.",
+        "Keep your upper arms stationary close to your ears and elbows pointing forward.",
+        "Slowly bend your elbows to lower the weight behind your head until your forearms pass parallel.",
+        "Contract your triceps to press the dumbbell back overhead to the start position.",
+        "Perform 10 to 12 controlled reps."
+      ],
+      "common_mistakes": [
+        "Flaring elbows wide out to the sides.",
+        "Arching the lower back while pressing overhead."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=nRiJVZDpdL0"
     }
   ]
 }
