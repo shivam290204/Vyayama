@@ -16,6 +16,13 @@ class WorkoutsHomeScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Workouts'),
+          actions: [
+            IconButton(
+              tooltip: 'Create custom plan',
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () => context.push(AppRoutes.planBuilder),
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'My Plan'),
@@ -24,14 +31,13 @@ class WorkoutsHomeScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [MyPlanTab(), BrowsePlansTab(), ExerciseLibraryTab()],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'workouts_create_plan_fab',
-          onPressed: () => context.push(AppRoutes.planBuilder),
-          icon: const Icon(Icons.add),
-          label: const Text('Create plan'),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: const TabBarView(
+              children: [MyPlanTab(), BrowsePlansTab(), ExerciseLibraryTab()],
+            ),
+          ),
         ),
       ),
     );

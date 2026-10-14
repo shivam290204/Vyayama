@@ -38,9 +38,34 @@ class BrowsePlansTab extends ConsumerWidget {
               children: [
                 for (final level in levels) ...[
                   Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
-                    child: Text(prettyLabel(level),
-                        style: theme.textTheme.titleMedium),
+                    padding: const EdgeInsets.only(top: 14, bottom: 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          prettyLabel(level),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${plans.where((p) => (p.level ?? 'beginner') == level).length}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   for (final p in plans.where((p) => (p.level ?? 'beginner') == level))
                     PlanCard(

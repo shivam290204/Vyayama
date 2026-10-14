@@ -80,8 +80,30 @@ class _ExerciseLibraryTabState extends ConsumerState<ExerciseLibraryTab>
           controller: _controller,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search),
-            hintText: 'Search exercises',
-            border: const OutlineInputBorder(),
+            hintText: 'Search exercises...',
+            filled: true,
+            fillColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.35),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            ),
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(
