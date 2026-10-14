@@ -25,6 +25,11 @@ class FriendsListScreen extends ConsumerWidget {
         title: const Text('Friends'),
         actions: [
           IconButton(
+            tooltip: 'Add friend',
+            icon: const Icon(Icons.person_add_outlined),
+            onPressed: () => context.push(AppRoutes.friendsAdd),
+          ),
+          IconButton(
             tooltip: 'Friends Feed',
             icon: const Icon(Icons.dynamic_feed_outlined),
             onPressed: () => context.push(AppRoutes.feed),
@@ -46,6 +51,12 @@ class FriendsListScreen extends ConsumerWidget {
             onPressed: () => context.push(AppRoutes.friendsRequests),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        tooltip: 'Add friend',
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Friend'),
+        onPressed: () => context.push(AppRoutes.friendsAdd),
       ),
       body: AsyncBody<List<FriendWithStreak>>(
         value: value,

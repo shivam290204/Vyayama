@@ -56,7 +56,13 @@ class MockFriendRepository implements FriendRepository {
         addresseeId: incoming ? currentUserId : other,
         createdAt: DateTime.now(),
       ),
-      user: _directory[other]!,
+      user: _directory[other] ??
+          FriendUser(
+            id: other,
+            username: other,
+            name: other,
+            timezone: kMockTimezone,
+          ),
       incoming: incoming,
     );
   }
@@ -66,7 +72,10 @@ class MockFriendRepository implements FriendRepository {
   @override
   Future<List<FriendUser>> friends() async {
     await _latency();
-    return _friends.map((id) => _directory[id]!).toList();
+    return _friends
+        .map((id) => _directory[id])
+        .whereType<FriendUser>()
+        .toList();
   }
 
   @override
@@ -100,8 +109,9 @@ class MockFriendRepository implements FriendRepository {
   @override
   Future<void> sendRequest(String addresseeId) async {
     await _latency();
-    if (await relationTo(addresseeId) != FriendRelation.none) {
-      throw StateError('Already connected or pending');
+    if (addresseeId == currentUserId ||
+        await relationTo(addresseeId) != FriendRelation.none) {
+      throw StateError('Already connected, pending, or self');
     }
     _requests.add(_request('r${++_counter + 10}', addresseeId, incoming: false));
   }
