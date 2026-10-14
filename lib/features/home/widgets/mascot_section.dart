@@ -86,7 +86,10 @@ class MascotSection extends ConsumerWidget {
               button: true,
               label: 'Mascot status: ${progress.label}. Tap for another message.',
               child: InkWell(
-                onTap: () => ref.read(mascotVariantProvider.notifier).next(),
+                onTap: () {
+                  ref.read(dailyCompletionTierOverrideProvider.notifier).cycleNext();
+                  ref.read(mascotVariantProvider.notifier).next();
+                },
                 borderRadius: BorderRadius.circular(24),
                 child: Container(
                   width: cardWidth,
@@ -228,7 +231,7 @@ class _ProgressBadge extends StatelessWidget {
         badgeColor = const Color(0xFF2C352C);
         textColor = const Color(0xFFB0BEB0);
         badgeIcon = Icons.flag_outlined;
-        badgeText = '0 / ${progress.totalCount} Done';
+        badgeText = '${progress.completedCount} / ${progress.totalCount} Done';
         break;
       case DailyCompletionTier.fourToFiveDone:
         badgeColor = AppPalette.limeGreen;

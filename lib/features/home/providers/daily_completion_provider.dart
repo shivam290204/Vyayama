@@ -44,7 +44,7 @@ class DailyCompletionProgress {
       case DailyCompletionTier.nothingDone:
         return 'assets/images/mascot/Sad_Drooped_Head.png';
       case DailyCompletionTier.fourToFiveDone:
-        return 'assets/exercises/flex_proud.png';
+        return 'assets/images/mascot/flex_proud.png';
       case DailyCompletionTier.everythingDone:
         return 'assets/images/mascot/Fire_Determined.png';
     }
@@ -53,7 +53,7 @@ class DailyCompletionProgress {
   String get label {
     switch (tier) {
       case DailyCompletionTier.nothingDone:
-        return 'Nothing done yet';
+        return completedCount == 0 ? 'Nothing done yet' : '$completedCount of $totalCount completed';
       case DailyCompletionTier.fourToFiveDone:
         return '$completedCount of $totalCount completed';
       case DailyCompletionTier.everythingDone:
@@ -73,12 +73,12 @@ class DailyCompletionTierOverrideNotifier
   void cycleNext() {
     switch (state) {
       case null:
-        state = DailyCompletionTier.nothingDone;
-      case DailyCompletionTier.nothingDone:
         state = DailyCompletionTier.fourToFiveDone;
       case DailyCompletionTier.fourToFiveDone:
         state = DailyCompletionTier.everythingDone;
       case DailyCompletionTier.everythingDone:
+        state = DailyCompletionTier.nothingDone;
+      case DailyCompletionTier.nothingDone:
         state = null; // Back to auto
     }
   }
@@ -118,12 +118,14 @@ final dailyCompletionProgressProvider =
 
   const total = 6;
   DailyCompletionTier calculatedTier;
-  if (count == 0) {
+  if (count < 4) {
+    // 0 to 3 goals done -> First character: Sad
     calculatedTier = DailyCompletionTier.nothingDone;
   } else if (count >= total) {
+    // All 6 goals done -> Everything completed: Fire character
     calculatedTier = DailyCompletionTier.everythingDone;
   } else {
-    // 1 to 5 done (user specified: flex_proud.png when done 4 to 5 things not all)
+    // 4 or 5 goals done -> Second character: Flex Proud
     calculatedTier = DailyCompletionTier.fourToFiveDone;
   }
 
@@ -134,7 +136,7 @@ final dailyCompletionProgressProvider =
     completedCount: override == null
         ? count
         : (override == DailyCompletionTier.nothingDone
-            ? 0
+            ? (count < 4 ? count : 0)
             : (override == DailyCompletionTier.fourToFiveDone ? 4 : total)),
     totalCount: total,
     tier: effectiveTier,

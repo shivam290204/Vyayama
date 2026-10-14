@@ -5,6 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _StaticTierNotifier extends DailyCompletionTierOverrideNotifier {
+  _StaticTierNotifier(this._initialTier);
+  final DailyCompletionTier _initialTier;
+
+  @override
+  DailyCompletionTier? build() => _initialTier;
+}
+
 void main() {
   group('DailyCompletionTier and Progress', () {
     test('Correct assets correspond to each completion tier', () {
@@ -32,7 +40,7 @@ void main() {
         waterDone: false,
         challengeDone: false,
       );
-      expect(pPartial.assetPath, 'assets/exercises/flex_proud.png');
+      expect(pPartial.assetPath, 'assets/images/mascot/flex_proud.png');
 
       const pAll = DailyCompletionProgress(
         completedCount: 6,
@@ -59,15 +67,15 @@ void main() {
 
       notifier.cycleNext();
       expect(container.read(dailyCompletionTierOverrideProvider),
-          DailyCompletionTier.nothingDone);
-
-      notifier.cycleNext();
-      expect(container.read(dailyCompletionTierOverrideProvider),
           DailyCompletionTier.fourToFiveDone);
 
       notifier.cycleNext();
       expect(container.read(dailyCompletionTierOverrideProvider),
           DailyCompletionTier.everythingDone);
+
+      notifier.cycleNext();
+      expect(container.read(dailyCompletionTierOverrideProvider),
+          DailyCompletionTier.nothingDone);
 
       notifier.cycleNext();
       expect(container.read(dailyCompletionTierOverrideProvider), isNull);
@@ -81,7 +89,7 @@ void main() {
         ProviderScope(
           overrides: [
             dailyCompletionTierOverrideProvider.overrideWith(
-              (ref) => DailyCompletionTier.nothingDone,
+              () => _StaticTierNotifier(DailyCompletionTier.nothingDone),
             ),
           ],
           child: const MaterialApp(
@@ -109,7 +117,7 @@ void main() {
         ProviderScope(
           overrides: [
             dailyCompletionTierOverrideProvider.overrideWith(
-              (ref) => DailyCompletionTier.fourToFiveDone,
+              () => _StaticTierNotifier(DailyCompletionTier.fourToFiveDone),
             ),
           ],
           child: const MaterialApp(
@@ -125,7 +133,7 @@ void main() {
       expect(imageFinder, findsOneWidget);
       final image = tester.widget<Image>(imageFinder);
       expect((image.image as AssetImage).assetName,
-          'assets/exercises/flex_proud.png');
+          'assets/images/mascot/flex_proud.png');
     });
 
     testWidgets('Renders Fire_Determined.png when everything done',
@@ -134,7 +142,7 @@ void main() {
         ProviderScope(
           overrides: [
             dailyCompletionTierOverrideProvider.overrideWith(
-              (ref) => DailyCompletionTier.everythingDone,
+              () => _StaticTierNotifier(DailyCompletionTier.everythingDone),
             ),
           ],
           child: const MaterialApp(
