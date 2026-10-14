@@ -21,7 +21,18 @@ class AppSoundService {
   static final AppSoundService instance = AppSoundService._();
 
   AudioPlayer? _player;
+  StreamSubscription<void>? _completionSub;
   bool _playing = false;
+
+  /// Notifies listeners when audio is playing or stopped.
+  final ValueNotifier<bool> isPlayingNotifier = ValueNotifier<bool>(false);
+
+  /// Notifies listeners of the active asset path playing, or null when idle.
+  final ValueNotifier<String?> currentPlayingSoundNotifier =
+      ValueNotifier<String?>(null);
+
+  /// Whether an audio sound is currently actively playing.
+  bool get isPlaying => _playing;
 
   /// Play the wake-up alarm sound. Loops until [stop] is called.
   Future<void> playWakeUpAlarm() => _play(AppSounds.wakeUpAlarm, loop: true);
@@ -32,8 +43,11 @@ class AppSoundService {
 
   /// Stop any currently playing alarm/alert.
   Future<void> stop() async {
-    if (!_playing) return;
     _playing = false;
+    isPlayingNotifier.value = false;
+    currentPlayingSoundNotifier.value = null;
+    await _completionSub?.cancel();
+    _completionSub = null;
     try {
       await _player?.stop();
     } catch (e) {
@@ -44,8 +58,11 @@ class AppSoundService {
   Future<void> _play(String asset, {required bool loop}) async {
     await stop();
     _playing = true;
+    isPlayingNotifier.value = true;
+    currentPlayingSoundNotifier.value = asset;
     _player ??= AudioPlayer();
     try {
+      await _player!.setVolume(1.0);
       if (!kIsWeb) {
         try {
           await _player!.setAudioContext(
@@ -65,16 +82,34 @@ class AppSoundService {
         } catch (_) {}
       }
       await _player!.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.stop);
+
+      // Listen for non-looping audio completion
+      await _completionSub?.cancel();
+      _completionSub = _player!.onPlayerComplete.listen((_) {
+        if (!loop) {
+          _playing = false;
+          isPlayingNotifier.value = false;
+          currentPlayingSoundNotifier.value = null;
+        }
+      });
+
       await _player!.play(AssetSource(asset));
     } catch (e) {
       debugPrint('AppSoundService play error: $e');
+      _playing = false;
+      isPlayingNotifier.value = false;
+      currentPlayingSoundNotifier.value = null;
     }
   }
 
   void dispose() {
+    _completionSub?.cancel();
+    _completionSub = null;
     _player?.dispose();
     _player = null;
     _playing = false;
+    isPlayingNotifier.value = false;
+    currentPlayingSoundNotifier.value = null;
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
@@ -10,6 +11,7 @@ import 'package:fitbuddy/features/health_profile/presentation/widgets/medicines_
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// Health profile: conditions, medicine reminders and meal reminders.
 class HealthScreen extends ConsumerWidget {
@@ -47,6 +49,17 @@ class HealthScreen extends ConsumerWidget {
                       expandedHeight: 120,
                       backgroundColor: Colors.transparent,
                       surfaceTintColor: Colors.transparent,
+                      leading: IconButton(
+                        tooltip: 'Back',
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () {
+                          if (context.canPop()) {
+                            context.pop();
+                          } else {
+                            context.go(AppRoutes.home);
+                          }
+                        },
+                      ),
                       flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
                         title: Text(

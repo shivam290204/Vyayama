@@ -3,6 +3,7 @@ import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicine_edit_sheet.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
+import 'package:fitbuddy/features/schedule/widgets/medicine_alert_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,23 +19,56 @@ class MedicinesSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-
         AsyncValueView<List<Medicine>>(
           value: medicines,
           onRetry: () => ref.invalidate(medicinesProvider),
           builder: (list) => list.isEmpty
               ? const _EmptyMedicines()
-              : GlassCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: <Widget>[
-                      for (var i = 0; i < list.length; i++) ...[
-                        _MedicineTile(medicine: list[i]),
-                        if (i < list.length - 1)
-                          Divider(height: 1, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2)),
-                      ],
-                    ],
-                  ),
+              : Column(
+                  children: [
+                    GlassCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: <Widget>[
+                          for (var i = 0; i < list.length; i++) ...[
+                            _MedicineTile(medicine: list[i]),
+                            if (i < list.length - 1)
+                              Divider(
+                                height: 1,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline
+                                    .withValues(alpha: 0.2),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFE5A000),
+                        ),
+                        onPressed: () => MedicineAlertDialog.show(
+                          context,
+                          medicineName: list.first.name,
+                          time: list.first.reminderTimes.firstOrNull
+                                  ?.format(context) ??
+                              '09:00 AM',
+                        ),
+                        icon: const Icon(
+                          Icons.play_circle_outline_rounded,
+                          size: 16,
+                        ),
+                        label: const Text(
+                          'Test Medicine Alert Sound',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
         ),
       ],
@@ -53,7 +87,7 @@ class _EmptyMedicines extends StatelessWidget {
     return GlassCard(
       padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
         child: Column(
           children: <Widget>[
             Container(
@@ -64,25 +98,46 @@ class _EmptyMedicines extends StatelessWidget {
               ),
               child: Icon(
                 Icons.medication_outlined,
-                size: 48,
+                size: 44,
                 color: scheme.primary,
                 semanticLabel: 'No medicine reminders yet',
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               'No reminders yet',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              'Tap the Add button to create your first medicine reminder.',
+              'Add reminders for your vitamins or medicines so you stay consistent daily.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => showMedicineEditSheet(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add reminder'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => MedicineAlertDialog.show(
+                    context,
+                    medicineName: 'Daily Vitamin',
+                    time: '09:00 AM',
+                  ),
+                  icon: const Icon(Icons.volume_up_rounded, size: 18),
+                  label: const Text('Test alert sound'),
+                ),
+              ],
             ),
           ],
         ),
@@ -91,7 +146,7 @@ class _EmptyMedicines extends StatelessWidget {
   }
 }
 
-enum _MedicineAction { edit, delete }
+enum _MedicineAction { edit, testAlert, delete }
 
 class _MedicineTile extends ConsumerWidget {
   const _MedicineTile({required this.medicine});
@@ -153,59 +208,88 @@ class _MedicineTile extends ConsumerWidget {
       minVerticalPadding: 16,
       onTap: () => showMedicineEditSheet(context, medicine: medicine),
       leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.1),
-            shape: BoxShape.circle,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: scheme.secondary.withValues(alpha: isDark ? 0.15 : 0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.medication_outlined,
+          color: scheme.secondary,
+          semanticLabel: 'Medicine',
+          size: 22,
+        ),
+      ),
+      title: Text(
+        medicine.name,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(times),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Semantics(
+            label: 'Reminders for ${medicine.name}',
+            child: Switch(
+              value: medicine.isActive,
+              onChanged: (v) => _setActive(context, ref, v),
+            ),
           ),
-          child: Icon(
-            Icons.medication_outlined,
-            color: scheme.secondary,
-            semanticLabel: 'Medicine',
-            size: 22,
-          ),
-        ),
-        title: Text(
-          medicine.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(times),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Semantics(
-              label: 'Reminders for ${medicine.name}',
-              child: Switch(
-                value: medicine.isActive,
-                onChanged: (v) => _setActive(context, ref, v),
+          PopupMenuButton<_MedicineAction>(
+            tooltip: 'More options',
+            onSelected: (action) {
+              switch (action) {
+                case _MedicineAction.edit:
+                  showMedicineEditSheet(context, medicine: medicine);
+                case _MedicineAction.testAlert:
+                  MedicineAlertDialog.show(
+                    context,
+                    medicineName: medicine.name,
+                    time: medicine.reminderTimes.firstOrNull?.format(context) ??
+                        '09:00 AM',
+                  );
+                case _MedicineAction.delete:
+                  _confirmDelete(context, ref);
+              }
+            },
+            itemBuilder: (_) => const <PopupMenuEntry<_MedicineAction>>[
+              PopupMenuItem<_MedicineAction>(
+                value: _MedicineAction.edit,
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuButton<_MedicineAction>(
-              tooltip: 'More options',
-              onSelected: (action) {
-                switch (action) {
-                  case _MedicineAction.edit:
-                    showMedicineEditSheet(context, medicine: medicine);
-                  case _MedicineAction.delete:
-                    _confirmDelete(context, ref);
-                }
-              },
-              itemBuilder: (_) => const <PopupMenuEntry<_MedicineAction>>[
-                PopupMenuItem<_MedicineAction>(
-                  value: _MedicineAction.edit,
-                  child: Text('Edit'),
+              PopupMenuItem<_MedicineAction>(
+                value: _MedicineAction.testAlert,
+                child: Row(
+                  children: [
+                    Icon(Icons.volume_up_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Test alert sound'),
+                  ],
                 ),
-                PopupMenuItem<_MedicineAction>(
-                  value: _MedicineAction.delete,
-                  child: Text('Delete'),
+              ),
+              PopupMenuItem<_MedicineAction>(
+                value: _MedicineAction.delete,
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

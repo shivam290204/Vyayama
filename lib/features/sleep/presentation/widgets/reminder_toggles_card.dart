@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
@@ -109,167 +110,254 @@ class ReminderTogglesCard extends ConsumerWidget {
                 },
               ),
 
-              // --- Detailed Alarm Settings (Shown when alarm is enabled) ---
-              if (isAlarmOn) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF1E281E).withValues(alpha: 0.5)
-                        : const Color(0xFFF4F7F2),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: const Color(0xFFFF9500).withValues(alpha: 0.25),
-                      width: 1,
-                    ),
+              // --- Detailed Alarm Settings (Always accessible) ---
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E281E).withValues(alpha: isAlarmOn ? 0.6 : 0.3)
+                      : const Color(0xFFF4F7F2),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isAlarmOn
+                        ? const Color(0xFFFF9500).withValues(alpha: 0.45)
+                        : (isDark ? const Color(0xFF2C3B2C) : const Color(0xFFDEE5DA)),
+                    width: isAlarmOn ? 1.5 : 1,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Repeat Days
-                      Text(
-                        'Repeat on',
-                        style: text.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(7, (i) {
-                          final dayIndex = i + 1;
-                          final isSelected =
-                              settings.alarmDays.contains(dayIndex);
-                          return FilterChip(
-                            label: Text(_dayLabels[i]),
-                            selected: isSelected,
-                            showCheckmark: false,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? const Color(0xFF142014)
-                                  : scheme.onSurface,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with status indicator
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isAlarmOn
+                                  ? Icons.alarm_on_rounded
+                                  : Icons.alarm_off_rounded,
+                              size: 16,
+                              color: isAlarmOn
+                                  ? const Color(0xFFFF9500)
+                                  : scheme.onSurfaceVariant,
                             ),
-                            selectedColor: AppPalette.limeGreen,
-                            backgroundColor: isDark
-                                ? const Color(0xFF253325)
-                                : Colors.white,
-                            onSelected: (selected) {
-                              final updated =
-                                  List<int>.from(settings.alarmDays);
-                              if (selected) {
-                                if (!updated.contains(dayIndex)) {
-                                  updated.add(dayIndex);
-                                }
-                              } else {
-                                if (updated.length > 1) {
-                                  updated.remove(dayIndex);
-                                }
-                              }
-                              notifier.setAlarmDays(updated..sort());
-                            },
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Sound selection
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.music_note_rounded,
-                                size: 18,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 6),
-                              Text('Alarm sound', style: text.bodyMedium),
-                            ],
-                          ),
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _soundOptions.contains(settings.alarmSound)
-                                  ? settings.alarmSound
-                                  : _soundOptions.first,
-                              borderRadius: BorderRadius.circular(14),
-                              dropdownColor: isDark
-                                  ? const Color(0xFF1E281E)
-                                  : Colors.white,
-                              style: text.bodyMedium?.copyWith(
-                                color: AppPalette.limeGreen,
+                            const SizedBox(width: 6),
+                            Text(
+                              isAlarmOn
+                                  ? 'Alarm Scheduled ($wake)'
+                                  : 'Alarm Inactive (Off)',
+                              style: TextStyle(
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
+                                color: isAlarmOn
+                                    ? const Color(0xFFFF9500)
+                                    : scheme.onSurfaceVariant,
                               ),
-                              items: _soundOptions
-                                  .map(
-                                    (s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(s),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (sound) {
-                                if (sound != null) {
-                                  notifier.setAlarmSound(sound);
-                                }
+                            ),
+                          ],
+                        ),
+                        if (!isAlarmOn)
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: AppPalette.limeGreen,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                            ),
+                            onPressed: () async {
+                              await NotificationService.instance.requestPermissions();
+                              if (!context.mounted) return;
+                              await runSafely(context, () => notifier.setWakeAlarm(true));
+                            },
+                            child: const Text(
+                              'Enable Alarm',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Repeat Days
+                    Text(
+                      'Repeat on',
+                      style: text.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(7, (i) {
+                        final dayIndex = i + 1;
+                        final isSelected =
+                            settings.alarmDays.contains(dayIndex);
+                        return FilterChip(
+                          label: Text(_dayLabels[i]),
+                          selected: isSelected,
+                          showCheckmark: false,
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? const Color(0xFF142014)
+                                : scheme.onSurface,
+                          ),
+                          selectedColor: AppPalette.limeGreen,
+                          backgroundColor: isDark
+                              ? const Color(0xFF253325)
+                              : Colors.white,
+                          onSelected: (selected) {
+                            final updated =
+                                List<int>.from(settings.alarmDays);
+                            if (selected) {
+                              if (!updated.contains(dayIndex)) {
+                                updated.add(dayIndex);
+                              }
+                            } else {
+                              if (updated.length > 1) {
+                                updated.remove(dayIndex);
+                              }
+                            }
+                            notifier.setAlarmDays(updated..sort());
+                          },
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Sound selection with Preview Button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.music_note_rounded,
+                              size: 18,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text('Alarm sound', style: text.bodyMedium),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _soundOptions.contains(settings.alarmSound)
+                                    ? settings.alarmSound
+                                    : _soundOptions.first,
+                                borderRadius: BorderRadius.circular(14),
+                                dropdownColor: isDark
+                                    ? const Color(0xFF1E281E)
+                                    : Colors.white,
+                                style: text.bodyMedium?.copyWith(
+                                  color: AppPalette.limeGreen,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                items: _soundOptions
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(s),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (sound) {
+                                  if (sound != null) {
+                                    notifier.setAlarmSound(sound);
+                                    // Play a short preview when sound selection changes
+                                    AppSoundService.instance.playWakeUpAlarm();
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ValueListenableBuilder<bool>(
+                              valueListenable:
+                                  AppSoundService.instance.isPlayingNotifier,
+                              builder: (context, isPlaying, _) {
+                                return IconButton(
+                                  tooltip: isPlaying
+                                      ? 'Stop preview'
+                                      : 'Preview alarm sound',
+                                  icon: Icon(
+                                    isPlaying
+                                        ? Icons.stop_circle_rounded
+                                        : Icons.play_circle_fill_rounded,
+                                    color: const Color(0xFFFF9500),
+                                    size: 24,
+                                  ),
+                                  onPressed: () {
+                                    if (isPlaying) {
+                                      AppSoundService.instance.stop();
+                                    } else {
+                                      AppSoundService.instance.playWakeUpAlarm();
+                                    }
+                                  },
+                                );
                               },
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
 
-                      // Snooze Duration
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.snooze_rounded,
-                                size: 18,
-                                color: scheme.onSurfaceVariant,
+                    // Snooze Duration
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.snooze_rounded,
+                              size: 18,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text('Snooze time', style: text.bodyMedium),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: 6,
+                          children: _snoozeOptions.map((m) {
+                            final isSelected = settings.snoozeMinutes == m;
+                            return ChoiceChip(
+                              label: Text('${m}m'),
+                              selected: isSelected,
+                              selectedColor: AppPalette.limeGreen,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 2),
+                              labelStyle: TextStyle(
+                                fontSize: 12,
+                                color: isSelected
+                                    ? const Color(0xFF142014)
+                                    : scheme.onSurface,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
-                              const SizedBox(width: 6),
-                              Text('Snooze time', style: text.bodyMedium),
-                            ],
-                          ),
-                          Wrap(
-                            spacing: 6,
-                            children: _snoozeOptions.map((m) {
-                              final isSelected = settings.snoozeMinutes == m;
-                              return ChoiceChip(
-                                label: Text('${m}m'),
-                                selected: isSelected,
-                                selectedColor: AppPalette.limeGreen,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2),
-                                labelStyle: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected
-                                      ? const Color(0xFF142014)
-                                      : scheme.onSurface,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                                onSelected: (_) =>
-                                    notifier.setSnoozeMinutes(m),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
+                              onSelected: (_) =>
+                                  notifier.setSnoozeMinutes(m),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
 
-                      // Vibrate toggle
-                      SwitchListTile(
+                    // Vibrate toggle
+                    Material(
+                      color: Colors.transparent,
+                      child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         dense: true,
                         title: const Text('Vibrate on alarm'),
@@ -281,45 +369,45 @@ class ReminderTogglesCard extends ConsumerWidget {
                         value: isVibrate,
                         onChanged: notifier.setVibrate,
                       ),
-                      const SizedBox(height: 8),
+                    ),
+                    const SizedBox(height: 8),
 
-                      // Test Alarm Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFFF9500),
-                            side: const BorderSide(
-                              color: Color(0xFFFF9500),
-                              width: 1.2,
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                    // Test Alarm Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF9500),
+                          side: const BorderSide(
+                            color: Color(0xFFFF9500),
+                            width: 1.2,
                           ),
-                          onPressed: () {
-                            AlarmTestDialog.show(
-                              context,
-                              alarmTime: wake,
-                              alarmSound: settings.alarmSound,
-                              vibrate: isVibrate,
-                              snoozeMinutes: settings.snoozeMinutes,
-                            );
-                          },
-                          icon: const Icon(Icons.play_circle_outline_rounded,
-                              size: 18),
-                          label: const Text(
-                            'Test Alarm Now',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
+                        onPressed: () {
+                          AlarmTestDialog.show(
+                            context,
+                            alarmTime: wake,
+                            alarmSound: settings.alarmSound,
+                            vibrate: isVibrate,
+                            snoozeMinutes: settings.snoozeMinutes,
+                          );
+                        },
+                        icon: const Icon(Icons.play_circle_outline_rounded,
+                            size: 18),
+                        label: const Text(
+                          'Test Alarm Now',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
+              const SizedBox(height: 16),
 
               Divider(height: 1, color: scheme.outline.withValues(alpha: 0.2)),
               const SizedBox(height: 8),

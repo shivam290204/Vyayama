@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -58,6 +59,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
     );
 
     _triggerHaptics();
+    AppSoundService.instance.playWakeUpAlarm();
   }
 
   Future<void> _triggerHaptics() async {
@@ -71,6 +73,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
 
   @override
   void dispose() {
+    AppSoundService.instance.stop();
     _pulseController.dispose();
     super.dispose();
   }
@@ -163,7 +166,49 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                 color: const Color(0xFFB0BEB0),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<bool>(
+              valueListenable: AppSoundService.instance.isPlayingNotifier,
+              builder: (context, playing, _) {
+                return OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: playing
+                        ? AppPalette.limeGreen
+                        : const Color(0xFFFF9500),
+                    side: BorderSide(
+                      color: playing
+                          ? AppPalette.limeGreen.withValues(alpha: 0.5)
+                          : const Color(0xFFFF9500).withValues(alpha: 0.5),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  onPressed: () {
+                    if (playing) {
+                      AppSoundService.instance.stop();
+                    } else {
+                      AppSoundService.instance.playWakeUpAlarm();
+                    }
+                  },
+                  icon: Icon(
+                    playing
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    playing
+                        ? 'Alarm Ringing (Tap to Silence)'
+                        : 'Alarm Silenced (Tap to Play)',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
@@ -177,6 +222,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                       ),
                     ),
                     onPressed: () {
+                      AppSoundService.instance.stop();
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -202,6 +248,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                       ),
                     ),
                     onPressed: () {
+                      AppSoundService.instance.stop();
                       Navigator.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
