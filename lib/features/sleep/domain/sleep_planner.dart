@@ -20,10 +20,11 @@ class SleepPlan {
     required this.wakeTime,
     required this.sleepMinutes,
     required this.windDownStart,
-    required this.isNightShift,
-    this.isCustom = false,
+    bool isNightShift = false,
+    bool isCustom = false,
     this.warnings = const <SleepWarning>[],
-  });
+  })  : _isNightShift = isNightShift,
+        _isCustom = isCustom;
 
   /// Suggested bedtime.
   final DayTime bedtime;
@@ -37,11 +38,14 @@ class SleepPlan {
   /// When to start winding down (one hour before bedtime).
   final DayTime windDownStart;
 
+  final bool? _isNightShift;
+  final bool? _isCustom;
+
   /// True when work ends before it starts on the clock (overnight shift).
-  final bool isNightShift;
+  bool get isNightShift => _isNightShift == true;
 
   /// True when user explicitly set their own bedtime or wake-up alarm time.
-  final bool isCustom;
+  bool get isCustom => _isCustom == true;
 
   /// Heads-ups about the schedule.
   final List<SleepWarning> warnings;
@@ -154,6 +158,7 @@ class SleepPlanner {
         sleepMinutes: length,
         windDownStart: bedtime.minusMinutes(windDownMinutes),
         isNightShift: true,
+        isCustom: false,
         warnings: warnings,
       );
     }
@@ -176,6 +181,7 @@ class SleepPlanner {
       sleepMinutes: desired,
       windDownStart: bedtime.minusMinutes(windDownMinutes),
       isNightShift: false,
+      isCustom: false,
       warnings: warnings,
     );
   }

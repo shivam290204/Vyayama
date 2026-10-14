@@ -52,6 +52,9 @@ class SleepPlanCard extends ConsumerWidget {
     final wake = wakeTimeOfDay.format(context);
     final windDown = plan.windDownStart.toTimeOfDay().format(context);
 
+    final isCustom = plan.isCustom == true;
+    final isNightShift = plan.isNightShift == true;
+
     final isHealthyDuration = plan.sleepMinutes >= SleepPlanner.minSleepMinutes &&
         plan.sleepMinutes <= SleepPlanner.maxSleepMinutes;
 
@@ -67,7 +70,7 @@ class SleepPlanCard extends ConsumerWidget {
                   accentColor: const Color(0xFF818CF8),
                   label: 'Bedtime',
                   value: bed,
-                  subtitle: plan.isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
+                  subtitle: isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
                   onTap: () => _pickBedtime(context, ref, bedTimeOfDay),
                 ),
               ),
@@ -78,7 +81,7 @@ class SleepPlanCard extends ConsumerWidget {
                   accentColor: const Color(0xFFFBBF24),
                   label: 'Wake up (Alarm)',
                   value: wake,
-                  subtitle: plan.isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
+                  subtitle: isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
                   onTap: () => _pickWakeTime(context, ref, wakeTimeOfDay),
                 ),
               ),
@@ -120,7 +123,7 @@ class SleepPlanCard extends ConsumerWidget {
               ],
             ),
           ),
-          if (plan.isCustom) ...[
+          if (isCustom) ...[
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -134,7 +137,7 @@ class SleepPlanCard extends ConsumerWidget {
               ),
             ),
           ],
-          if (plan.isNightShift)
+          if (isNightShift)
             const _Notice(
               icon: Icons.nights_stay_outlined,
               message: 'Planned around your night shift, so sleep comes after work.',

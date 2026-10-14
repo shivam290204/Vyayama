@@ -76,10 +76,10 @@ class SleepScreen extends ConsumerWidget {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           StaggeredEntrance(
-                            children: const [
+                            children: [
                               // Hero Card with sleeping mascot
-                              SleepHeroCard(),
-                              SizedBox(height: 24),
+                              const SleepHeroCard(),
+                              const SizedBox(height: 24),
 
                               AnimatedSectionHeader(
                                 title: 'Sleep plan',

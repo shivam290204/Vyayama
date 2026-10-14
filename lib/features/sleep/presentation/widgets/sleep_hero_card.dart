@@ -17,7 +17,7 @@ class SleepHeroCard extends ConsumerWidget {
     final wake = plan.wakeTime.toTimeOfDay().format(context);
     final bed = plan.bedtime.toTimeOfDay().format(context);
     final durationStr = formatSleepMinutes(plan.sleepMinutes);
-    final isAlarmOn = settings?.wakeAlarmOn ?? false;
+    final isAlarmOn = settings?.wakeAlarmOn == true;
 
     return Container(
       width: double.infinity,

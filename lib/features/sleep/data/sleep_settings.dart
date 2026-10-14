@@ -11,13 +11,44 @@ class SleepSettings {
     this.sleepMinutes,
     this.customBedtime,
     this.customWakeTime,
-    this.bedtimeReminderOn = false,
-    this.wakeAlarmOn = false,
-    this.alarmDays = const [1, 2, 3, 4, 5, 6, 7],
-    this.alarmSound = 'Gentle Chime',
-    this.vibrate = true,
-    this.snoozeMinutes = 10,
-  });
+    bool bedtimeReminderOn = false,
+    bool wakeAlarmOn = false,
+    List<int>? alarmDays,
+    String? alarmSound,
+    bool vibrate = true,
+    int? snoozeMinutes,
+  })  : _bedtimeReminderOn = bedtimeReminderOn,
+        _wakeAlarmOn = wakeAlarmOn,
+        _alarmDays = alarmDays,
+        _alarmSound = alarmSound,
+        _vibrate = vibrate,
+        _snoozeMinutes = snoozeMinutes;
+
+  /// Helper to convert any dynamic JSON value to a safe boolean.
+  static bool _toBool(dynamic v, {required bool fallback}) {
+    if (v == null) return fallback;
+    if (v is bool) return v;
+    if (v == 1 || v == '1' || v == 'true') return true;
+    if (v == 0 || v == '0' || v == 'false') return false;
+    return fallback;
+  }
+
+  /// Helper to convert dynamic JSON list to safe `List<int>`.
+  static List<int> _toIntList(dynamic v) {
+    if (v is List) {
+      final result = <int>[];
+      for (final item in v) {
+        if (item is num) {
+          result.add(item.toInt());
+        } else if (item is String) {
+          final parsed = int.tryParse(item);
+          if (parsed != null) result.add(parsed);
+        }
+      }
+      if (result.isNotEmpty) return result;
+    }
+    return const [1, 2, 3, 4, 5, 6, 7];
+  }
 
   /// Reads settings from JSON.
   factory SleepSettings.fromJson(Map<String, dynamic> json) => SleepSettings(
@@ -26,12 +57,11 @@ class SleepSettings {
         sleepMinutes: (json['sleep_minutes'] as num?)?.toInt(),
         customBedtime: timeFromJson(json['custom_bedtime']),
         customWakeTime: timeFromJson(json['custom_wake_time']),
-        bedtimeReminderOn: (json['bedtime_reminder'] as bool?) ?? false,
-        wakeAlarmOn: (json['wake_alarm'] as bool?) ?? false,
-        alarmDays: (json['alarm_days'] as List<dynamic>?)?.cast<int>() ??
-            const [1, 2, 3, 4, 5, 6, 7],
+        bedtimeReminderOn: _toBool(json['bedtime_reminder'], fallback: false),
+        wakeAlarmOn: _toBool(json['wake_alarm'], fallback: false),
+        alarmDays: _toIntList(json['alarm_days']),
         alarmSound: (json['alarm_sound'] as String?) ?? 'Gentle Chime',
-        vibrate: (json['vibrate'] as bool?) ?? true,
+        vibrate: _toBool(json['vibrate'], fallback: true),
         snoozeMinutes: (json['snooze_minutes'] as num?)?.toInt() ?? 10,
       );
 
@@ -50,23 +80,30 @@ class SleepSettings {
   /// Direct custom wake-up (alarm) time if set by user.
   final TimeOfDay? customWakeTime;
 
+  final bool? _bedtimeReminderOn;
+  final bool? _wakeAlarmOn;
+  final List<int>? _alarmDays;
+  final String? _alarmSound;
+  final bool? _vibrate;
+  final int? _snoozeMinutes;
+
   /// Whether the bedtime (wind-down) reminder is on.
-  final bool bedtimeReminderOn;
+  bool get bedtimeReminderOn => _bedtimeReminderOn == true;
 
   /// Whether the alarm-style wake-up reminder is on.
-  final bool wakeAlarmOn;
+  bool get wakeAlarmOn => _wakeAlarmOn == true;
 
   /// Weekdays the alarm repeats on (1 = Monday ... 7 = Sunday).
-  final List<int> alarmDays;
+  List<int> get alarmDays => _alarmDays ?? const [1, 2, 3, 4, 5, 6, 7];
 
   /// Name of the chosen alarm sound.
-  final String alarmSound;
+  String get alarmSound => _alarmSound ?? 'Gentle Chime';
 
   /// Whether vibration is enabled for the alarm.
-  final bool vibrate;
+  bool get vibrate => _vibrate != false;
 
   /// Snooze duration in minutes.
-  final int snoozeMinutes;
+  int get snoozeMinutes => _snoozeMinutes ?? 10;
 
   /// Writes settings to JSON.
   Map<String, dynamic> toJson() {

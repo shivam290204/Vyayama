@@ -42,6 +42,9 @@ class ReminderTogglesCard extends ConsumerWidget {
         loadingHeight: 120,
         builder: (settings) {
           final notifier = ref.read(sleepSettingsProvider.notifier);
+          final isAlarmOn = settings.wakeAlarmOn == true;
+          final isBedtimeReminderOn = settings.bedtimeReminderOn == true;
+          final isVibrate = settings.vibrate == true;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,19 +71,19 @@ class ReminderTogglesCard extends ConsumerWidget {
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
                 subtitle: Text(
-                  settings.wakeAlarmOn
+                  isAlarmOn
                       ? 'Alarm set for $wake'
                       : 'Rings at $wake when active',
                   style: TextStyle(
-                    color: settings.wakeAlarmOn
+                    color: isAlarmOn
                         ? AppPalette.limeGreen
                         : scheme.onSurfaceVariant,
-                    fontWeight: settings.wakeAlarmOn
+                    fontWeight: isAlarmOn
                         ? FontWeight.w600
                         : FontWeight.normal,
                   ),
                 ),
-                value: settings.wakeAlarmOn,
+                value: isAlarmOn,
                 onChanged: (on) async {
                   if (on) {
                     await NotificationService.instance.requestPermissions();
@@ -107,7 +110,7 @@ class ReminderTogglesCard extends ConsumerWidget {
               ),
 
               // --- Detailed Alarm Settings (Shown when alarm is enabled) ---
-              if (settings.wakeAlarmOn) ...[
+              if (isAlarmOn) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -275,7 +278,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                           size: 18,
                           color: scheme.onSurfaceVariant,
                         ),
-                        value: settings.vibrate,
+                        value: isVibrate,
                         onChanged: notifier.setVibrate,
                       ),
                       const SizedBox(height: 8),
@@ -300,7 +303,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                               context,
                               alarmTime: wake,
                               alarmSound: settings.alarmSound,
-                              vibrate: settings.vibrate,
+                              vibrate: isVibrate,
                               snoozeMinutes: settings.snoozeMinutes,
                             );
                           },
@@ -346,7 +349,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                   'A calming wind-down nudge at $windDown (1h before bed)',
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
-                value: settings.bedtimeReminderOn,
+                value: isBedtimeReminderOn,
                 onChanged: (v) => runSafely(
                   context,
                   () => notifier.setBedtimeReminder(v),
