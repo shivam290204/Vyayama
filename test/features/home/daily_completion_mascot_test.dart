@@ -1,6 +1,11 @@
+import 'package:fitbuddy/features/dashboard/daily_targets.dart';
+import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
+import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/home/providers/daily_completion_provider.dart';
 import 'package:fitbuddy/features/home/widgets/mascot_section.dart';
 import 'package:fitbuddy/features/home/widgets/speech_bubble.dart';
+import 'package:fitbuddy/features/schedule/data/time_block.dart';
+import 'package:fitbuddy/features/schedule/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,6 +84,90 @@ void main() {
 
       notifier.cycleNext();
       expect(container.read(dailyCompletionTierOverrideProvider), isNull);
+    });
+
+    test('Calculates fourToFiveDone when 4 or 5 schedule tasks are completed', () {
+      final entries = List.generate(
+        6,
+        (i) => TimeBlockEntry(
+          block: TimeBlock(
+            id: 'blk-$i',
+            userId: 'user',
+            type: BlockType.meal,
+            title: 'Task $i',
+            startMinutes: 8 * 60 + i * 60,
+          ),
+          status: i < 4 ? BlockStatus.done : BlockStatus.upcoming,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          todayScheduleProvider.overrideWithValue(AsyncData(entries)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final progress = container.read(dailyCompletionProgressProvider);
+      expect(progress.completedCount, 4);
+      expect(progress.tier, DailyCompletionTier.fourToFiveDone);
+      expect(progress.assetPath, 'assets/images/mascot/flex_proud.png');
+    });
+
+    test('Calculates everythingDone when 6 schedule tasks are completed', () {
+      final entries = List.generate(
+        6,
+        (i) => TimeBlockEntry(
+          block: TimeBlock(
+            id: 'blk-$i',
+            userId: 'user',
+            type: BlockType.meal,
+            title: 'Task $i',
+            startMinutes: 8 * 60 + i * 60,
+          ),
+          status: BlockStatus.done,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          todayScheduleProvider.overrideWithValue(AsyncData(entries)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final progress = container.read(dailyCompletionProgressProvider);
+      expect(progress.completedCount, 6);
+      expect(progress.tier, DailyCompletionTier.everythingDone);
+      expect(progress.assetPath, 'assets/images/mascot/Fire_Determined.png');
+    });
+
+    test('Calculates everythingDone when daily walking steps goal is reached', () {
+      final container = ProviderContainer(
+        overrides: [
+          todayStatsProvider.overrideWithValue(
+            AsyncData(
+              DailyStats(
+                id: 'stats-1',
+                userId: 'user',
+                date: DateTime(2026, 10, 14),
+                steps: 10000,
+                calories: 500,
+                activeMinutes: 45,
+              ),
+            ),
+          ),
+          dailyTargetsProvider.overrideWithValue(
+            const DailyTargets(steps: 8000, activeCalories: 500, activeMinutes: 30),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final progress = container.read(dailyCompletionProgressProvider);
+      expect(progress.stepsDone, isTrue);
+      expect(progress.tier, DailyCompletionTier.everythingDone);
+      expect(progress.assetPath, 'assets/images/mascot/Fire_Determined.png');
     });
   });
 

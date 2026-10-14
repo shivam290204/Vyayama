@@ -1,7 +1,10 @@
+import 'dart:math' as math;
 import 'package:fitbuddy/features/challenges/providers.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/mascot/providers.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
+import 'package:fitbuddy/features/schedule/data/time_block.dart';
+import 'package:fitbuddy/features/schedule/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The 3 completion tiers requested:
@@ -99,7 +102,27 @@ final dailyCompletionProgressProvider =
   final waterTarget = ref.watch(waterTargetGlassesProvider);
   final challengesState = ref.watch(challengesProvider).asData?.value;
 
-  final stepsDone = stats != null && stats.steps >= targets.steps;
+  // Track Daily Schedule items (from today's schedule and completions)
+  final scheduleAsync = ref.watch(todayScheduleProvider);
+  final scheduleEntries =
+      scheduleAsync.asData?.value ?? const <TimeBlockEntry>[];
+  final completions =
+      ref.watch(todayCompletionsProvider).asData?.value ?? const <BlockCompletion>[];
+
+  final actionableTasks = scheduleEntries
+      .where((e) => e.block.type.needsCompletion)
+      .toList();
+  final scheduleDoneFromEntries =
+      actionableTasks.where((e) => e.status == BlockStatus.done).length;
+  final scheduleDoneFromCompletions =
+      completions.where((c) => c.status == CompletionStatus.done).length;
+  final scheduleDone =
+      math.max(scheduleDoneFromEntries, scheduleDoneFromCompletions);
+  final totalScheduleTasks =
+      actionableTasks.isNotEmpty ? actionableTasks.length : 6;
+
+  final stepsDone =
+      stats != null && targets.steps > 0 && stats.steps >= targets.steps;
   final caloriesDone =
       stats != null && stats.calories >= targets.activeCalories;
   final activeMinutesDone =
@@ -108,25 +131,29 @@ final dailyCompletionProgressProvider =
   final waterDone = water >= waterTarget && waterTarget > 0;
   final challengeDone = challengesState?.completedToday ?? false;
 
-  int count = 0;
-  if (stepsDone) count++;
-  if (caloriesDone) count++;
-  if (activeMinutesDone) count++;
-  if (workoutDone) count++;
-  if (waterDone) count++;
-  if (challengeDone) count++;
+  int generalGoalsCount = 0;
+  if (stepsDone) generalGoalsCount++;
+  if (caloriesDone) generalGoalsCount++;
+  if (activeMinutesDone) generalGoalsCount++;
+  if (workoutDone) generalGoalsCount++;
+  if (waterDone) generalGoalsCount++;
+  if (challengeDone) generalGoalsCount++;
 
-  const total = 6;
+  final total = totalScheduleTasks;
+  final rawCount = math.max(scheduleDone, generalGoalsCount);
+  final count = rawCount.clamp(0, total);
+
+  // Requirements:
+  // - After completing 4 daily schedule tasks (4 or 5) -> flex_proud.png
+  // - After completing 6 tasks OR daily walking steps -> Fire_Determined.png
+  // - Otherwise (less than 4 tasks and steps not done) -> Sad_Drooped_Head.png
   DailyCompletionTier calculatedTier;
-  if (count < 4) {
-    // 0 to 3 goals done -> First character: Sad
-    calculatedTier = DailyCompletionTier.nothingDone;
-  } else if (count >= total) {
-    // All 6 goals done -> Everything completed: Fire character
+  if (count >= 6 || stepsDone) {
     calculatedTier = DailyCompletionTier.everythingDone;
-  } else {
-    // 4 or 5 goals done -> Second character: Flex Proud
+  } else if (count >= 4) {
     calculatedTier = DailyCompletionTier.fourToFiveDone;
+  } else {
+    calculatedTier = DailyCompletionTier.nothingDone;
   }
 
   final override = ref.watch(dailyCompletionTierOverrideProvider);

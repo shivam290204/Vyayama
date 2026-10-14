@@ -243,7 +243,9 @@ class _ProgressBadge extends StatelessWidget {
         badgeColor = const Color(0xFFFF7A00);
         textColor = Colors.white;
         badgeIcon = Icons.local_fire_department_rounded;
-        badgeText = 'All Done! 🔥';
+        badgeText = progress.stepsDone && progress.completedCount < progress.totalCount
+            ? 'Steps Goal! 🔥'
+            : 'All Done! 🔥';
         break;
     }
 
