@@ -89,11 +89,11 @@ class ReminderTogglesCard extends ConsumerWidget {
                     await NotificationService.instance.requestPermissions();
                   }
                   if (!context.mounted) return;
-                  await runSafely(
+                  final ok = await runSafely(
                     context,
                     () => notifier.setWakeAlarm(on),
                   );
-                  if (context.mounted) {
+                  if (ok && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
@@ -350,10 +350,29 @@ class ReminderTogglesCard extends ConsumerWidget {
                   style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
                 value: isBedtimeReminderOn,
-                onChanged: (v) => runSafely(
-                  context,
-                  () => notifier.setBedtimeReminder(v),
-                ),
+                onChanged: (v) async {
+                  if (v) {
+                    await NotificationService.instance.requestPermissions();
+                  }
+                  if (!context.mounted) return;
+                  final ok = await runSafely(
+                    context,
+                    () => notifier.setBedtimeReminder(v),
+                  );
+                  if (ok && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          v
+                              ? 'Bedtime reminder scheduled for $windDown daily! 🌙'
+                              : 'Bedtime reminder turned off.',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
               ),
             ],
           );

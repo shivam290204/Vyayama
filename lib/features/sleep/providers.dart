@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
+import 'package:fitbuddy/features/health_profile/data/profile_snapshot.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/nutrition/data/diet_tip.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
@@ -69,11 +70,11 @@ class SleepInputs {
   final TimeOfDay? customWakeTime;
 }
 
-/// Planner inputs with profile prefill.
-final sleepInputsProvider = Provider<SleepInputs>((ref) {
-  final settings =
-      ref.watch(sleepSettingsProvider).dataOrNull ?? const SleepSettings();
-  final profile = ref.watch(profileSnapshotProvider).dataOrNull;
+/// Computes [SleepInputs] from settings and optional profile snapshot.
+SleepInputs buildSleepInputs({
+  required SleepSettings settings,
+  required ProfileSnapshot? profile,
+}) {
   final goal = profile?.goal;
   return SleepInputs(
     workStart: settings.workStart ??
@@ -89,11 +90,10 @@ final sleepInputsProvider = Provider<SleepInputs>((ref) {
     customBedtime: settings.customBedtime,
     customWakeTime: settings.customWakeTime,
   );
-});
+}
 
-/// The suggested bedtime and wake time.
-final sleepPlanProvider = Provider<SleepPlan>((ref) {
-  final inputs = ref.watch(sleepInputsProvider);
+/// Builds a [SleepPlan] from [SleepInputs].
+SleepPlan buildSleepPlan(SleepInputs inputs) {
   return SleepPlanner.plan(
     workStart: inputs.workStart.toDayTime(),
     workEnd: inputs.workEnd.toDayTime(),
@@ -102,6 +102,20 @@ final sleepPlanProvider = Provider<SleepPlan>((ref) {
     customBedtime: inputs.customBedtime?.toDayTime(),
     customWakeTime: inputs.customWakeTime?.toDayTime(),
   );
+}
+
+/// Planner inputs with profile prefill.
+final sleepInputsProvider = Provider<SleepInputs>((ref) {
+  final settings =
+      ref.watch(sleepSettingsProvider).dataOrNull ?? const SleepSettings();
+  final profile = ref.watch(profileSnapshotProvider).dataOrNull;
+  return buildSleepInputs(settings: settings, profile: profile);
+});
+
+/// The suggested bedtime and wake time.
+final sleepPlanProvider = Provider<SleepPlan>((ref) {
+  final inputs = ref.watch(sleepInputsProvider);
+  return buildSleepPlan(inputs);
 });
 
 /// Tips for one sleep category (`sleep_eat` or `sleep_avoid`).
@@ -194,26 +208,43 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
   Future<void> setWakeAlarm(bool on) =>
       _apply(_current.copyWith(wakeAlarmOn: on));
 
+  SleepPlan _computePlan(SleepSettings settings) {
+    final profile = ref.read(profileSnapshotProvider).dataOrNull;
+    final inputs = buildSleepInputs(settings: settings, profile: profile);
+    return buildSleepPlan(inputs);
+  }
+
   /// Re-schedules reminders from the current plan. Call after the profile
   /// loads or after a reboot or time-zone change.
-  Future<void> resync() => _syncReminders(_current);
+  Future<void> resync() => _syncReminders(_current, _computePlan(_current));
 
   Future<void> _apply(SleepSettings next) async {
     final previous = _current;
     state = AsyncData<SleepSettings>(next);
     try {
       await ref.read(sleepRepositoryProvider).saveSettings(next);
-      await _syncReminders(next);
-      _syncScheduleBlocks();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('SleepSettings saveSettings error: $e');
       state = AsyncData<SleepSettings>(previous);
       rethrow;
     }
+
+    final plan = _computePlan(next);
+    try {
+      await _syncReminders(next, plan);
+    } catch (e) {
+      debugPrint('SleepSettings _syncReminders non-fatal error: $e');
+    }
+
+    try {
+      await _syncScheduleBlocks(plan);
+    } catch (e) {
+      debugPrint('SleepSettings _syncScheduleBlocks non-fatal error: $e');
+    }
   }
 
-  Future<void> _syncScheduleBlocks() async {
+  Future<void> _syncScheduleBlocks(SleepPlan plan) async {
     try {
-      final plan = ref.read(sleepPlanProvider);
       final blocks = ref.read(scheduleBlocksProvider).asData?.value;
       if (blocks == null) return;
       final wakeBlock =
@@ -230,19 +261,24 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
         await notifier
             .save(sleepBlock.copyWith(startMinutes: plan.bedtime.minutes));
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('SleepSettings _syncScheduleBlocks error: $e');
+    }
   }
 
-  Future<void> _syncReminders(SleepSettings settings) async {
-    final scheduler = ref.read(reminderSchedulerProvider);
-    final plan = ref.read(sleepPlanProvider);
-    await scheduler.cancel(bedtimeReminderId);
-    await scheduler.cancel(wakeAlarmReminderId);
-    if (settings.bedtimeReminderOn) {
-      await scheduler.schedule(buildBedtimeReminder(plan));
-    }
-    if (settings.wakeAlarmOn) {
-      await scheduler.schedule(buildWakeAlarm(plan));
+  Future<void> _syncReminders(SleepSettings settings, SleepPlan plan) async {
+    try {
+      final scheduler = ref.read(reminderSchedulerProvider);
+      await scheduler.cancel(bedtimeReminderId);
+      await scheduler.cancel(wakeAlarmReminderId);
+      if (settings.bedtimeReminderOn) {
+        await scheduler.schedule(buildBedtimeReminder(plan));
+      }
+      if (settings.wakeAlarmOn) {
+        await scheduler.schedule(buildWakeAlarm(plan));
+      }
+    } catch (e) {
+      debugPrint('SleepSettings _syncReminders error: $e');
     }
   }
 }

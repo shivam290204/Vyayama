@@ -9,9 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Work hours, goal and sleep length inputs for the sleep plan.
-class WorkScheduleCard extends ConsumerWidget {
+class WorkScheduleCard extends ConsumerStatefulWidget {
   /// Creates the card.
   const WorkScheduleCard({super.key});
+
+  @override
+  ConsumerState<WorkScheduleCard> createState() => _WorkScheduleCardState();
+}
+
+class _WorkScheduleCardState extends ConsumerState<WorkScheduleCard> {
+  double? _dragMinutes;
 
   Future<void> _pick(
     BuildContext context,
@@ -24,7 +31,7 @@ class WorkScheduleCard extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
 
@@ -35,12 +42,15 @@ class WorkScheduleCard extends ConsumerWidget {
         builder: (_) {
           final inputs = ref.watch(sleepInputsProvider);
           final notifier = ref.read(sleepSettingsProvider.notifier);
-          final minutes = inputs.sleepMinutes
+          final plannedMinutes = inputs.sleepMinutes
               .clamp(
                 SleepPlanner.minSleepMinutes,
                 SleepPlanner.maxSleepMinutes,
               )
               .toInt();
+          final effectiveMinutes = _dragMinutes?.round() ?? plannedMinutes;
+          final isCustom = inputs.isCustomLength || _dragMinutes != null;
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -98,35 +108,50 @@ class WorkScheduleCard extends ConsumerWidget {
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      'Sleep length: ${formatSleepMinutes(minutes)}',
+                      'Sleep length: ${formatSleepMinutes(effectiveMinutes)}',
                       style: text.titleSmall,
                     ),
                   ),
-                  if (inputs.isCustomLength)
+                  if (isCustom)
                     TextButton(
                       style: TextButton.styleFrom(
                         minimumSize: const Size(48, 48),
                       ),
-                      onPressed: () => runSafely(
-                        context,
-                        () => notifier.setSleepMinutes(null),
-                      ),
+                      onPressed: () {
+                        setState(() {
+                          _dragMinutes = null;
+                        });
+                        runSafely(
+                          context,
+                          () => notifier.setSleepMinutes(null),
+                        );
+                      },
                       child: const Text('Use suggested'),
                     ),
                 ],
               ),
               Slider(
-                value: minutes.toDouble(),
+                value: effectiveMinutes.toDouble(),
                 min: SleepPlanner.minSleepMinutes.toDouble(),
                 max: SleepPlanner.maxSleepMinutes.toDouble(),
                 divisions: 4,
-                label: formatSleepMinutes(minutes),
+                label: formatSleepMinutes(effectiveMinutes),
                 semanticFormatterCallback: (v) =>
                     formatSleepMinutes(v.round()),
-                onChanged: (v) => runSafely(
-                  context,
-                  () => notifier.setSleepMinutes(v.round()),
-                ),
+                onChanged: (v) {
+                  setState(() {
+                    _dragMinutes = v;
+                  });
+                },
+                onChangeEnd: (v) {
+                  setState(() {
+                    _dragMinutes = null;
+                  });
+                  runSafely(
+                    context,
+                    () => notifier.setSleepMinutes(v.round()),
+                  );
+                },
               ),
               Text(
                 'Many adults feel best with 7 to 9 hours. This is a general guide.',
