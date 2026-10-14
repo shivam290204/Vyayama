@@ -1,4 +1,3 @@
-import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/data/invite_link.dart';
@@ -9,7 +8,6 @@ import 'package:fitbuddy/features/friends/screens/friend_detail_screen.dart';
 import 'package:fitbuddy/features/friends/screens/friend_requests_screen.dart';
 import 'package:fitbuddy/features/friends/screens/friends_list_screen.dart';
 import 'package:fitbuddy/features/snap_streaks/data/mock_ids.dart';
-import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -244,6 +244,14 @@ abstract final class AppTheme {
           ),
         ),
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: isDark ? const Color(0xFF1E281E) : Colors.white,
+        modalBackgroundColor: isDark ? const Color(0xFF1E281E) : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+      ),
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
         side: BorderSide(
@@ -350,9 +358,6 @@ abstract final class AppTheme {
       dialogTheme: DialogThemeData(
         shape: roundedLg,
         backgroundColor: isDark ? AppPalette.darkSurface : Colors.white,
-      ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.transparent,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {

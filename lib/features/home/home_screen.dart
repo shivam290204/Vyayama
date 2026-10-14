@@ -13,6 +13,7 @@ import 'package:fitbuddy/features/home/widgets/wellness_summary_cards.dart';
 import 'package:fitbuddy/features/mascot/mascot_debug_panel.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_boost_card.dart';
+import 'package:fitbuddy/features/motivation/widgets/daily_quote_dialog.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
 import 'package:fitbuddy/features/schedule/providers.dart';
 import 'package:fitbuddy/features/sleep/providers.dart';
@@ -22,11 +23,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The home screen: greeting, reacting mascot, today's time blocks,
 /// activity summary, daily challenge, Daily Boost and quick links.
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   /// Creates the screen.
   const HomeScreen({super.key});
 
-  Future<void> _refresh(WidgetRef ref) async {
+  @override
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        DailyQuoteDialog.checkAndShow(context, ref);
+      }
+    });
+  }
+
+  Future<void> _refresh() async {
     ref
       ..invalidate(recentStatsProvider)
       ..invalidate(scheduleBlocksProvider)
@@ -40,13 +56,13 @@ class HomeScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent, // Let GlowBackground show through
       body: GlowBackground(
         child: SafeArea(
           child: RefreshIndicator(
-            onRefresh: () => _refresh(ref),
+            onRefresh: _refresh,
             color: Theme.of(context).colorScheme.primary,
             child: ListView(
               physics: const BouncingScrollPhysics(

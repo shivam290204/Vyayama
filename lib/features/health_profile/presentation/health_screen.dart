@@ -2,6 +2,7 @@ import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/conditions_section.dart';
+import 'package:fitbuddy/features/health_profile/presentation/widgets/health_hero_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/meal_reminders_section.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medical_disclaimer_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicine_edit_sheet.dart';
@@ -47,7 +48,7 @@ class HealthScreen extends ConsumerWidget {
                       backgroundColor: Colors.transparent,
                       surfaceTintColor: Colors.transparent,
                       flexibleSpace: FlexibleSpaceBar(
-                        titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                        titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
                         title: Text(
                           'Health Profile',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -63,6 +64,8 @@ class HealthScreen extends ConsumerWidget {
                         delegate: SliverChildListDelegate([
                           StaggeredEntrance(
                             children: [
+                              HealthHeroCard(),
+                              SizedBox(height: 20),
                               MedicalDisclaimerCard(),
                               SizedBox(height: 24),
                               AnimatedSectionHeader(

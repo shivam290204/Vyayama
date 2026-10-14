@@ -10,6 +10,7 @@ class GlassCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.margin = EdgeInsets.zero,
     this.gradient,
+    this.width = double.infinity,
   });
 
   final Widget child;
@@ -17,6 +18,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
   final Gradient? gradient;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class GlassCard extends StatelessWidget {
         : const Color(0xFFE5E9E0);
 
     Widget card = Container(
+      width: width,
       margin: margin,
       decoration: BoxDecoration(
         color: gradient != null ? null : fillColor,
