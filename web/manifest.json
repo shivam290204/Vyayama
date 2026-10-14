@@ -1,11 +1,11 @@
 {
-    "name": "fitbuddy",
-    "short_name": "fitbuddy",
+    "name": "Vyayama",
+    "short_name": "Vyayama",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#14532D",
+    "theme_color": "#14532D",
+    "description": "Vyayama — Mindful wellness, habit-building & fitness.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
