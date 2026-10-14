@@ -1,9 +1,13 @@
+import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/nutrition/data/diet_tip.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
+import 'package:fitbuddy/features/schedule/data/time_block.dart';
+import 'package:fitbuddy/features/schedule/providers.dart';
 import 'package:fitbuddy/features/sleep/data/day_time_convert.dart';
 import 'package:fitbuddy/features/sleep/data/mock_sleep_repository.dart';
+import 'package:fitbuddy/features/sleep/data/shared_prefs_sleep_repository.dart';
 import 'package:fitbuddy/features/sleep/data/sleep_repository.dart';
 import 'package:fitbuddy/features/sleep/data/sleep_settings.dart';
 import 'package:fitbuddy/features/sleep/domain/sleep_planner.dart';
@@ -12,9 +16,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Repository for sleep settings.
-/// Antigravity: override with a persistent implementation.
+/// Uses SharedPreferences for persistent local storage, fallback to Mock.
 final sleepRepositoryProvider = Provider<SleepRepository>(
-  (ref) => MockSleepRepository(),
+  (ref) {
+    try {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return SharedPrefsSleepRepository(prefs);
+    } catch (_) {
+      return MockSleepRepository();
+    }
+  },
 );
 
 /// The user's sleep settings and reminder toggles.
@@ -32,6 +43,8 @@ class SleepInputs {
     required this.goal,
     required this.sleepMinutes,
     required this.isCustomLength,
+    this.customBedtime,
+    this.customWakeTime,
   });
 
   /// Work start (settings, then profile, then 09:00).
@@ -48,6 +61,12 @@ class SleepInputs {
 
   /// True when the user picked the length themselves.
   final bool isCustomLength;
+
+  /// Custom bedtime if set.
+  final TimeOfDay? customBedtime;
+
+  /// Custom wake-up (alarm) time if set.
+  final TimeOfDay? customWakeTime;
 }
 
 /// Planner inputs with profile prefill.
@@ -67,6 +86,8 @@ final sleepInputsProvider = Provider<SleepInputs>((ref) {
     sleepMinutes:
         settings.sleepMinutes ?? SleepPlanner.defaultSleepMinutes(goal),
     isCustomLength: settings.sleepMinutes != null,
+    customBedtime: settings.customBedtime,
+    customWakeTime: settings.customWakeTime,
   );
 });
 
@@ -78,6 +99,8 @@ final sleepPlanProvider = Provider<SleepPlan>((ref) {
     workEnd: inputs.workEnd.toDayTime(),
     goal: inputs.goal,
     sleepMinutes: inputs.sleepMinutes,
+    customBedtime: inputs.customBedtime?.toDayTime(),
+    customWakeTime: inputs.customWakeTime?.toDayTime(),
   );
 });
 
@@ -110,6 +133,29 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
   Future<void> setWorkEnd(TimeOfDay time) =>
       _apply(_current.copyWith(workEnd: time));
 
+  /// Sets custom bedtime directly.
+  Future<void> setCustomBedtime(TimeOfDay? time) => _apply(
+        time == null
+            ? _current.copyWith(clearCustomBedtime: true)
+            : _current.copyWith(customBedtime: time),
+      );
+
+  /// Sets custom wake-up (alarm) time directly.
+  Future<void> setCustomWakeTime(TimeOfDay? time) => _apply(
+        time == null
+            ? _current.copyWith(clearCustomWakeTime: true)
+            : _current.copyWith(customWakeTime: time),
+      );
+
+  /// Resets custom bedtime and wake-up times back to suggested algorithm.
+  Future<void> resetToSuggested() => _apply(
+        _current.copyWith(
+          clearCustomBedtime: true,
+          clearCustomWakeTime: true,
+          clearSleepMinutes: true,
+        ),
+      );
+
   /// Sets the sleep length in minutes, or null to use the suggested length.
   Future<void> setSleepMinutes(int? minutes) => _apply(
         minutes == null
@@ -123,6 +169,22 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
                     .toInt(),
               ),
       );
+
+  /// Sets repeating days for the alarm.
+  Future<void> setAlarmDays(List<int> days) =>
+      _apply(_current.copyWith(alarmDays: days));
+
+  /// Sets the chosen alarm sound.
+  Future<void> setAlarmSound(String sound) =>
+      _apply(_current.copyWith(alarmSound: sound));
+
+  /// Sets vibration toggle for the alarm.
+  Future<void> setVibrate(bool vibrate) =>
+      _apply(_current.copyWith(vibrate: vibrate));
+
+  /// Sets snooze duration in minutes.
+  Future<void> setSnoozeMinutes(int minutes) =>
+      _apply(_current.copyWith(snoozeMinutes: minutes));
 
   /// Turns the bedtime (wind-down) reminder on or off.
   Future<void> setBedtimeReminder(bool on) =>
@@ -142,10 +204,33 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
     try {
       await ref.read(sleepRepositoryProvider).saveSettings(next);
       await _syncReminders(next);
+      _syncScheduleBlocks();
     } catch (_) {
       state = AsyncData<SleepSettings>(previous);
       rethrow;
     }
+  }
+
+  Future<void> _syncScheduleBlocks() async {
+    try {
+      final plan = ref.read(sleepPlanProvider);
+      final blocks = ref.read(scheduleBlocksProvider).asData?.value;
+      if (blocks == null) return;
+      final wakeBlock =
+          blocks.where((b) => b.type == BlockType.wake).firstOrNull;
+      final sleepBlock =
+          blocks.where((b) => b.type == BlockType.sleep).firstOrNull;
+      final notifier = ref.read(scheduleBlocksProvider.notifier);
+      if (wakeBlock != null && wakeBlock.startMinutes != plan.wakeTime.minutes) {
+        await notifier
+            .save(wakeBlock.copyWith(startMinutes: plan.wakeTime.minutes));
+      }
+      if (sleepBlock != null &&
+          sleepBlock.startMinutes != plan.bedtime.minutes) {
+        await notifier
+            .save(sleepBlock.copyWith(startMinutes: plan.bedtime.minutes));
+      }
+    } catch (_) {}
   }
 
   Future<void> _syncReminders(SleepSettings settings) async {
@@ -162,18 +247,39 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
   }
 }
 
-/// Tracks which wind-down items are ticked.
+/// Tracks which wind-down items are ticked, persisted in SharedPreferences.
 class WindDownNotifier extends Notifier<Set<String>> {
+  static const String _windDownKey = 'vyayama_wind_down_items';
+
   @override
-  Set<String> build() => <String>{};
+  Set<String> build() {
+    try {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      final list = prefs.getStringList(_windDownKey);
+      if (list != null) return list.toSet();
+    } catch (_) {}
+    return <String>{};
+  }
 
   /// Ticks or unticks the item with [id].
   void toggle(String id) {
     final next = Set<String>.of(state);
     if (!next.remove(id)) next.add(id);
     state = next;
+    _persist(next);
   }
 
   /// Clears all ticks.
-  void reset() => state = <String>{};
+  void reset() {
+    state = <String>{};
+    _persist(state);
+  }
+
+  void _persist(Set<String> items) {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      prefs.setStringList(_windDownKey, items.toList());
+    } catch (_) {}
+  }
 }
+

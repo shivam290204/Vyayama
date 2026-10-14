@@ -21,6 +21,7 @@ class SleepPlan {
     required this.sleepMinutes,
     required this.windDownStart,
     required this.isNightShift,
+    this.isCustom = false,
     this.warnings = const <SleepWarning>[],
   });
 
@@ -38,6 +39,9 @@ class SleepPlan {
 
   /// True when work ends before it starts on the clock (overnight shift).
   final bool isNightShift;
+
+  /// True when user explicitly set their own bedtime or wake-up alarm time.
+  final bool isCustom;
 
   /// Heads-ups about the schedule.
   final List<SleepWarning> warnings;
@@ -82,13 +86,59 @@ class SleepPlanner {
     DayTime? workEnd,
     String? goal,
     int? sleepMinutes,
+    DayTime? customBedtime,
+    DayTime? customWakeTime,
   }) {
     final desired = (sleepMinutes ?? defaultSleepMinutes(goal))
         .clamp(minSleepMinutes, maxSleepMinutes)
         .toInt();
+    final warnings = <SleepWarning>[];
+
+    // Direct user-customized bedtime and/or wake time:
+    if (customBedtime != null && customWakeTime != null) {
+      final actualDuration = customBedtime.minutesUntil(customWakeTime);
+      if (actualDuration < minSleepMinutes) {
+        warnings.add(SleepWarning.shortSleep);
+      }
+      return SleepPlan(
+        bedtime: customBedtime,
+        wakeTime: customWakeTime,
+        sleepMinutes: actualDuration,
+        windDownStart: customBedtime.minusMinutes(windDownMinutes),
+        isNightShift: false,
+        isCustom: true,
+        warnings: warnings,
+      );
+    }
+
+    if (customWakeTime != null) {
+      final bedtime = customWakeTime.minusMinutes(desired);
+      return SleepPlan(
+        bedtime: bedtime,
+        wakeTime: customWakeTime,
+        sleepMinutes: desired,
+        windDownStart: bedtime.minusMinutes(windDownMinutes),
+        isNightShift: false,
+        isCustom: true,
+        warnings: warnings,
+      );
+    }
+
+    if (customBedtime != null) {
+      final wake = customBedtime.plusMinutes(desired);
+      return SleepPlan(
+        bedtime: customBedtime,
+        wakeTime: wake,
+        sleepMinutes: desired,
+        windDownStart: customBedtime.minusMinutes(windDownMinutes),
+        isNightShift: false,
+        isCustom: true,
+        warnings: warnings,
+      );
+    }
+
     final start = workStart;
     final end = workEnd;
-    final warnings = <SleepWarning>[];
 
     final isNight = start != null && end != null && end.minutes < start.minutes;
 
