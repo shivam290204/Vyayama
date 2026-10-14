@@ -238,9 +238,9 @@ void main() {
       expect(find.text('Priya Nair'), findsOneWidget);
       expect(find.text('Arjun'), findsOneWidget);
 
-      // Check Add Friend button exists in AppBar and as FAB
+      // Check Add Friend button exists in AppBar
       expect(find.byIcon(Icons.person_add_outlined), findsOneWidget);
-      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsNothing);
       expect(tester.takeException(), isNull);
     });
 

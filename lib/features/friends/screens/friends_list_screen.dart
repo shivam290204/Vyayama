@@ -52,12 +52,6 @@ class FriendsListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        tooltip: 'Add friend',
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Friend'),
-        onPressed: () => context.push(AppRoutes.friendsAdd),
-      ),
       body: AsyncBody<List<FriendWithStreak>>(
         value: value,
         onRetry: () => invalidateFriendData(ref),
