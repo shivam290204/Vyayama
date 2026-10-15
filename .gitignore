@@ -51,5 +51,10 @@ app.*.map.json
 .env.*
 !.env.example
 
+# Signing keys & Keystores
+key.properties
+*.keystore
+*.jks
+
 # Widget Preview related
 .widget_preview/
