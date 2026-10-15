@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:fitbuddy/core/services/health_service.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
@@ -10,8 +9,8 @@ import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Robust service for real-time hardware step counting, calorie estimation,
-/// and active time tracking on the device.
+/// Robust service for real-time hardware step counting, movement detection,
+/// calorie estimation, and active time tracking on the device.
 class StepTrackingService with WidgetsBindingObserver {
   StepTrackingService._();
   static final StepTrackingService instance = StepTrackingService._();
@@ -24,11 +23,14 @@ class StepTrackingService with WidgetsBindingObserver {
 
   final ValueNotifier<bool> hasPermission = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isSensorActive = ValueNotifier<bool>(false);
+  final ValueNotifier<String> pedestrianStatus = ValueNotifier<String>('Stationary');
 
   bool _isListening = false;
   bool _hasObserver = false;
   int _todaySteps = 0;
   int get todaySteps => _todaySteps;
+
+  int? _lastRawSensorSteps;
 
   int get todayCalories => (_todaySteps * 0.04).round();
   int get todayActiveMinutes => (_todaySteps / 100).ceil();
@@ -123,7 +125,15 @@ class StepTrackingService with WidgetsBindingObserver {
 
       _statusSubscription ??= Pedometer.pedestrianStatusStream.listen(
         (status) {
-          debugPrint('Pedestrian status: ${status.status}');
+          final s = status.status.toLowerCase();
+          if (s == 'walking') {
+            pedestrianStatus.value = 'Walking';
+          } else if (s == 'stopped') {
+            pedestrianStatus.value = 'Stationary';
+          } else {
+            pedestrianStatus.value = status.status;
+          }
+          debugPrint('Pedestrian status: ${pedestrianStatus.value}');
         },
         onError: (error) {
           debugPrint('Pedometer status stream error: $error');
@@ -176,6 +186,15 @@ class StepTrackingService with WidgetsBindingObserver {
     _emitCurrentStats();
   }
 
+  /// Resets today's step count back to 0 so the user can test physical walking from zero.
+  Future<void> resetTodaySteps() async {
+    final prefs = await SharedPreferences.getInstance();
+    final todayKey = dayKey(DateTime.now());
+    _todaySteps = 0;
+    await prefs.setInt('today_steps_$todayKey', 0);
+    _emitCurrentStats();
+  }
+
   /// Pulls the latest step count from SharedPreferences cache
   /// and Health Connect / Apple Health, then broadcasts updated stats.
   Future<DailyStats> refresh() async {
@@ -210,35 +229,39 @@ class StepTrackingService with WidgetsBindingObserver {
     } catch (_) {}
   }
 
+  /// Real-time delta accumulation: Every step you walk or run immediately adds to today's steps!
   Future<void> _onStepCount(StepCount event) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
       final todayKey = dayKey(now);
-      final baseKey = 'steps_base_$todayKey';
-      final offsetKey = 'steps_offset_$todayKey';
+      final rawKey = 'last_raw_steps_$todayKey';
 
-      var baseSteps = prefs.getInt(baseKey);
-      var offset = prefs.getInt(offsetKey) ?? 0;
+      _lastRawSensorSteps ??= prefs.getInt(rawKey);
 
-      if (baseSteps == null) {
-        // First reading of the day
-        baseSteps = event.steps;
-        await prefs.setInt(baseKey, baseSteps);
-      } else if (event.steps < baseSteps) {
-        // Device rebooted: preserve previously accumulated steps in offset
-        offset = _todaySteps;
-        baseSteps = event.steps;
-        await prefs.setInt(offsetKey, offset);
-        await prefs.setInt(baseKey, baseSteps);
+      if (_lastRawSensorSteps == null) {
+        // Initial reading for today: establish base hardware counter
+        _lastRawSensorSteps = event.steps;
+        await prefs.setInt(rawKey, _lastRawSensorSteps!);
+        debugPrint('StepTrackingService: Hardware step baseline set at ${event.steps}');
+        return;
       }
 
-      final computed = offset + (event.steps - baseSteps);
-      final newSteps = math.max(_todaySteps, computed);
+      if (event.steps < _lastRawSensorSteps!) {
+        // Phone reboot detected: sensor counter reset
+        debugPrint('StepTrackingService: Phone reboot detected (${event.steps} < $_lastRawSensorSteps)');
+        _lastRawSensorSteps = event.steps;
+        await prefs.setInt(rawKey, _lastRawSensorSteps!);
+        return;
+      }
 
-      if (newSteps > _todaySteps) {
-        _todaySteps = newSteps;
+      final delta = event.steps - _lastRawSensorSteps!;
+      if (delta > 0) {
+        _todaySteps += delta;
+        _lastRawSensorSteps = event.steps;
+        await prefs.setInt(rawKey, _lastRawSensorSteps!);
         await prefs.setInt('today_steps_$todayKey', _todaySteps);
+        debugPrint('StepTrackingService: Walked +$delta steps! Today total: $_todaySteps');
         _emitCurrentStats();
       }
     } catch (e) {
@@ -279,5 +302,6 @@ class StepTrackingService with WidgetsBindingObserver {
     _statusSubscription = null;
     _isListening = false;
     isSensorActive.value = false;
+    pedestrianStatus.value = 'Stationary';
   }
 }

@@ -95,6 +95,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.refresh, color: Colors.orange),
+                label: const Text('Reset Today to 0 Steps', style: TextStyle(color: Colors.orange)),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await StepTrackingService.instance.resetTodaySteps();
+                  await _refresh();
+                },
+              ),
+            ),
           ],
         ),
         actions: [
@@ -207,25 +220,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         RingsSection(stats: days.last, targets: targets),
         const SizedBox(height: 8),
-        ValueListenableBuilder<bool>(
-          valueListenable: StepTrackingService.instance.isSensorActive,
-          builder: (context, active, _) {
+        ValueListenableBuilder<String>(
+          valueListenable: StepTrackingService.instance.pedestrianStatus,
+          builder: (context, movement, _) {
+            final isMoving = movement == 'Walking';
+            final isSensorReady = StepTrackingService.instance.isSensorActive.value;
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.circle,
                   size: 8,
-                  color: active ? Colors.greenAccent : scheme.outline,
+                  color: isMoving ? Colors.greenAccent : (isSensorReady ? Colors.lightGreen : scheme.outline),
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  active
-                      ? 'Live hardware sensor active'
-                      : 'Sensor idle • Tap Sync to refresh',
+                  isMoving
+                      ? '🚶 Movement detected • Walking'
+                      : (isSensorReady ? 'Live sensor active • Walk or run to count' : 'Sensor idle • Tap Sync to refresh'),
                   style: text.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 11,
+                    color: isMoving ? Colors.greenAccent : scheme.onSurfaceVariant,
+                    fontWeight: isMoving ? FontWeight.w600 : FontWeight.normal,
+                    fontSize: 12,
                   ),
                 ),
               ],
