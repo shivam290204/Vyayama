@@ -222,34 +222,55 @@ class NotificationService {
     return false;
   }
 
-  /// Schedules a repeating daily notification at the given [hour] and [minute].
-  Future<void> scheduleDaily({
+  /// Whether exact alarms are permitted by the OS (Android 12+).
+  Future<bool> canScheduleExactAlarms() async {
+    if (!isSupportedPlatform) return false;
+    await initialize();
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.canScheduleExactNotifications() ?? false;
+      }
+    } catch (e) {
+      debugPrint('canScheduleExactAlarms error: $e');
+    }
+    return true;
+  }
+
+  /// Whether notifications are enabled system-wide for this app.
+  Future<bool> areNotificationsEnabled() async {
+    if (!isSupportedPlatform) return false;
+    await initialize();
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.areNotificationsEnabled() ?? false;
+      }
+    } catch (e) {
+      debugPrint('areNotificationsEnabled error: $e');
+    }
+    return true;
+  }
+
+  /// Schedules a repeating notification at the given [hour] and [minute].
+  /// Supports optional [weekdays] (1 = Mon ... 7 = Sun).
+  Future<bool> scheduleDaily({
     required int id,
     required String title,
     required String body,
     required int hour,
     required int minute,
+    List<int>? weekdays,
     String? channelId,
     String? channelName,
     bool exact = false,
     bool alarmStyle = false,
   }) async {
-    if (!isSupportedPlatform) return;
+    if (!isSupportedPlatform) return false;
     await initialize();
-    if (!_isInitialized) return;
-
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
-    );
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
+    if (!_isInitialized) return false;
 
     final targetChannelId = channelId ??
         (alarmStyle ? wakeAlarmChannelId : remindersChannelId);
@@ -300,6 +321,75 @@ class NotificationService {
             : AndroidScheduleMode.exactAllowWhileIdle)
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
+    final now = tz.TZDateTime.now(tz.local);
+
+    // If weekdays specified and not all 7 days, schedule for each specific day
+    final selectedDays = weekdays != null && weekdays.isNotEmpty && weekdays.length < 7
+        ? weekdays
+        : null;
+
+    if (selectedDays != null) {
+      var allSuccess = true;
+      for (final day in selectedDays) {
+        var scheduledDate = tz.TZDateTime(
+          tz.local,
+          now.year,
+          now.month,
+          now.day,
+          hour,
+          minute,
+        );
+        while (scheduledDate.weekday != day || scheduledDate.isBefore(now)) {
+          scheduledDate = scheduledDate.add(const Duration(days: 1));
+        }
+
+        final subId = (id * 10 + day) & 0x7FFFFFFF;
+        final ok = await _scheduleSingle(
+          id: subId,
+          title: title,
+          body: body,
+          scheduledDate: scheduledDate,
+          details: details,
+          mode: scheduleMode,
+          matchComponents: DateTimeComponents.dayOfWeekAndTime,
+        );
+        if (!ok) allSuccess = false;
+      }
+      return allSuccess;
+    } else {
+      var scheduledDate = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      return _scheduleSingle(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: scheduledDate,
+        details: details,
+        mode: scheduleMode,
+        matchComponents: DateTimeComponents.time,
+      );
+    }
+  }
+
+  Future<bool> _scheduleSingle({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required NotificationDetails details,
+    required AndroidScheduleMode mode,
+    required DateTimeComponents matchComponents,
+  }) async {
     try {
       await _plugin.zonedSchedule(
         id,
@@ -307,14 +397,15 @@ class NotificationService {
         body,
         scheduledDate,
         details,
-        androidScheduleMode: scheduleMode,
+        androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
+        matchDateTimeComponents: matchComponents,
       );
+      return true;
     } catch (e) {
       debugPrint(
-        'ZonedSchedule with $scheduleMode failed ($e), falling back to exactAllowWhileIdle...',
+        'ZonedSchedule with $mode failed ($e), falling back to exactAllowWhileIdle...',
       );
       try {
         await _plugin.zonedSchedule(
@@ -326,10 +417,30 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
+          matchDateTimeComponents: matchComponents,
         );
+        return true;
       } catch (fallbackError) {
-        debugPrint('Fallback scheduling error for notification $id: $fallbackError');
+        debugPrint(
+          'Fallback exactAllowWhileIdle failed ($fallbackError), trying inexact...',
+        );
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: matchComponents,
+          );
+          return true;
+        } catch (finalError) {
+          debugPrint('All scheduling modes failed for notification $id: $finalError');
+          return false;
+        }
       }
     }
   }
@@ -481,11 +592,15 @@ class NotificationService {
     }
   }
 
-  /// Cancels a notification by integer ID.
+  /// Cancels a notification by integer ID (and any weekday sub-IDs).
   Future<void> cancel(int id) async {
     if (!isSupportedPlatform || !_isInitialized) return;
     try {
       await _plugin.cancel(id);
+      // Also cancel any weekday sub-IDs
+      for (var day = 1; day <= 7; day++) {
+        await _plugin.cancel((id * 10 + day) & 0x7FFFFFFF);
+      }
     } catch (e) {
       debugPrint('Error canceling notification $id: $e');
     }

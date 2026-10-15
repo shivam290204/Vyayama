@@ -35,53 +35,65 @@ class FriendRequestsScreen extends ConsumerWidget {
     final repo = ref.watch(friendRepositoryProvider);
     final value = ref.watch(friendRequestsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Friend requests')),
-      body: AsyncBody<List<FriendRequest>>(
-        value: value,
-        onRetry: () => ref.invalidate(friendRequestsProvider),
-        isEmpty: (d) => d.isEmpty,
-        emptyIcon: Icons.mark_email_read_outlined,
-        emptyTitle: 'No pending requests',
-        emptyMessage: 'New requests will show up here.',
-        data: (list) {
-          final incoming = list.where((r) => r.incoming).toList();
-          final outgoing = list.where((r) => !r.incoming).toList();
-          return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            children: [
-              if (incoming.isNotEmpty) const _Header('Wants to be your friend'),
-              for (final r in incoming)
-                _RequestTile(
-                  request: r,
-                  actions: [
-                    TextButton(
-                      onPressed: () => _run(context, ref,
-                          () => repo.declineRequest(r.friendship.id), 'Request declined'),
-                      child: const Text('Decline'),
-                    ),
-                    FilledButton(
-                      onPressed: () => _run(context, ref,
-                          () => repo.acceptRequest(r.friendship.id),
-                          'You and ${r.user.name} are friends 🔥'),
-                      child: const Text('Accept'),
-                    ),
-                  ],
-                ),
-              if (outgoing.isNotEmpty) const _Header('Waiting for a reply'),
-              for (final r in outgoing)
-                _RequestTile(
-                  request: r,
-                  actions: [
-                    TextButton(
-                      onPressed: () => _run(context, ref,
-                          () => repo.cancelRequest(r.friendship.id), 'Request cancelled'),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-            ],
-          );
-        },
+      appBar: AppBar(
+        title: const Text('Friend requests'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh requests',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(friendRequestsProvider),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(friendRequestsProvider),
+        child: AsyncBody<List<FriendRequest>>(
+          value: value,
+          onRetry: () => ref.invalidate(friendRequestsProvider),
+          isEmpty: (d) => d.isEmpty,
+          emptyIcon: Icons.mark_email_read_outlined,
+          emptyTitle: 'No pending requests',
+          emptyMessage: 'New requests will show up here.\nPull down to refresh.',
+          data: (list) {
+            final incoming = list.where((r) => r.incoming).toList();
+            final outgoing = list.where((r) => !r.incoming).toList();
+            return ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                if (incoming.isNotEmpty) const _Header('Wants to be your friend'),
+                for (final r in incoming)
+                  _RequestTile(
+                    request: r,
+                    actions: [
+                      TextButton(
+                        onPressed: () => _run(context, ref,
+                            () => repo.declineRequest(r.friendship.id), 'Request declined'),
+                        child: const Text('Decline'),
+                      ),
+                      FilledButton(
+                        onPressed: () => _run(context, ref,
+                            () => repo.acceptRequest(r.friendship.id),
+                            'You and ${r.user.name} are friends 🔥'),
+                        child: const Text('Accept'),
+                      ),
+                    ],
+                  ),
+                if (outgoing.isNotEmpty) const _Header('Waiting for a reply'),
+                for (final r in outgoing)
+                  _RequestTile(
+                    request: r,
+                    actions: [
+                      TextButton(
+                        onPressed: () => _run(context, ref,
+                            () => repo.cancelRequest(r.friendship.id), 'Request cancelled'),
+                        child: const Text('Cancel'),
+                      ),
+                    ],
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

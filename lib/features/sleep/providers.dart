@@ -272,10 +272,14 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
       await scheduler.cancel(bedtimeReminderId);
       await scheduler.cancel(wakeAlarmReminderId);
       if (settings.bedtimeReminderOn) {
-        await scheduler.schedule(buildBedtimeReminder(plan));
+        await scheduler.schedule(
+          buildBedtimeReminder(plan, days: settings.alarmDays),
+        );
       }
       if (settings.wakeAlarmOn) {
-        await scheduler.schedule(buildWakeAlarm(plan));
+        await scheduler.schedule(
+          buildWakeAlarm(plan, days: settings.alarmDays),
+        );
       }
     } catch (e) {
       debugPrint('SleepSettings _syncReminders error: $e');

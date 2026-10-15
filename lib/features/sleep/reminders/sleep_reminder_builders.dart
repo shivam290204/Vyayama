@@ -7,25 +7,32 @@ const String bedtimeReminderId = 'sleep:bedtime';
 /// Id of the wake-up alarm reminder.
 const String wakeAlarmReminderId = 'sleep:wake';
 
-/// Reminder that fires when the wind-down starts.
-ReminderRequest buildBedtimeReminder(SleepPlan plan) => ReminderRequest(
+/// Gentle reminder that fires when the wind-down starts.
+/// Uses Bedtime Guidance channel (not full-screen alarm).
+ReminderRequest buildBedtimeReminder(SleepPlan plan, {List<int>? days}) =>
+    ReminderRequest(
       id: bedtimeReminderId,
       kind: ReminderKind.bedtime,
       title: 'Time to wind down',
       body: 'Your suggested bedtime is ${plan.bedtime.format12h()}.',
       hour: plan.windDownStart.hour,
       minute: plan.windDownStart.minute,
-      exact: true,
+      weekdays: days ?? const <int>[1, 2, 3, 4, 5, 6, 7],
+      exact: false,
+      alarmStyle: false,
     );
 
 /// Alarm-style reminder at the suggested wake time.
-ReminderRequest buildWakeAlarm(SleepPlan plan) => ReminderRequest(
+/// Uses Wake Alarms channel with sound, vibration, and exact alarm scheduling.
+ReminderRequest buildWakeAlarm(SleepPlan plan, {List<int>? days}) =>
+    ReminderRequest(
       id: wakeAlarmReminderId,
       kind: ReminderKind.wakeAlarm,
       title: 'Good morning!',
       body: 'Time to wake up. Have a great day!',
       hour: plan.wakeTime.hour,
       minute: plan.wakeTime.minute,
+      weekdays: days ?? const <int>[1, 2, 3, 4, 5, 6, 7],
       exact: true,
       alarmStyle: true,
     );

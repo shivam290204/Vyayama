@@ -2,6 +2,17 @@ import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_request.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 
+/// Computes a stable, deterministic 31-bit integer hash from a string ID
+/// that remains identical across process restarts, app launches, and Dart VMs.
+int stableNotificationId(String id) {
+  var hash = 0x811c9dc5;
+  for (var i = 0; i < id.length; i++) {
+    hash ^= id.codeUnitAt(i);
+    hash = (hash * 0x01000193) & 0x7FFFFFFF;
+  }
+  return hash;
+}
+
 /// Schedules real local notifications using [NotificationService].
 class LocalReminderScheduler implements ReminderScheduler {
   LocalReminderScheduler({NotificationService? service})
@@ -9,11 +20,9 @@ class LocalReminderScheduler implements ReminderScheduler {
 
   final NotificationService _service;
 
-  int _notificationId(String id) => id.hashCode & 0x7FFFFFFF;
-
   @override
   Future<void> schedule(ReminderRequest request) async {
-    final intId = _notificationId(request.id);
+    final intId = stableNotificationId(request.id);
     final channelId = switch (request.kind) {
       ReminderKind.medicine => NotificationService.medicineChannelId,
       ReminderKind.meal => NotificationService.mealsChannelId,
@@ -34,6 +43,7 @@ class LocalReminderScheduler implements ReminderScheduler {
       body: request.body,
       hour: request.hour,
       minute: request.minute,
+      weekdays: request.weekdays,
       channelId: channelId,
       channelName: channelName,
       exact: request.exact,
@@ -43,7 +53,7 @@ class LocalReminderScheduler implements ReminderScheduler {
 
   @override
   Future<void> cancel(String id) async {
-    await _service.cancel(_notificationId(id));
+    await _service.cancel(stableNotificationId(id));
   }
 
   @override

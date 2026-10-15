@@ -1,5 +1,6 @@
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/data/friend_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase implementation of [FriendRepository] backed by `friendships`,
@@ -43,7 +44,7 @@ class SupabaseFriendRepository implements FriendRepository {
           .maybeSingle();
 
       if (res != null) {
-        return FriendUser.fromJson(Map<String, dynamic>.from(res));
+        return FriendUser.fromJson(Map<String, dynamic>.from(res as Map));
       }
 
       // 2. Try secure RPC for users not yet friends
@@ -52,8 +53,8 @@ class SupabaseFriendRepository implements FriendRepository {
         params: {'p_user_id': id},
       );
       if (rpcRes != null && (rpcRes as List).isNotEmpty) {
-        final row = rpcRes.first as Map<String, dynamic>;
-        return FriendUser.fromJson(Map<String, dynamic>.from(row));
+        final row = Map<String, dynamic>.from(rpcRes.first as Map);
+        return FriendUser.fromJson(row);
       }
       return null;
     } catch (_) {
@@ -73,8 +74,8 @@ class SupabaseFriendRepository implements FriendRepository {
       );
 
       if (res == null || (res as List).isEmpty) return null;
-      final row = res.first as Map<String, dynamic>;
-      return FriendUser.fromJson(Map<String, dynamic>.from(row));
+      final row = Map<String, dynamic>.from(res.first as Map);
+      return FriendUser.fromJson(row);
     } catch (_) {
       return null;
     }
@@ -93,8 +94,8 @@ class SupabaseFriendRepository implements FriendRepository {
       );
 
       if (res != null && (res as List).isNotEmpty) {
-        final row = res.first as Map<String, dynamic>;
-        return FriendUser.fromJson(Map<String, dynamic>.from(row));
+        final row = Map<String, dynamic>.from(res.first as Map);
+        return FriendUser.fromJson(row);
       }
     } catch (_) {
       // Fallback below
@@ -155,30 +156,60 @@ class SupabaseFriendRepository implements FriendRepository {
 
   @override
   Future<void> sendRequest(String addresseeId) async {
+    if (addresseeId == _userId) {
+      throw ArgumentError('Cannot add yourself as a friend');
+    }
+
     // 1. Try secure RPC that handles existing friendships, reversals & duplicates
     try {
-      await _client.rpc(
+      final res = await _client.rpc(
         'send_friend_request',
         params: {'p_addressee_id': addresseeId},
       );
+      debugPrint('send_friend_request RPC response: $res');
       return;
-    } catch (_) {
-      // Fallback to direct upsert/insert
+    } catch (e) {
+      debugPrint('send_friend_request RPC unavailable ($e), using direct query...');
     }
 
-    try {
-      await _client.from('friendships').upsert({
-        'requester_id': _userId,
-        'addressee_id': addresseeId,
-        'status': 'pending',
-      });
-    } catch (_) {
-      await _client.from('friendships').insert({
-        'requester_id': _userId,
-        'addressee_id': addresseeId,
-        'status': 'pending',
-      });
+    // 2. Direct fallback: check existing friendship to prevent constraint collisions
+    final existing = await _client
+        .from('friendships')
+        .select()
+        .or('and(requester_id.eq.$_userId,addressee_id.eq.$addresseeId),and(requester_id.eq.$addresseeId,addressee_id.eq.$_userId)')
+        .maybeSingle();
+
+    if (existing != null) {
+      final status = existing['status'] as String?;
+      final existingId = existing['id'] as String;
+      if (status == 'accepted') {
+        return; // Already friends
+      } else if (status == 'pending' && existing['requester_id'] == addresseeId) {
+        // The other user already sent a pending request: auto-accept!
+        await acceptRequest(existingId);
+        return;
+      } else {
+        // Revive declined or resend: delete old row and insert fresh to respect column-level RLS grants
+        try {
+          await _client.from('friendships').delete().eq('id', existingId);
+        } catch (delErr) {
+          debugPrint('Could not delete prior friendship row: $delErr');
+        }
+        await _client.from('friendships').insert({
+          'requester_id': _userId,
+          'addressee_id': addresseeId,
+          'status': 'pending',
+        });
+        return;
+      }
     }
+
+    // 3. Fresh request insert
+    await _client.from('friendships').insert({
+      'requester_id': _userId,
+      'addressee_id': addresseeId,
+      'status': 'pending',
+    });
   }
 
   @override
@@ -186,7 +217,7 @@ class SupabaseFriendRepository implements FriendRepository {
     // 1. Try secure RPC get_my_friend_requests
     try {
       final rpcRes = await _client.rpc('get_my_friend_requests');
-      if (rpcRes is List) {
+      if (rpcRes is List && rpcRes.isNotEmpty) {
         final list = <FriendRequest>[];
         for (final row in rpcRes) {
           final rMap = Map<String, dynamic>.from(row as Map);
@@ -209,11 +240,11 @@ class SupabaseFriendRepository implements FriendRepository {
         }
         return list;
       }
-    } catch (_) {
-      // Fallback to table query + getUser profile resolution
+    } catch (e) {
+      debugPrint('get_my_friend_requests RPC note: $e (using fallback query)');
     }
 
-    // 2. Fallback: Query friendships table directly, then fetch user profiles
+    // 2. Resilient fallback: Query friendships table directly, then fetch user profiles
     try {
       final res = await _client
           .from('friendships')
@@ -227,19 +258,33 @@ class SupabaseFriendRepository implements FriendRepository {
         final otherId =
             (incoming ? rMap['requester_id'] : rMap['addressee_id']) as String;
 
-        // Fetch user profile safely via getUser (which uses find_profile_by_user_id RPC)
-        final user = await getUser(otherId);
-        if (user != null) {
-          final friendship = Friendship.fromJson(rMap);
-          list.add(FriendRequest(
-            friendship: friendship,
-            user: user,
-            incoming: incoming,
-          ));
+        // Fetch user profile safely via getUser
+        FriendUser? user;
+        try {
+          user = await getUser(otherId);
+        } catch (e) {
+          debugPrint('getUser failed for $otherId: $e');
         }
+
+        // Resilient: NEVER drop a pending request even if profile lookup is restricted
+        user ??= FriendUser(
+          id: otherId,
+          username: '',
+          name: incoming ? 'Pending Friend' : 'Athlete',
+          avatarUrl: null,
+          timezone: 'UTC',
+        );
+
+        final friendship = Friendship.fromJson(rMap);
+        list.add(FriendRequest(
+          friendship: friendship,
+          user: user,
+          incoming: incoming,
+        ));
       }
       return list;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Friend requests fallback query error: $e');
       return [];
     }
   }
