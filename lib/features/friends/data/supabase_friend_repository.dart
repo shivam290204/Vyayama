@@ -155,29 +155,81 @@ class SupabaseFriendRepository implements FriendRepository {
 
   @override
   Future<void> sendRequest(String addresseeId) async {
-    await _client.from('friendships').insert({
-      'requester_id': _userId,
-      'addressee_id': addresseeId,
-      'status': 'pending',
-    });
+    // 1. Try secure RPC that handles existing friendships, reversals & duplicates
+    try {
+      await _client.rpc(
+        'send_friend_request',
+        params: {'p_addressee_id': addresseeId},
+      );
+      return;
+    } catch (_) {
+      // Fallback to direct upsert/insert
+    }
+
+    try {
+      await _client.from('friendships').upsert({
+        'requester_id': _userId,
+        'addressee_id': addresseeId,
+        'status': 'pending',
+      });
+    } catch (_) {
+      await _client.from('friendships').insert({
+        'requester_id': _userId,
+        'addressee_id': addresseeId,
+        'status': 'pending',
+      });
+    }
   }
 
   @override
   Future<List<FriendRequest>> requests() async {
+    // 1. Try secure RPC get_my_friend_requests
+    try {
+      final rpcRes = await _client.rpc('get_my_friend_requests');
+      if (rpcRes is List) {
+        final list = <FriendRequest>[];
+        for (final row in rpcRes) {
+          final rMap = Map<String, dynamic>.from(row as Map);
+          final user = FriendUser(
+            id: rMap['other_id'] as String,
+            username: (rMap['other_username'] as String?) ?? '',
+            name: (rMap['other_name'] as String?) ?? 'Athlete',
+            avatarUrl: rMap['other_avatar_url'] as String?,
+            timezone: (rMap['other_timezone'] as String?) ?? 'UTC',
+          );
+          final friendship = Friendship.fromJson(rMap);
+          final incoming = rMap['is_incoming'] == true ||
+              rMap['addressee_id'] == _userId;
+
+          list.add(FriendRequest(
+            friendship: friendship,
+            user: user,
+            incoming: incoming,
+          ));
+        }
+        return list;
+      }
+    } catch (_) {
+      // Fallback to table query + getUser profile resolution
+    }
+
+    // 2. Fallback: Query friendships table directly, then fetch user profiles
     try {
       final res = await _client
           .from('friendships')
-          .select('*, requester:profiles!requester_id(id, username, name, avatar_url, timezone), addressee:profiles!addressee_id(id, username, name, avatar_url, timezone)')
+          .select()
           .eq('status', 'pending');
 
       final list = <FriendRequest>[];
       for (final row in res as List) {
-        final rMap = Map<String, dynamic>.from(row);
+        final rMap = Map<String, dynamic>.from(row as Map);
         final incoming = rMap['addressee_id'] == _userId;
-        final otherData = incoming ? rMap['requester'] : rMap['addressee'];
+        final otherId =
+            (incoming ? rMap['requester_id'] : rMap['addressee_id']) as String;
 
-        if (otherData != null) {
-          final user = FriendUser.fromJson(Map<String, dynamic>.from(otherData));
+        // Fetch user profile safely via getUser (which uses find_profile_by_user_id RPC)
+        final user = await getUser(otherId);
+        if (user != null) {
           final friendship = Friendship.fromJson(rMap);
           list.add(FriendRequest(
             friendship: friendship,

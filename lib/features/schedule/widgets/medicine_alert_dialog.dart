@@ -68,7 +68,7 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
       id: 9993,
       title: '💊 Medicine Reminder',
       body: 'Time to take ${widget.medicineName} (${widget.time})',
-      channelId: 'vyayama_medicine',
+      channelId: NotificationService.medicineChannelId,
       channelName: 'Medicine Reminders',
       alarmStyle: true,
     );
@@ -184,7 +184,7 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                     seconds: 5,
                     title: '💊 Medicine Reminder (5s Test)',
                     body: 'Reminder: ${widget.medicineName}',
-                    channelId: 'vyayama_medicine',
+                    channelId: NotificationService.medicineChannelId,
                     channelName: 'Medicine Reminders',
                     alarmStyle: true,
                   );

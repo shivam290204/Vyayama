@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -7,6 +8,15 @@ import 'package:timezone/timezone.dart' as tz;
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
+
+  static const String wakeAlarmChannelId = 'vyayama_alarm_v3';
+  static const String medicineChannelId = 'vyayama_medicine_v3';
+  static const String mealsChannelId = 'vyayama_meals_v3';
+  static const String sleepChannelId = 'vyayama_sleep_v3';
+  static const String remindersChannelId = 'vyayama_reminders_v3';
+
+  static final Int64List _alarmVibrationPattern =
+      Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -28,32 +38,32 @@ class NotificationService {
       // 1. Initialize timezone database
       tz.initializeTimeZones();
       try {
-        final now = DateTime.now();
-        final tzName = now.timeZoneName;
-        final offsetMs = now.timeZoneOffset.inMilliseconds;
-
-        if (tz.timeZoneDatabase.locations.containsKey(tzName)) {
-          tz.setLocalLocation(tz.getLocation(tzName));
-        } else {
-          tz.Location? matchedLocation;
-          for (final location in tz.timeZoneDatabase.locations.values) {
-            if (location.currentTimeZone.offset == offsetMs) {
-              matchedLocation = location;
+        final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+        final String currentTimeZone = timezoneInfo.identifier;
+        tz.setLocalLocation(tz.getLocation(currentTimeZone));
+        debugPrint('System local timezone set: $currentTimeZone');
+      } catch (e) {
+        debugPrint('FlutterTimezone failed ($e), attempting offset matching...');
+        try {
+          final now = DateTime.now();
+          final offsetMs = now.timeZoneOffset.inMilliseconds;
+          final nowMs = now.millisecondsSinceEpoch;
+          tz.Location? matched;
+          for (final loc in tz.timeZoneDatabase.locations.values) {
+            if (loc.timeZone(nowMs).offset == offsetMs) {
+              matched = loc;
               break;
             }
           }
-          if (matchedLocation != null) {
-            tz.setLocalLocation(matchedLocation);
-            debugPrint(
-              'Local timezone set to ${matchedLocation.name} (offset: $offsetMs ms)',
-            );
+          if (matched != null) {
+            tz.setLocalLocation(matched);
+            debugPrint('Local timezone matched by offset: ${matched.name}');
           } else {
             tz.setLocalLocation(tz.getLocation('UTC'));
           }
+        } catch (_) {
+          tz.setLocalLocation(tz.getLocation('UTC'));
         }
-      } catch (e) {
-        debugPrint('Timezone detection fallback to UTC: $e');
-        tz.setLocalLocation(tz.getLocation('UTC'));
       }
 
       // 2. Setup initialization settings
@@ -82,30 +92,47 @@ class NotificationService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
+        // Clean up legacy channels to prevent Android caching old silent/low priority settings
+        for (final oldId in [
+          'vyayama_alarm',
+          'vyayama_alarm_v2',
+          'vyayama_medicine',
+          'vyayama_medicine_v2',
+          'vyayama_meals',
+          'vyayama_sleep',
+          'vyayama_reminders',
+        ]) {
+          try {
+            await android.deleteNotificationChannel(oldId);
+          } catch (_) {}
+        }
+
         // Wake Alarms channel (max priority, alarm sound, vibration)
         await android.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'vyayama_alarm',
+          AndroidNotificationChannel(
+            wakeAlarmChannelId,
             'Wake Alarms',
             description: 'Urgent morning wake-up alarms',
             importance: Importance.max,
             playSound: true,
-            sound: RawResourceAndroidNotificationSound('wakeup_alarm'),
+            sound: const RawResourceAndroidNotificationSound('wakeup_alarm'),
             enableVibration: true,
+            vibrationPattern: _alarmVibrationPattern,
             audioAttributesUsage: AudioAttributesUsage.alarm,
           ),
         );
 
         // Medicine Reminders channel (max priority, warning sound, vibration)
         await android.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'vyayama_medicine',
+          AndroidNotificationChannel(
+            medicineChannelId,
             'Medicine Reminders',
             description: 'Timely reminders for medications',
             importance: Importance.max,
             playSound: true,
-            sound: RawResourceAndroidNotificationSound('warning_alarm'),
+            sound: const RawResourceAndroidNotificationSound('warning_alarm'),
             enableVibration: true,
+            vibrationPattern: _alarmVibrationPattern,
             audioAttributesUsage: AudioAttributesUsage.alarm,
           ),
         );
@@ -113,9 +140,10 @@ class NotificationService {
         // Meal Reminders channel
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
-            'vyayama_meals',
+            mealsChannelId,
             'Meal Reminders',
-            description: 'Daily reminders for breakfast, lunch, snacks, and dinner',
+            description:
+                'Daily reminders for breakfast, lunch, snacks, and dinner',
             importance: Importance.high,
             playSound: true,
             enableVibration: true,
@@ -126,7 +154,7 @@ class NotificationService {
         // Bedtime Guidance channel
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
-            'vyayama_sleep',
+            sleepChannelId,
             'Bedtime Guidance',
             description: 'Calming wind-down and bedtime nudges',
             importance: Importance.high,
@@ -139,7 +167,7 @@ class NotificationService {
         // General Reminders channel
         await android.createNotificationChannel(
           const AndroidNotificationChannel(
-            'vyayama_reminders',
+            remindersChannelId,
             'Reminders',
             description: 'Daily health, sleep, and meal reminders',
             importance: Importance.high,
@@ -223,14 +251,17 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    final targetChannelId = channelId ?? 'vyayama_reminders';
-    final targetChannelName = channelName ?? 'Reminders';
+    final targetChannelId = channelId ??
+        (alarmStyle ? wakeAlarmChannelId : remindersChannelId);
+    final targetChannelName = channelName ??
+        (alarmStyle ? 'Wake Alarms' : 'Reminders');
 
-    final AndroidNotificationSound? soundResource = targetChannelId == 'vyayama_alarm'
-        ? const RawResourceAndroidNotificationSound('wakeup_alarm')
-        : (targetChannelId == 'vyayama_medicine'
-            ? const RawResourceAndroidNotificationSound('warning_alarm')
-            : null);
+    final AndroidNotificationSound? soundResource =
+        (targetChannelId == wakeAlarmChannelId || targetChannelId.contains('alarm'))
+            ? const RawResourceAndroidNotificationSound('wakeup_alarm')
+            : ((targetChannelId == medicineChannelId || targetChannelId.contains('medicine'))
+                ? const RawResourceAndroidNotificationSound('warning_alarm')
+                : null);
 
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
@@ -245,6 +276,7 @@ class NotificationService {
       playSound: true,
       sound: soundResource,
       enableVibration: true,
+      vibrationPattern: alarmStyle ? _alarmVibrationPattern : null,
       audioAttributesUsage: alarmStyle
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
@@ -281,7 +313,9 @@ class NotificationService {
         matchDateTimeComponents: DateTimeComponents.time,
       );
     } catch (e) {
-      debugPrint('ZonedSchedule with $scheduleMode failed ($e), falling back to inexact...');
+      debugPrint(
+        'ZonedSchedule with $scheduleMode failed ($e), falling back to exactAllowWhileIdle...',
+      );
       try {
         await _plugin.zonedSchedule(
           id,
@@ -289,7 +323,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
@@ -313,14 +347,17 @@ class NotificationService {
     await initialize();
     if (!_isInitialized) return;
 
-    final targetChannelId = channelId ?? 'vyayama_reminders';
-    final targetChannelName = channelName ?? 'Reminders';
+    final targetChannelId = channelId ??
+        (alarmStyle ? wakeAlarmChannelId : remindersChannelId);
+    final targetChannelName = channelName ??
+        (alarmStyle ? 'Wake Alarms' : 'Reminders');
 
-    final AndroidNotificationSound? soundResource = targetChannelId == 'vyayama_alarm'
-        ? const RawResourceAndroidNotificationSound('wakeup_alarm')
-        : (targetChannelId == 'vyayama_medicine'
-            ? const RawResourceAndroidNotificationSound('warning_alarm')
-            : null);
+    final AndroidNotificationSound? soundResource =
+        (targetChannelId == wakeAlarmChannelId || targetChannelId.contains('alarm'))
+            ? const RawResourceAndroidNotificationSound('wakeup_alarm')
+            : ((targetChannelId == medicineChannelId || targetChannelId.contains('medicine'))
+                ? const RawResourceAndroidNotificationSound('warning_alarm')
+                : null);
 
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
@@ -335,6 +372,7 @@ class NotificationService {
       playSound: true,
       sound: soundResource,
       enableVibration: true,
+      vibrationPattern: alarmStyle ? _alarmVibrationPattern : null,
       audioAttributesUsage: alarmStyle
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
@@ -373,17 +411,18 @@ class NotificationService {
     await initialize();
     if (!_isInitialized) return;
 
-    final targetChannelId = channelId ?? 'vyayama_alarm';
+    final targetChannelId = channelId ?? wakeAlarmChannelId;
     final targetChannelName = channelName ?? 'Wake Alarms';
 
     final scheduledDate =
         tz.TZDateTime.now(tz.local).add(Duration(seconds: seconds));
 
-    final AndroidNotificationSound? soundResource = targetChannelId == 'vyayama_alarm'
-        ? const RawResourceAndroidNotificationSound('wakeup_alarm')
-        : (targetChannelId == 'vyayama_medicine'
-            ? const RawResourceAndroidNotificationSound('warning_alarm')
-            : null);
+    final AndroidNotificationSound? soundResource =
+        (targetChannelId == wakeAlarmChannelId || targetChannelId.contains('alarm'))
+            ? const RawResourceAndroidNotificationSound('wakeup_alarm')
+            : ((targetChannelId == medicineChannelId || targetChannelId.contains('medicine'))
+                ? const RawResourceAndroidNotificationSound('warning_alarm')
+                : null);
 
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
@@ -396,6 +435,7 @@ class NotificationService {
       playSound: true,
       sound: soundResource,
       enableVibration: true,
+      vibrationPattern: _alarmVibrationPattern,
       audioAttributesUsage: AudioAttributesUsage.alarm,
     );
 

@@ -67,7 +67,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
       id: 9991,
       title: '⏰ Wake-Up Alarm Test',
       body: 'Good morning! It is ${widget.alarmTime}. Time to rise and shine!',
-      channelId: 'vyayama_alarm',
+      channelId: NotificationService.wakeAlarmChannelId,
       channelName: 'Wake Alarms',
       alarmStyle: true,
     );
@@ -231,7 +231,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                   seconds: 5,
                   title: '⏰ Wake-Up Alarm (5s Test)',
                   body: 'Time to wake up! Have a great day!',
-                  channelId: 'vyayama_alarm',
+                  channelId: NotificationService.wakeAlarmChannelId,
                   channelName: 'Wake Alarms',
                   alarmStyle: true,
                 );

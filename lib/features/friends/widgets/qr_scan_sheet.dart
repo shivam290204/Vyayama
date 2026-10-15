@@ -15,7 +15,7 @@ class QrScanSheet extends StatefulWidget {
 }
 
 class _QrScanSheetState extends State<QrScanSheet>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final MobileScannerController _controller;
   late final AnimationController _animController;
   bool _done = false;
@@ -25,6 +25,7 @@ class _QrScanSheetState extends State<QrScanSheet>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
@@ -34,10 +35,45 @@ class _QrScanSheetState extends State<QrScanSheet>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
+
+    _checkAndRequestPermission();
+  }
+
+  Future<void> _checkAndRequestPermission() async {
+    final status = await Permission.camera.status;
+    if (!status.isGranted) {
+      final requested = await Permission.camera.request();
+      if (requested.isGranted && mounted) {
+        _restartScanner();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAndRestartIfGranted();
+    }
+  }
+
+  Future<void> _checkAndRestartIfGranted() async {
+    final isGranted = await Permission.camera.isGranted;
+    if (isGranted && mounted) {
+      _restartScanner();
+    }
+  }
+
+  Future<void> _restartScanner() async {
+    try {
+      await _controller.stop();
+      await _controller.start();
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _animController.dispose();
     _controller.dispose();
     super.dispose();
@@ -150,15 +186,31 @@ class _QrScanSheetState extends State<QrScanSheet>
                         style: FilledButton.styleFrom(
                           backgroundColor: forestGreen,
                         ),
+                        onPressed: () async {
+                          final status = await Permission.camera.request();
+                          if (status.isGranted) {
+                            await _restartScanner();
+                          } else if (status.isPermanentlyDenied) {
+                            await openAppSettings();
+                          }
+                        },
+                        icon: const Icon(Icons.camera_alt_outlined),
+                        label: const Text('Grant Camera Access / Try Again'),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white38),
+                        ),
                         onPressed: () => openAppSettings(),
                         icon: const Icon(Icons.settings_outlined),
                         label: const Text('Open Settings'),
                       ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white38),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white70,
                         ),
                         onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Search by Username Instead'),

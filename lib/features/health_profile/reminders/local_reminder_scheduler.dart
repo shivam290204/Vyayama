@@ -15,10 +15,10 @@ class LocalReminderScheduler implements ReminderScheduler {
   Future<void> schedule(ReminderRequest request) async {
     final intId = _notificationId(request.id);
     final channelId = switch (request.kind) {
-      ReminderKind.medicine => 'vyayama_medicine',
-      ReminderKind.meal => 'vyayama_meals',
-      ReminderKind.bedtime => 'vyayama_sleep',
-      ReminderKind.wakeAlarm => 'vyayama_alarm',
+      ReminderKind.medicine => NotificationService.medicineChannelId,
+      ReminderKind.meal => NotificationService.mealsChannelId,
+      ReminderKind.bedtime => NotificationService.sleepChannelId,
+      ReminderKind.wakeAlarm => NotificationService.wakeAlarmChannelId,
     };
 
     final channelName = switch (request.kind) {
