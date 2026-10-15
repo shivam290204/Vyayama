@@ -55,10 +55,23 @@ final recentStatsProvider = FutureProvider<List<DailyStats>>((ref) async {
   return days;
 });
 
-/// Today's stats.
-final todayStatsProvider = Provider<AsyncValue<DailyStats>>(
-  (ref) => ref.watch(recentStatsProvider).whenData((days) => days.last),
-);
+/// Today's stats (merges latest repository numbers with live hardware steps).
+final todayStatsProvider = Provider<AsyncValue<DailyStats>>((ref) {
+  final recent = ref.watch(recentStatsProvider);
+  final live = ref.watch(liveStepStatsProvider).asData?.value;
+  return recent.whenData((days) {
+    final today = days.last;
+    if (live == null) return today;
+    final maxSteps = live.steps > today.steps ? live.steps : today.steps;
+    final maxCalories = live.calories > today.calories ? live.calories : today.calories;
+    final maxMinutes = live.activeMinutes > today.activeMinutes ? live.activeMinutes : today.activeMinutes;
+    return today.copyWith(
+      steps: maxSteps,
+      calories: maxCalories,
+      activeMinutes: maxMinutes,
+    );
+  });
+});
 
 /// The last 7 days including today, oldest first.
 final weekStatsProvider = Provider<AsyncValue<List<DailyStats>>>(

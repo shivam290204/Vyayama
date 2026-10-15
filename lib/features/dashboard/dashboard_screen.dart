@@ -32,6 +32,92 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await ref.read(recentStatsProvider.future);
   }
 
+  Future<void> _showLogStepsDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log Steps'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add steps to today\'s total. Useful for treadmill workouts or quick testing.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('+250'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await StepTrackingService.instance.addManualSteps(250);
+                    await _refresh();
+                  },
+                ),
+                ActionChip(
+                  label: const Text('+500'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await StepTrackingService.instance.addManualSteps(500);
+                    await _refresh();
+                  },
+                ),
+                ActionChip(
+                  label: const Text('+1,000'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await StepTrackingService.instance.addManualSteps(1000);
+                    await _refresh();
+                  },
+                ),
+                ActionChip(
+                  label: const Text('+2,500'),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await StepTrackingService.instance.addManualSteps(2500);
+                    await _refresh();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Or enter custom steps',
+                hintText: 'e.g. 750',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final val = int.tryParse(controller.text.trim());
+              if (val != null && val > 0) {
+                Navigator.pop(ctx);
+                await StepTrackingService.instance.addManualSteps(val);
+                await _refresh();
+              }
+            },
+            child: const Text('Add Steps'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(liveStepStatsProvider, (previous, next) {
@@ -39,7 +125,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
     final recent = ref.watch(recentStatsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'Sync Steps',
+            onPressed: _refresh,
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Log Steps',
+            onPressed: () => _showLogStepsDialog(context),
+          ),
+        ],
+      ),
       body: recent.when(
         loading: () => Center(
           child: Semantics(
@@ -62,12 +162,76 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final breakdown = ref.watch(calorieBreakdownProvider).asData?.value;
     final week = days.sublist(days.length > 7 ? days.length - 7 : 0);
     final history = days.reversed.toList();
+    final scheme = Theme.of(context).colorScheme;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        ValueListenableBuilder<bool>(
+          valueListenable: StepTrackingService.instance.hasPermission,
+          builder: (context, granted, _) {
+            if (granted) return const SizedBox.shrink();
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.directions_walk, color: scheme.onErrorContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Step tracking needs Physical Activity permission.',
+                      style: TextStyle(
+                        color: scheme.onErrorContainer,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  FilledButton.tonal(
+                    onPressed: () async {
+                      await StepTrackingService.instance.requestPermission();
+                      await _refresh();
+                    },
+                    child: const Text('Allow'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
         RingsSection(stats: days.last, targets: targets),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<bool>(
+          valueListenable: StepTrackingService.instance.isSensorActive,
+          builder: (context, active, _) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: active ? Colors.greenAccent : scheme.outline,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  active
+                      ? 'Live hardware sensor active'
+                      : 'Sensor idle • Tap Sync to refresh',
+                  style: text.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 24),
         Text('Last 7 days', style: text.titleMedium),
         const SizedBox(height: 8),

@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/router/app_router.dart';
 import 'package:fitbuddy/core/services/deep_link_service.dart';
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/theme_provider.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp> {
       if (!mounted) return;
       final router = ref.read(goRouterProvider);
       DeepLinkService.instance.init(router);
+      StepTrackingService.instance.start();
     });
   }
 

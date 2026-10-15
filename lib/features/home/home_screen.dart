@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/features/challenges/providers.dart';
@@ -35,6 +36,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    StepTrackingService.instance.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         DailyQuoteDialog.checkAndShow(context, ref);
@@ -43,6 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _refresh() async {
+    await StepTrackingService.instance.refresh();
     ref
       ..invalidate(recentStatsProvider)
       ..invalidate(scheduleBlocksProvider)

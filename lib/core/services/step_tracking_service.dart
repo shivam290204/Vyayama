@@ -22,6 +22,9 @@ class StepTrackingService with WidgetsBindingObserver {
   final _statsController = StreamController<DailyStats>.broadcast();
   Stream<DailyStats> get statsStream => _statsController.stream;
 
+  final ValueNotifier<bool> hasPermission = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isSensorActive = ValueNotifier<bool>(false);
+
   bool _isListening = false;
   bool _hasObserver = false;
   int _todaySteps = 0;
@@ -30,7 +33,7 @@ class StepTrackingService with WidgetsBindingObserver {
   int get todayCalories => (_todaySteps * 0.04).round();
   int get todayActiveMinutes => (_todaySteps / 100).ceil();
 
-  /// Starts listening to device hardware step sensors if permissions are granted.
+  /// Starts listening to device hardware step sensors and refreshes cached stats.
   Future<void> start() async {
     // 1. Load cached steps for today first so UI shows latest immediately
     await _loadTodayCache();
@@ -43,26 +46,56 @@ class StepTrackingService with WidgetsBindingObserver {
 
     if (kIsWeb) return;
 
-    // 3. Safely check and request ACTIVITY_RECOGNITION permission
-    try {
-      final status = await Permission.activityRecognition.status;
-      if (!status.isGranted) {
-        final requested = await Permission.activityRecognition.request();
-        if (!requested.isGranted) {
-          debugPrint('StepTrackingService: ACTIVITY_RECOGNITION permission not granted: $requested');
-          return;
-        }
-      }
-    } catch (e) {
-      debugPrint('StepTrackingService: Error requesting activity recognition: $e');
-      return;
+    // 3. Check and request ACTIVITY_RECOGNITION permission
+    await checkPermission();
+    if (!hasPermission.value) {
+      await requestPermission();
+    } else {
+      await _initPedometerStream();
     }
 
-    // 4. Connect hardware pedometer stream
-    await _initPedometerStream();
-
-    // 5. Complement steps from Health Connect / Apple Health if available
+    // 4. Complement steps from Health Connect / Apple Health if available
     unawaited(refresh());
+  }
+
+  /// Checks if physical activity recognition permission is currently granted.
+  Future<bool> checkPermission() async {
+    if (kIsWeb) return false;
+    try {
+      final status = await Permission.activityRecognition.status;
+      final granted = status.isGranted;
+      hasPermission.value = granted;
+      return granted;
+    } catch (e) {
+      debugPrint('StepTrackingService: Error checking permission: $e');
+      return false;
+    }
+  }
+
+  /// Explicitly prompts the user for activity recognition permission or opens settings.
+  Future<bool> requestPermission() async {
+    if (kIsWeb) return false;
+    try {
+      final status = await Permission.activityRecognition.status;
+      if (status.isPermanentlyDenied) {
+        debugPrint('StepTrackingService: Permission permanently denied, opening settings');
+        await openAppSettings();
+        return false;
+      }
+
+      final requested = await Permission.activityRecognition.request();
+      final granted = requested.isGranted;
+      hasPermission.value = granted;
+
+      if (granted) {
+        await _initPedometerStream();
+        await refresh();
+      }
+      return granted;
+    } catch (e) {
+      debugPrint('StepTrackingService: Error requesting permission: $e');
+      return false;
+    }
   }
 
   Future<void> _initPedometerStream() async {
@@ -70,8 +103,11 @@ class StepTrackingService with WidgetsBindingObserver {
     if (_stepSubscription != null) return;
 
     try {
-      final isGranted = await Permission.activityRecognition.isGranted;
-      if (!isGranted) return;
+      final isGranted = await checkPermission();
+      if (!isGranted) {
+        debugPrint('StepTrackingService: Cannot listen to pedometer without permission');
+        return;
+      }
 
       _stepSubscription = Pedometer.stepCountStream.listen(
         _onStepCount,
@@ -80,6 +116,7 @@ class StepTrackingService with WidgetsBindingObserver {
           _stepSubscription?.cancel();
           _stepSubscription = null;
           _isListening = false;
+          isSensorActive.value = false;
         },
         cancelOnError: false,
       );
@@ -97,21 +134,46 @@ class StepTrackingService with WidgetsBindingObserver {
       );
 
       _isListening = true;
+      isSensorActive.value = true;
+      debugPrint('StepTrackingService: Hardware pedometer stream active');
     } catch (e) {
       debugPrint('Failed to initialize Pedometer stream: $e');
       _isListening = false;
+      isSensorActive.value = false;
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint('StepTrackingService: App resumed, re-checking step stream and refreshing stats');
-      if (!_isListening) {
-        _initPedometerStream();
-      }
+      debugPrint('StepTrackingService: App resumed, re-evaluating sensors and stats');
+      checkPermission().then((granted) {
+        if (granted && !_isListening) {
+          _initPedometerStream();
+        }
+      });
       refresh();
     }
+  }
+
+  /// Manually increments step count (e.g. treadmill workout or testing).
+  Future<void> addManualSteps(int count) async {
+    if (count <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final todayKey = dayKey(DateTime.now());
+    _todaySteps += count;
+    await prefs.setInt('today_steps_$todayKey', _todaySteps);
+    _emitCurrentStats();
+  }
+
+  /// Manually sets step count to a specific value.
+  Future<void> setManualSteps(int count) async {
+    if (count < 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final todayKey = dayKey(DateTime.now());
+    _todaySteps = count;
+    await prefs.setInt('today_steps_$todayKey', _todaySteps);
+    _emitCurrentStats();
   }
 
   /// Pulls the latest step count from SharedPreferences cache
@@ -159,7 +221,7 @@ class StepTrackingService with WidgetsBindingObserver {
       var baseSteps = prefs.getInt(baseKey);
       var offset = prefs.getInt(offsetKey) ?? 0;
 
-      if (baseSteps == null || baseSteps <= 0) {
+      if (baseSteps == null) {
         // First reading of the day
         baseSteps = event.steps;
         await prefs.setInt(baseKey, baseSteps);
@@ -216,5 +278,6 @@ class StepTrackingService with WidgetsBindingObserver {
     _stepSubscription = null;
     _statusSubscription = null;
     _isListening = false;
+    isSensorActive.value = false;
   }
 }
