@@ -1,7 +1,9 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/teams/data/invite_sharer.dart';
 import 'package:fitbuddy/features/teams/data/mock_team_repository.dart';
+import 'package:fitbuddy/features/teams/data/supabase_team_repository.dart';
 import 'package:fitbuddy/features/teams/data/team.dart';
 import 'package:fitbuddy/features/teams/data/team_repository.dart';
 import 'package:fitbuddy/features/teams/domain/team_goals.dart';
@@ -19,18 +21,22 @@ final teamsCurrentUserNameProvider = Provider<String>((ref) {
   return (name == null || name.trim().isEmpty) ? 'You' : name.trim();
 });
 
-/// Team data source.
-/// Antigravity: override with a Supabase-backed implementation.
+/// Team data source. Uses Supabase when configured, otherwise falls back to mock.
 final teamRepositoryProvider = Provider<TeamRepository>(
-  (ref) => MockTeamRepository(
-    currentUserId: () => ref.read(teamsCurrentUserIdProvider),
-    currentUserName: () => ref.read(teamsCurrentUserNameProvider),
-  ),
+  (ref) {
+    if (Env.isSupabaseConfigured) {
+      return SupabaseTeamRepository();
+    }
+    return MockTeamRepository(
+      currentUserId: () => ref.read(teamsCurrentUserIdProvider),
+      currentUserName: () => ref.read(teamsCurrentUserNameProvider),
+    );
+  },
 );
 
-/// Shares invite text. Antigravity: override with a `share_plus` version.
+/// Shares invite text via native share sheet, with clipboard fallback.
 final inviteSharerProvider = Provider<InviteSharer>(
-  (ref) => ClipboardInviteSharer(),
+  (ref) => SharePlusInviteSharer(),
 );
 
 /// The teams the user belongs to, with create, join and leave actions.
