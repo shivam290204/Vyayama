@@ -26,13 +26,29 @@ class NotificationService {
     try {
       tz.initializeTimeZones();
       try {
-        final tzName = DateTime.now().timeZoneName;
+        final now = DateTime.now();
+        final tzName = now.timeZoneName;
+        final offsetMs = now.timeZoneOffset.inMilliseconds;
+
         if (tz.timeZoneDatabase.locations.containsKey(tzName)) {
           tz.setLocalLocation(tz.getLocation(tzName));
         } else {
-          tz.setLocalLocation(tz.getLocation('UTC'));
+          tz.Location? matchedLocation;
+          for (final location in tz.timeZoneDatabase.locations.values) {
+            if (location.currentTimeZone.offset == offsetMs) {
+              matchedLocation = location;
+              break;
+            }
+          }
+          if (matchedLocation != null) {
+            tz.setLocalLocation(matchedLocation);
+            debugPrint('Local timezone set to ${matchedLocation.name} (offset: $offsetMs ms)');
+          } else {
+            tz.setLocalLocation(tz.getLocation('UTC'));
+          }
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Timezone detection fallback to UTC: $e');
         tz.setLocalLocation(tz.getLocation('UTC'));
       }
 
@@ -130,7 +146,14 @@ class NotificationService {
       importance: alarmStyle ? Importance.max : Importance.high,
       priority: alarmStyle ? Priority.max : Priority.high,
       fullScreenIntent: alarmStyle,
-      category: alarmStyle ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
+      category: alarmStyle
+          ? AndroidNotificationCategory.alarm
+          : AndroidNotificationCategory.reminder,
+      playSound: true,
+      enableVibration: true,
+      audioAttributesUsage: alarmStyle
+          ? AudioAttributesUsage.alarm
+          : AudioAttributesUsage.notification,
     );
 
     const darwinDetails = DarwinNotificationDetails(

@@ -22,6 +22,7 @@ List<ReminderRequest> buildMedicineReminders(Medicine medicine) {
         hour: medicine.reminderTimes[i].hour,
         minute: medicine.reminderTimes[i].minute,
         exact: true,
+        alarmStyle: true,
       ),
   ];
 }

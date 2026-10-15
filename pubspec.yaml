@@ -55,6 +55,7 @@ dependencies:
   audioplayers: ^6.8.1
   flutter_svg: ^2.3.0
   url_launcher: ^6.3.3
+  pedometer: ^4.2.0
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +77,5 @@ flutter:
     - assets/lottie/
     - assets/images/
     - assets/images/mascot/
-    - assets/mascot/
     - assets/audio/
     - assets/exercises/

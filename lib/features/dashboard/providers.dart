@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/features/dashboard/body_metrics.dart';
 import 'package:fitbuddy/features/dashboard/calorie_math.dart';
 import 'package:fitbuddy/features/dashboard/daily_targets.dart';
@@ -21,6 +23,11 @@ final dailyStatsRepositoryProvider = Provider<DailyStatsRepository>((ref) {
   return MockDailyStatsRepository(clock: ref.watch(clockProvider));
 });
 
+/// Live step updates stream from hardware sensors.
+final liveStepStatsProvider = StreamProvider<DailyStats>((ref) {
+  return StepTrackingService.instance.statsStream;
+});
+
 /// The last 14 days, one entry per day, oldest first (today is last).
 /// Invalidate this provider to refresh (pull-to-refresh, app resume).
 final recentStatsProvider = FutureProvider<List<DailyStats>>((ref) async {
@@ -28,7 +35,24 @@ final recentStatsProvider = FutureProvider<List<DailyStats>>((ref) async {
   final repo = ref.watch(dailyStatsRepositoryProvider);
   final from = DateTime(today.year, today.month, today.day - (recentStatsDays - 1));
   final rows = await repo.fetchRange(from, today);
-  return fillMissingDays(rows, from: from, to: today);
+  final days = fillMissingDays(rows, from: from, to: today);
+
+  // Merge today's live hardware step tracking numbers
+  final liveToday = StepTrackingService.instance.getTodayStats();
+  if (days.isNotEmpty && liveToday.steps > 0) {
+    final last = days.last;
+    final mergedSteps = liveToday.steps > last.steps ? liveToday.steps : last.steps;
+    final mergedCalories = liveToday.calories > last.calories ? liveToday.calories : last.calories;
+    final mergedMinutes = liveToday.activeMinutes > last.activeMinutes ? liveToday.activeMinutes : last.activeMinutes;
+    final updatedToday = last.copyWith(
+      steps: mergedSteps,
+      calories: mergedCalories,
+      activeMinutes: mergedMinutes,
+    );
+    days[days.length - 1] = updatedToday;
+    unawaited(repo.upsert(updatedToday));
+  }
+  return days;
 });
 
 /// Today's stats.

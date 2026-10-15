@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:fitbuddy/features/workouts/providers.dart';
 import 'package:fitbuddy/features/workouts/widgets/session_controls.dart';
@@ -158,7 +159,44 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             icon: const Icon(Icons.close),
             onPressed: finished ? _leave : _confirmExit,
           ),
-          title: Text(plan.day.name),
+          centerTitle: true,
+          title: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                plan.day.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              if (!finished)
+                Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 13,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        formatClock(s.elapsedSeconds),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [FontFeature.tabularFigures()],
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           actions: [
             if (!finished)
               TextButton(

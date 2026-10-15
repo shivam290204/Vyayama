@@ -1,4 +1,6 @@
 import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
+import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/mock_snap_repository.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
@@ -43,9 +45,12 @@ final snapVerificationServiceProvider = Provider<SnapVerificationService>((ref) 
   );
 });
 
-/// Steps shown on the optional steps sticker. Antigravity: wire this to the
-/// dashboard's steps provider. Null hides the sticker.
-final snapStepsTodayProvider = Provider<int?>((ref) => 6420);
+/// Steps shown on the optional steps sticker wired to today's steps.
+final snapStepsTodayProvider = Provider<int?>((ref) {
+  final todayAsync = ref.watch(todayStatsProvider);
+  final steps = todayAsync.asData?.value.steps ?? StepTrackingService.instance.todaySteps;
+  return steps > 0 ? steps : null;
+});
 
 /// The photo just captured by the camera, waiting for the preview screen.
 class CapturedPhotoNotifier extends Notifier<CapturedPhoto?> {

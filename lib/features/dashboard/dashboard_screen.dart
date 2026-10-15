@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/dashboard/widgets/calorie_breakdown_card.dart';
@@ -19,6 +20,12 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ChartMetric _metric = ChartMetric.steps;
 
+  @override
+  void initState() {
+    super.initState();
+    StepTrackingService.instance.start();
+  }
+
   Future<void> _refresh() async {
     ref.invalidate(recentStatsProvider);
     await ref.read(recentStatsProvider.future);
@@ -26,6 +33,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(liveStepStatsProvider, (previous, next) {
+      ref.invalidate(recentStatsProvider);
+    });
     final recent = ref.watch(recentStatsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Dashboard')),

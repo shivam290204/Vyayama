@@ -46,9 +46,9 @@ class HealthScreen extends ConsumerWidget {
                     // Collapsing App Bar
                     SliverAppBar(
                       pinned: true,
-                      expandedHeight: 120,
-                      backgroundColor: Colors.transparent,
-                      surfaceTintColor: Colors.transparent,
+                      expandedHeight: 100,
+                      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                      surfaceTintColor: Theme.of(context).colorScheme.surface,
                       leading: IconButton(
                         tooltip: 'Back',
                         icon: const Icon(Icons.arrow_back),

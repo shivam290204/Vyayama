@@ -68,7 +68,8 @@ class SendSnapController extends Notifier<SendSnapState> {
         ..invalidate(friendsWithStreakProvider)
         ..invalidate(feedProvider)
         ..invalidate(inboxProvider);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('Failed to send snap: $e\n$st');
       state = const SendSnapState(
         phase: SendPhase.failed,
         message: 'We could not send your snap. Check your connection and try again.',

@@ -84,7 +84,7 @@ class _FallbackMascotState extends State<FallbackMascot>
       case MascotMood.sleepy:
         return 'assets/images/mascot/meditation.png';
       case MascotMood.proud:
-        return 'assets/exercises/flex_proud.png';
+        return 'assets/images/mascot/flex_proud.png';
       case MascotMood.celebrating:
         return 'assets/images/mascot/Fire_Determined.png';
       case MascotMood.happy:

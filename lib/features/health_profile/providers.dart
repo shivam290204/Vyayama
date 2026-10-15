@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/data/condition_rule.dart';
 import 'package:fitbuddy/features/health_profile/data/health_repository.dart';
@@ -113,6 +114,7 @@ class MedicinesNotifier extends AsyncNotifier<List<Medicine>> {
       await scheduler.cancel(medicineReminderId(saved.id, i));
     }
     if (saved.isActive) {
+      await NotificationService.instance.requestPermissions();
       for (final request in buildMedicineReminders(saved)) {
         await scheduler.schedule(request);
       }
