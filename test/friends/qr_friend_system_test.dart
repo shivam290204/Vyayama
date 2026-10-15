@@ -1,6 +1,5 @@
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/auth/auth_validators.dart';
-import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/data/invite_link.dart';
 import 'package:fitbuddy/features/friends/data/mock_friend_repository.dart';
 import 'package:fitbuddy/features/friends/providers.dart';

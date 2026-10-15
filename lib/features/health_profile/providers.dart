@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/data/condition_rule.dart';
 import 'package:fitbuddy/features/health_profile/data/health_repository.dart';
@@ -6,6 +7,7 @@ import 'package:fitbuddy/features/health_profile/data/meal_reminder_settings.dar
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/data/mock_health_repository.dart';
 import 'package:fitbuddy/features/health_profile/data/profile_snapshot.dart';
+import 'package:fitbuddy/features/health_profile/data/shared_prefs_health_repository.dart';
 import 'package:fitbuddy/features/health_profile/domain/condition_tags.dart';
 import 'package:fitbuddy/features/health_profile/reminders/local_reminder_scheduler.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_builders.dart';
@@ -15,9 +17,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Repository for conditions, medicines and meal reminder times.
-/// Antigravity: override with a Supabase-backed implementation.
+/// Uses persistent local SharedPreferences storage, with fallback to in-memory Mock.
 final healthRepositoryProvider = Provider<HealthRepository>(
-  (ref) => MockHealthRepository(),
+  (ref) {
+    try {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return SharedPrefsHealthRepository(prefs);
+    } catch (_) {
+      return MockHealthRepository();
+    }
+  },
 );
 
 /// Reminder scheduler backed by flutter_local_notifications.
@@ -159,6 +168,7 @@ class MealRemindersNotifier extends AsyncNotifier<MealReminderSettings> {
     await ref.read(healthRepositoryProvider).saveMealReminders(next);
     await scheduler.cancel(mealReminderId(slot));
     if (updated.enabled) {
+      await NotificationService.instance.requestPermissions();
       await scheduler.schedule(buildMealReminder(slot, updated));
     }
   }

@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -60,6 +61,16 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
 
     _triggerHaptics();
     AppSoundService.instance.playWakeUpAlarm();
+
+    // Fire native test notification as well so the user verifies system delivery
+    NotificationService.instance.showImmediateNotification(
+      id: 9991,
+      title: '⏰ Wake-Up Alarm Test',
+      body: 'Good morning! It is ${widget.alarmTime}. Time to rise and shine!',
+      channelId: 'vyayama_alarm',
+      channelName: 'Wake Alarms',
+      alarmStyle: true,
+    );
   }
 
   Future<void> _triggerHaptics() async {
@@ -208,7 +219,40 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                 );
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFF9500),
+                visualDensity: VisualDensity.compact,
+              ),
+              onPressed: () async {
+                await NotificationService.instance.scheduleTestAlarmInSeconds(
+                  id: 9992,
+                  seconds: 5,
+                  title: '⏰ Wake-Up Alarm (5s Test)',
+                  body: 'Time to wake up! Have a great day!',
+                  channelId: 'vyayama_alarm',
+                  channelName: 'Wake Alarms',
+                  alarmStyle: true,
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Alarm scheduled for 5s from now! Lock your screen to test ⏰',
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.timer_outlined, size: 16),
+              label: const Text(
+                'Schedule 5s Test Alarm (Lock screen to test)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(

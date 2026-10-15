@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:fitbuddy/app.dart';
 import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 
 Future<void> main() async {
@@ -21,6 +22,9 @@ Future<void> main() async {
       publishableKey: Env.supabaseAnonKey,
     );
   }
+
+  // Initialize native local notification channels and timezones early
+  await NotificationService.instance.initialize();
 
   final prefs = await SharedPreferences.getInstance();
 
