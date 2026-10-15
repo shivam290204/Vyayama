@@ -56,8 +56,8 @@ class StepTrackingService with WidgetsBindingObserver {
       await _initPedometerStream();
     }
 
-    // 4. Complement steps from Health Connect / Apple Health if available
-    unawaited(refresh());
+    // 4. Broadcast current stats
+    _emitCurrentStats();
   }
 
   /// Checks if physical activity recognition permission is currently granted.
@@ -190,17 +190,23 @@ class StepTrackingService with WidgetsBindingObserver {
   Future<void> resetTodaySteps() async {
     final prefs = await SharedPreferences.getInstance();
     final todayKey = dayKey(DateTime.now());
+    final rawKey = 'last_raw_steps_$todayKey';
     _todaySteps = 0;
+    _lastRawSensorSteps = null;
     await prefs.setInt('today_steps_$todayKey', 0);
+    await prefs.remove(rawKey);
     _emitCurrentStats();
   }
 
-  /// Pulls the latest step count from SharedPreferences cache
-  /// and Health Connect / Apple Health, then broadcasts updated stats.
+  /// Pulls the latest step count from SharedPreferences cache, then broadcasts updated stats.
   Future<DailyStats> refresh() async {
     await _loadTodayCache();
+    _emitCurrentStats();
+    return getTodayStats();
+  }
 
-    // Complement with OS Health Connect / Apple Health if available
+  /// Explicit sync with Health Connect or Apple Health.
+  Future<DailyStats> syncWithHealthService() async {
     try {
       final healthSteps = await HealthService.instance.getStepsToday();
       if (healthSteps != null && healthSteps > _todaySteps) {
@@ -208,12 +214,11 @@ class StepTrackingService with WidgetsBindingObserver {
         final prefs = await SharedPreferences.getInstance();
         final todayKey = dayKey(DateTime.now());
         await prefs.setInt('today_steps_$todayKey', _todaySteps);
+        _emitCurrentStats();
       }
     } catch (e) {
       debugPrint('Failed to get health steps: $e');
     }
-
-    _emitCurrentStats();
     return getTodayStats();
   }
 
@@ -221,10 +226,7 @@ class StepTrackingService with WidgetsBindingObserver {
     try {
       final prefs = await SharedPreferences.getInstance();
       final todayKey = dayKey(DateTime.now());
-      final cached = prefs.getInt('today_steps_$todayKey') ?? 0;
-      if (cached > _todaySteps) {
-        _todaySteps = cached;
-      }
+      _todaySteps = prefs.getInt('today_steps_$todayKey') ?? 0;
       _emitCurrentStats();
     } catch (_) {}
   }

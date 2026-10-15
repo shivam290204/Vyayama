@@ -104,7 +104,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 onPressed: () async {
                   Navigator.pop(ctx);
                   await StepTrackingService.instance.resetTodaySteps();
-                  await _refresh();
+                  final repo = ref.read(dailyStatsRepositoryProvider);
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final resetStats = DailyStats(
+                    date: today,
+                    steps: 0,
+                    calories: 0,
+                    activeMinutes: 0,
+                  );
+                  await repo.upsert(resetStats);
+                  ref.invalidate(recentStatsProvider);
+                  await ref.read(recentStatsProvider.future);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Today\'s steps reset to 0! Walk around to test live counting.'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
               ),
             ),

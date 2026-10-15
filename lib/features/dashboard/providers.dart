@@ -39,15 +39,12 @@ final recentStatsProvider = FutureProvider<List<DailyStats>>((ref) async {
 
   // Merge today's live hardware step tracking numbers
   final liveToday = StepTrackingService.instance.getTodayStats();
-  if (days.isNotEmpty && liveToday.steps > 0) {
+  if (days.isNotEmpty) {
     final last = days.last;
-    final mergedSteps = liveToday.steps > last.steps ? liveToday.steps : last.steps;
-    final mergedCalories = liveToday.calories > last.calories ? liveToday.calories : last.calories;
-    final mergedMinutes = liveToday.activeMinutes > last.activeMinutes ? liveToday.activeMinutes : last.activeMinutes;
     final updatedToday = last.copyWith(
-      steps: mergedSteps,
-      calories: mergedCalories,
-      activeMinutes: mergedMinutes,
+      steps: liveToday.steps,
+      calories: liveToday.calories,
+      activeMinutes: liveToday.activeMinutes,
     );
     days[days.length - 1] = updatedToday;
     unawaited(repo.upsert(updatedToday));
@@ -62,13 +59,10 @@ final todayStatsProvider = Provider<AsyncValue<DailyStats>>((ref) {
   return recent.whenData((days) {
     final today = days.last;
     if (live == null) return today;
-    final maxSteps = live.steps > today.steps ? live.steps : today.steps;
-    final maxCalories = live.calories > today.calories ? live.calories : today.calories;
-    final maxMinutes = live.activeMinutes > today.activeMinutes ? live.activeMinutes : today.activeMinutes;
     return today.copyWith(
-      steps: maxSteps,
-      calories: maxCalories,
-      activeMinutes: maxMinutes,
+      steps: live.steps,
+      calories: live.calories,
+      activeMinutes: live.activeMinutes,
     );
   });
 });
