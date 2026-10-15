@@ -11,9 +11,17 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
+  /// Whether local notifications are supported on the current platform.
+  static bool get isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
   /// Initializes timezone data and native notification channels.
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (!isSupportedPlatform || _isInitialized) return;
 
     try {
       tz.initializeTimeZones();
@@ -56,7 +64,9 @@ class NotificationService {
 
   /// Requests notification permissions on iOS/macOS and Android 13+.
   Future<bool> requestPermissions() async {
-    if (kIsWeb) return false;
+    if (!isSupportedPlatform) return false;
+    await initialize();
+    if (!_isInitialized) return false;
 
     try {
       final android = _plugin.resolvePlatformSpecificImplementation<
@@ -94,8 +104,9 @@ class NotificationService {
     bool exact = false,
     bool alarmStyle = false,
   }) async {
-    if (kIsWeb) return;
+    if (!isSupportedPlatform) return;
     await initialize();
+    if (!_isInitialized) return;
 
     final now = tz.TZDateTime.now(tz.local);
     var scheduledDate = tz.TZDateTime(
@@ -153,7 +164,7 @@ class NotificationService {
 
   /// Cancels a notification by integer ID.
   Future<void> cancel(int id) async {
-    if (kIsWeb) return;
+    if (!isSupportedPlatform || !_isInitialized) return;
     try {
       await _plugin.cancel(id);
     } catch (e) {
@@ -163,7 +174,7 @@ class NotificationService {
 
   /// Cancels all scheduled notifications.
   Future<void> cancelAll() async {
-    if (kIsWeb) return;
+    if (!isSupportedPlatform || !_isInitialized) return;
     try {
       await _plugin.cancelAll();
     } catch (e) {
