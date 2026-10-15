@@ -42,11 +42,11 @@ class _QrScanSheetState extends State<QrScanSheet>
     }
     final status = await Permission.camera.status;
     if (status.isGranted) {
-      _startFreshController();
+      await _startFreshController();
     } else {
       final requested = await Permission.camera.request();
       if (requested.isGranted) {
-        _startFreshController();
+        await _startFreshController();
       } else {
         if (mounted) {
           setState(() {
@@ -58,16 +58,33 @@ class _QrScanSheetState extends State<QrScanSheet>
     }
   }
 
-  void _startFreshController() {
-    _controller?.dispose();
-    _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
+  Future<void> _startFreshController() async {
+    final old = _controller;
+    _controller = null;
+    if (old != null) {
+      try {
+        await old.stop();
+      } catch (_) {}
+      try {
+        await old.dispose();
+      } catch (_) {}
+      // Brief hardware settling delay for CameraX release
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+
+    if (!mounted) return;
+
+    final newController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      detectionTimeoutMs: 250,
       facing: CameraFacing.back,
       torchEnabled: false,
       formats: const [BarcodeFormat.qrCode],
     );
+
     if (mounted) {
       setState(() {
+        _controller = newController;
         _checkingPermission = false;
         _hasPermission = true;
         _errorMessage = null;
@@ -77,10 +94,16 @@ class _QrScanSheetState extends State<QrScanSheet>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      _controller?.stop();
+    } else if (state == AppLifecycleState.resumed) {
       Permission.camera.isGranted.then((granted) {
-        if (granted && mounted && (!_hasPermission || _controller == null)) {
-          _startFreshController();
+        if (granted && mounted) {
+          if (_controller != null && _controller!.value.isInitialized) {
+            _controller?.start();
+          } else {
+            _startFreshController();
+          }
         }
       });
     }
@@ -89,7 +112,7 @@ class _QrScanSheetState extends State<QrScanSheet>
   Future<void> _handlePermissionButton() async {
     final status = await Permission.camera.request();
     if (status.isGranted) {
-      _startFreshController();
+      await _startFreshController();
     } else if (status.isPermanentlyDenied) {
       await openAppSettings();
     } else {
@@ -282,12 +305,13 @@ class _QrScanSheetState extends State<QrScanSheet>
               errorBuilder: (context, error, child) {
                 final isPerm = error.errorCode ==
                     MobileScannerErrorCode.permissionDenied;
+                final detail = error.errorDetails?.message ?? error.errorCode.name;
                 return _buildErrorState(
                   context,
                   title: isPerm ? 'Camera Access Needed' : 'Camera Unavailable',
                   message: isPerm
                       ? 'Please grant camera permission to scan your friend\'s QR code, or search by their exact username.'
-                      : 'Unable to start camera preview (${error.errorCode.name}). Please tap Restart Camera.',
+                      : 'Unable to start camera preview ($detail). Please tap Restart Camera.',
                   isPermissionError: isPerm,
                 );
               },

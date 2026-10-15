@@ -70,6 +70,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="com.google.ml.vision.DEPENDENCIES"
+            android:value="barcode" />
 
         <!-- Receivers required by flutter_local_notifications for scheduled notifications & boot persistence -->
         <receiver
