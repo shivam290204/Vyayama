@@ -109,7 +109,10 @@ void main() {
       );
     });
 
-    test('myTeams returns seeded demo teams', () async {
+    test('myTeams returns seeded demo teams after joining', () async {
+      expect(await repo.myTeams(), isEmpty);
+      await repo.joinByCode('WALK42');
+      await repo.joinByCode('RUN777');
       final teams = await repo.myTeams();
       expect(teams.length, greaterThanOrEqualTo(2));
     });

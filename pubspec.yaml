@@ -76,5 +76,6 @@ flutter:
     - assets/lottie/
     - assets/images/
     - assets/images/mascot/
+    - assets/mascot/
     - assets/audio/
     - assets/exercises/

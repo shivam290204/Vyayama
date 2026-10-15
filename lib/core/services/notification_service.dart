@@ -58,7 +58,9 @@ class NotificationService {
 
       _isInitialized = true;
     } catch (e) {
-      debugPrint('NotificationService initialization failed: $e');
+      if (!e.toString().contains('LateInitializationError')) {
+        debugPrint('NotificationService initialization failed: $e');
+      }
     }
   }
 
