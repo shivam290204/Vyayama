@@ -87,12 +87,48 @@ class MockFriendRepository implements FriendRepository {
   @override
   Future<FriendUser?> findByUsername(String exactUsername) async {
     await _latency();
-    final q = exactUsername.trim().toLowerCase();
+    final q = exactUsername.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
     if (q.isEmpty) return null;
     for (final u in _directory.values) {
       if (u.username.toLowerCase() == q && !_blocked.contains(u.id)) return u;
     }
     return null;
+  }
+
+  @override
+  Future<FriendUser?> findByIdentifier(String identifier) async {
+    await _latency();
+    final q = identifier.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
+    if (q.isEmpty) return null;
+    if (identifier == currentUserId || q == currentUserId.toLowerCase()) {
+      return FriendUser(
+        id: currentUserId,
+        username: 'my_handle',
+        name: 'My Profile',
+        timezone: kMockTimezone,
+      );
+    }
+    if (_directory.containsKey(identifier) && !_blocked.contains(identifier)) {
+      return _directory[identifier];
+    }
+    for (final u in _directory.values) {
+      if ((u.id.toLowerCase() == q || u.username.toLowerCase() == q) &&
+          !_blocked.contains(u.id)) {
+        return u;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async {
+    await _latency();
+    final q = username.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
+    if (q.isEmpty) return false;
+    for (final u in _directory.values) {
+      if (u.username.toLowerCase() == q) return false;
+    }
+    return true;
   }
 
   @override

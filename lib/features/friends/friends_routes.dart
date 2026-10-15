@@ -3,6 +3,7 @@ import 'package:fitbuddy/features/friends/screens/add_friend_screen.dart';
 import 'package:fitbuddy/features/friends/screens/friend_detail_screen.dart';
 import 'package:fitbuddy/features/friends/screens/friend_requests_screen.dart';
 import 'package:fitbuddy/features/friends/screens/friends_list_screen.dart';
+import 'package:fitbuddy/features/friends/screens/user_profile_screen.dart';
 import 'package:go_router/go_router.dart';
 
 /// Routes of the friends feature. Static paths come before `/friends/:id`.
@@ -18,6 +19,11 @@ final List<RouteBase> friendsRoutes = [
   GoRoute(
     path: AppRoutes.friendsRequests,
     builder: (context, state) => const FriendRequestsScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.userProfile,
+    builder: (context, state) =>
+        UserProfileScreen(identifier: state.pathParameters['id']!),
   ),
   GoRoute(
     path: AppRoutes.friendDetail,

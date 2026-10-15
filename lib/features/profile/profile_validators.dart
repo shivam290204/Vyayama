@@ -8,6 +8,34 @@ abstract final class ProfileValidators {
   static const double maxWeightKg = 300;
   static const double minHeightCm = 100;
   static const double maxHeightCm = 250;
+  static final RegExp _usernameRegex = RegExp(r'^[a-zA-Z0-9_]{3,20}$');
+
+  static String? username(String? value, {bool required = false}) {
+    final text = value?.trim().replaceFirst(RegExp(r'^@'), '') ?? '';
+    if (text.isEmpty) {
+      return required ? 'Choose a username.' : null;
+    }
+    if (text.length < 3) return 'Use at least 3 characters.';
+    if (text.length > 20) return 'Username cannot exceed 20 characters.';
+    if (!_usernameRegex.hasMatch(text)) {
+      return 'Only letters, numbers, and underscores allowed.';
+    }
+    return null;
+  }
+
+  static String generateDefaultUsername(String? name, String? email) {
+    var base = '';
+    if (name != null && name.trim().isNotEmpty) {
+      base = name.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    } else if (email != null && email.contains('@')) {
+      base = email.split('@').first.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+    }
+    base = base.replaceAll(RegExp(r'_+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+    if (base.isEmpty) base = 'user';
+    if (base.length > 14) base = base.substring(0, 14);
+    final randomDigits = (DateTime.now().millisecondsSinceEpoch % 900 + 100).toString();
+    return '${base}_$randomDigits';
+  }
 
   static String? name(String? value) {
     final text = value?.trim() ?? '';

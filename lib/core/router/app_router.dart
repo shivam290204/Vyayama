@@ -58,6 +58,7 @@ String? appRedirect({
   }
 
   if (auth.valueOrNull == null) {
+    if (location.startsWith('/u/')) return null;
     return _publicPaths.contains(location) ? null : AppRoutes.login;
   }
 

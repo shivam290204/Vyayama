@@ -1310,4 +1310,103 @@ grant execute on function delete_expired_snaps() to service_role;
 --     body := '{"job":"cleanup"}'::jsonb);
 -- $$);
 -- ---------------------------------------------------------------------------
+-- 010: Friend QR code and profile lookup RPCs
+-- ---------------------------------------------------------------------------
 
+create or replace function public.find_profile_by_user_id(p_user_id uuid)
+returns table (id uuid, username text, name text, avatar_url text, timezone text)
+language plpgsql stable security definer set search_path = ''
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  if p_user_id <> v_uid and public.is_blocked_between(v_uid, p_user_id) then
+    return;
+  end if;
+
+  return query
+  select p.id, p.username, p.name, p.avatar_url, p.timezone
+  from public.profiles p
+  where p.id = p_user_id;
+end;
+$$;
+
+create or replace function public.find_profile_by_identifier(p_query text)
+returns table (id uuid, username text, name text, avatar_url text, timezone text)
+language plpgsql stable security definer set search_path = ''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_clean text := lower(trim(p_query));
+  v_uuid uuid;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  if v_clean is null or v_clean = '' then
+    return;
+  end if;
+
+  if starts_with(v_clean, '@') then
+    v_clean := substring(v_clean from 2);
+  end if;
+
+  begin
+    v_uuid := v_clean::uuid;
+  exception when others then
+    v_uuid := null;
+  end;
+
+  if v_uuid is not null then
+    return query
+    select p.id, p.username, p.name, p.avatar_url, p.timezone
+    from public.profiles p
+    where p.id = v_uuid
+      and not (v_uuid <> v_uid and public.is_blocked_between(v_uid, v_uuid));
+    return;
+  end if;
+
+  return query
+  select p.id, p.username, p.name, p.avatar_url, p.timezone
+  from public.profiles p
+  where (p.username = v_clean or p.invite_token = trim(p_query))
+    and not (p.id <> v_uid and public.is_blocked_between(v_uid, p.id));
+end;
+$$;
+
+create or replace function public.check_username_available(p_username text)
+returns boolean
+language plpgsql stable security definer set search_path = ''
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_clean text := lower(trim(p_username));
+begin
+  if v_clean is null or v_clean = '' then
+    return false;
+  end if;
+
+  if not (v_clean ~ '^[a-z0-9_]{3,20}$') then
+    return false;
+  end if;
+
+  return not exists (
+    select 1 from public.profiles p
+    where p.username = v_clean
+      and (v_uid is null or p.id <> v_uid)
+  );
+end;
+$$;
+
+revoke all on function public.find_profile_by_user_id(uuid) from public, anon;
+revoke all on function public.find_profile_by_identifier(text) from public, anon;
+revoke all on function public.check_username_available(text) from public, anon;
+
+grant execute on function public.find_profile_by_user_id(uuid) to authenticated;
+grant execute on function public.find_profile_by_identifier(text) to authenticated;
+grant execute on function public.check_username_available(text) to authenticated, anon;

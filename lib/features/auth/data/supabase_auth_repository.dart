@@ -43,12 +43,20 @@ class SupabaseAuthRepository implements AuthRepository {
     required String name,
     required String email,
     required String password,
+    String? username,
   }) async {
     try {
+      final cleanUsername = (username != null && username.trim().isNotEmpty)
+          ? username.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '')
+          : null;
+
       await _client.signUp(
         email: email,
         password: password,
-        data: {'name': name},
+        data: {
+          'name': name,
+          if (cleanUsername != null) 'username': cleanUsername,
+        },
       );
     } on supa.AuthException catch (e) {
       throw AuthFailure(e.message);

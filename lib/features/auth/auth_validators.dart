@@ -4,6 +4,20 @@ enum PasswordStrength { empty, weak, fair, strong }
 /// Pure form validators for the auth screens.
 abstract final class AuthValidators {
   static final RegExp _email = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  static final RegExp _username = RegExp(r'^[a-zA-Z0-9_]{3,20}$');
+
+  static String? username(String? value, {bool required = false}) {
+    final text = value?.trim().replaceFirst(RegExp(r'^@'), '') ?? '';
+    if (text.isEmpty) {
+      return required ? 'Choose a username.' : null;
+    }
+    if (text.length < 3) return 'Use at least 3 characters.';
+    if (text.length > 20) return 'Username cannot exceed 20 characters.';
+    if (!_username.hasMatch(text)) {
+      return 'Only letters, numbers, and underscores allowed.';
+    }
+    return null;
+  }
 
   static String? name(String? value) {
     final text = value?.trim() ?? '';

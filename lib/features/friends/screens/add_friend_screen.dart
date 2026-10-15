@@ -1,6 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
-import 'package:fitbuddy/features/friends/data/invite_link.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/friends/widgets/friend_avatar.dart';
 import 'package:fitbuddy/features/friends/widgets/my_qr_card.dart';
@@ -11,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// `/friends/add`: exact-username search, my QR code, scan, share.
+/// `/friends/add`: exact-username search, My QR code, QR scan, and deep link sharing.
 class AddFriendScreen extends ConsumerStatefulWidget {
   const AddFriendScreen({super.key});
 
@@ -46,7 +45,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
     });
     try {
       final repo = ref.read(friendRepositoryProvider);
-      final user = await repo.findByUsername(q);
+      final user = await repo.findByIdentifier(q);
       final relation =
           user == null ? FriendRelation.none : await repo.relationTo(user.id);
       if (!mounted) return;
@@ -63,26 +62,21 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
   }
 
   Future<void> _scan() async {
-    final raw = await showModalBottomSheet<String>(
+    final identifier = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (_) => const QrScanSheet(),
     );
-    if (raw == null || !mounted) return;
-    final name = parseInviteUsername(raw);
-    if (name == null) {
-      setState(() => _error = 'That QR code is not a Vyayama invite.');
-      return;
-    }
-    _controller.text = name;
-    await _search(name);
+    if (identifier == null || !mounted) return;
+    context.push(AppRoutes.userProfilePath(identifier));
   }
 
   Future<void> _sendRequest(FriendUser user) async {
     try {
       await ref.read(friendRepositoryProvider).sendRequest(user.id);
       ref.invalidate(friendRequestsProvider);
+      ref.invalidate(userRelationProvider(user.id));
       if (!mounted) return;
       setState(() => _relation = FriendRelation.requestSent);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +95,9 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    final String? username = ref.watch(currentProfileProvider).valueOrNull?.username;
+    final profile = ref.watch(currentProfileProvider).valueOrNull;
+    final String? username = profile?.username;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Add a friend')),
       body: ListView(
@@ -119,7 +115,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
                   autocorrect: false,
                   onSubmitted: _search,
                   decoration: const InputDecoration(
-                    labelText: 'Exact username',
+                    labelText: 'Exact username or handle',
                     prefixText: '@',
                     border: OutlineInputBorder(),
                   ),
@@ -145,7 +141,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             Text(_error!, style: text.bodyMedium?.copyWith(color: scheme.error)),
           if (_searched && _found == null && _error == null)
             Text(
-              'No one found with that exact username. Check the spelling, or ask your friend for their QR code.',
+              'No athlete found with that exact username. Check the spelling, or ask your friend for their QR code.',
               style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
           if (_found != null)
@@ -160,28 +156,62 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan a QR code'),
-            onPressed: _scan,
-          ),
-          const SizedBox(height: 16),
-          if (username != null && username.isNotEmpty)
-            MyQrCard(username: username)
-          else
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Pick a username in your profile to get your own QR code and invite link.',
-                  style: text.bodyMedium,
-                ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              side: BorderSide(color: const Color(0xFF14532D).withValues(alpha: 0.6)),
+            ),
+            icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF14532D)),
+            label: const Text(
+              'Scan a QR code',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF14532D),
               ),
             ),
-          const SizedBox(height: 8),
+            onPressed: _scan,
+          ),
+          const SizedBox(height: 20),
+          if (profile != null) ...[
+            if (username == null || username.isEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Set a username so friends can easily search you with @username.',
+                        style: text.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push(AppRoutes.profileEdit),
+                      child: const Text('Set handle'),
+                    ),
+                  ],
+                ),
+              ),
+            MyQrCard(profile: profile),
+          ] else ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
           Text(
-            'People can only find you by your exact username. Photos are shared with accepted friends only.',
+            'People can find you by your exact username or by scanning your permanent QR code. Workouts and photos are shared with accepted friends only.',
             style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -229,10 +259,11 @@ class _ResultCard extends StatelessWidget {
     };
     return Card(
       child: ListTile(
+        onTap: () => context.push(AppRoutes.userProfilePath(user.id)),
         minVerticalPadding: 12,
         leading: FriendAvatar(user: user),
         title: Text(user.name),
-        subtitle: Text('@${user.username}'),
+        subtitle: Text(user.username.isNotEmpty ? '@${user.username}' : 'Athlete'),
         trailing: relation == FriendRelation.requestReceived
             ? OutlinedButton(
                 onPressed: () => context.push(AppRoutes.friendsRequests),
@@ -240,6 +271,9 @@ class _ResultCard extends StatelessWidget {
               )
             : label == null
                 ? FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF14532D),
+                    ),
                     onPressed: () => onAdd(user),
                     child: const Text('Add'),
                   )

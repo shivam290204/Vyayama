@@ -10,6 +10,12 @@ abstract class FriendRepository {
   /// Exact username match only. Returns null when nobody matches.
   Future<FriendUser?> findByUsername(String exactUsername);
 
+  /// Find a user by their unique identifier (UUID, username, or invite token).
+  Future<FriendUser?> findByIdentifier(String identifier);
+
+  /// Check if a username is available.
+  Future<bool> isUsernameAvailable(String username);
+
   Future<FriendRelation> relationTo(String userId);
 
   Future<void> sendRequest(String addresseeId);

@@ -72,6 +72,7 @@ class MockAuthRepository implements AuthRepository {
     required String name,
     required String email,
     required String password,
+    String? username,
   }) async {
     await Future<void>.delayed(_latency);
     final key = email.trim().toLowerCase();

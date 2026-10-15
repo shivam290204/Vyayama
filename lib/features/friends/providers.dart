@@ -60,6 +60,18 @@ final friendDetailProvider =
   return null;
 });
 
+/// Look up a user's public profile by identifier (UUID, username, or invite token).
+final userProfileByIdentifierProvider =
+    FutureProvider.family<FriendUser?, String>((ref, identifier) async {
+  return ref.watch(friendRepositoryProvider).findByIdentifier(identifier);
+});
+
+/// Relation between current user and [userId].
+final userRelationProvider =
+    FutureProvider.family<FriendRelation, String>((ref, userId) async {
+  return ref.watch(friendRepositoryProvider).relationTo(userId);
+});
+
 /// Refreshes everything that depends on the friend graph.
 void invalidateFriendData(WidgetRef ref) {
   ref

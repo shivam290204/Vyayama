@@ -36,6 +36,7 @@ abstract final class AppRoutes {
   static const String friendsAdd = '/friends/add';
   static const String friendsRequests = '/friends/requests';
   static const String friendDetail = '/friends/:id';
+  static const String userProfile = '/u/:id';
   static const String snapsCamera = '/snaps/camera';
   static const String snapsPreview = '/snaps/preview';
   static const String snapsInbox = '/snaps/inbox';
@@ -58,6 +59,8 @@ abstract final class AppRoutes {
       '/teams/${Uri.encodeComponent(id)}';
   static String friendDetailPath(String id) =>
       '/friends/${Uri.encodeComponent(id)}';
+  static String userProfilePath(String id) =>
+      '/u/${Uri.encodeComponent(id.trim().replaceFirst(RegExp(r"^@"), ""))}';
   static String snapViewPath(String id) =>
       '/snaps/view/${Uri.encodeComponent(id)}';
 }

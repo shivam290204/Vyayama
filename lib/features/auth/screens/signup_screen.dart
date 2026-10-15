@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     with AuthActionMixin<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _agreed = false;
@@ -32,6 +34,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -47,6 +50,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
             name: _name.text.trim(),
             email: _email.text.trim(),
             password: _password.text,
+            username: _username.text.trim().isEmpty ? null : _username.text.trim(),
           ),
     );
   }
@@ -74,6 +78,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                 decoration: const InputDecoration(
                   labelText: 'Name',
                   prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              TextFormField(
+                controller: _username,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: (v) => AuthValidators.username(v, required: false),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+                  LengthLimitingTextInputFormatter(20),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Username (optional)',
+                  prefixText: '@',
+                  helperText: 'Unique handle for friends & QR invites',
+                  prefixIcon: Icon(Icons.alternate_email_rounded),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),

@@ -28,6 +28,7 @@ class EditProfileForm extends ConsumerStatefulWidget {
 class _EditProfileFormState extends ConsumerState<EditProfileForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
+  late final TextEditingController _username;
   late final TextEditingController _age;
   String? _gender;
   String? _goal;
@@ -44,6 +45,7 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
     final p = widget.profile;
     final unit = ref.read(unitSystemProvider);
     _name = TextEditingController(text: p.name ?? '');
+    _username = TextEditingController(text: p.username ?? '');
     _age = TextEditingController(text: p.age?.toString() ?? '');
     _gender = p.gender;
     _goal = p.goal;
@@ -62,6 +64,7 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _age.dispose();
     super.dispose();
   }
@@ -113,8 +116,10 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
 
     setState(() => _saving = true);
     try {
+      final rawUser = _username.text.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
       final updated = widget.profile.copyWith(
         name: _name.text.trim(),
+        username: rawUser.isEmpty ? null : rawUser,
         age: int.parse(_age.text.trim()),
         gender: _gender,
         weightKg: ProfileValidators.weightKg(_weight, unit),
@@ -161,6 +166,24 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
             decoration: const InputDecoration(
               labelText: 'Name',
               prefixIcon: Icon(Icons.person_outline_rounded),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TextFormField(
+            controller: _username,
+            autocorrect: false,
+            textInputAction: TextInputAction.next,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (v) => ProfileValidators.username(v, required: false),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+              LengthLimitingTextInputFormatter(20),
+            ],
+            decoration: const InputDecoration(
+              labelText: 'Username',
+              prefixText: '@',
+              helperText: 'Unique tag for friends and QR invites',
+              prefixIcon: Icon(Icons.alternate_email_rounded),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

@@ -35,14 +35,27 @@ class SupabaseFriendRepository implements FriendRepository {
   @override
   Future<FriendUser?> getUser(String id) async {
     try {
+      // 1. Try friend_profiles view (covers accepted friends and self)
       final res = await _client
           .from('friend_profiles')
           .select()
           .eq('id', id)
           .maybeSingle();
 
-      if (res == null) return null;
-      return FriendUser.fromJson(Map<String, dynamic>.from(res));
+      if (res != null) {
+        return FriendUser.fromJson(Map<String, dynamic>.from(res));
+      }
+
+      // 2. Try secure RPC for users not yet friends
+      final rpcRes = await _client.rpc(
+        'find_profile_by_user_id',
+        params: {'p_user_id': id},
+      );
+      if (rpcRes != null && (rpcRes as List).isNotEmpty) {
+        final row = rpcRes.first as Map<String, dynamic>;
+        return FriendUser.fromJson(Map<String, dynamic>.from(row));
+      }
+      return null;
     } catch (_) {
       return null;
     }
@@ -50,7 +63,7 @@ class SupabaseFriendRepository implements FriendRepository {
 
   @override
   Future<FriendUser?> findByUsername(String exactUsername) async {
-    final query = exactUsername.trim().toLowerCase();
+    final query = exactUsername.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
     if (query.isEmpty) return null;
 
     try {
@@ -65,6 +78,56 @@ class SupabaseFriendRepository implements FriendRepository {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<FriendUser?> findByIdentifier(String identifier) async {
+    final query = identifier.trim();
+    if (query.isEmpty) return null;
+
+    try {
+      // Try unified RPC first
+      final res = await _client.rpc(
+        'find_profile_by_identifier',
+        params: {'p_query': query},
+      );
+
+      if (res != null && (res as List).isNotEmpty) {
+        final row = res.first as Map<String, dynamic>;
+        return FriendUser.fromJson(Map<String, dynamic>.from(row));
+      }
+    } catch (_) {
+      // Fallback below
+    }
+
+    // Check if query is UUID format
+    final isUuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(query);
+
+    if (isUuid) {
+      return getUser(query);
+    }
+    return findByUsername(query);
+  }
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async {
+    final query = username.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
+    if (query.isEmpty) return false;
+
+    try {
+      final res = await _client.rpc(
+        'check_username_available',
+        params: {'p_username': query},
+      );
+      if (res is bool) return res;
+    } catch (_) {
+      // Fallback
+    }
+
+    final existing = await findByUsername(query);
+    return existing == null;
   }
 
   @override

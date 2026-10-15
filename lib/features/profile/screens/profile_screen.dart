@@ -73,16 +73,29 @@ class _ProfileBody extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            Text(
-              (username == null || username.isEmpty)
-                  ? 'No username yet'
-                  : '@$username',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 4),
+            if (username == null || username.isEmpty)
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => context.push(AppRoutes.profileEdit),
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  label: const Text('Choose a username'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
+              )
+            else
+              Text(
+                '@$username',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Center(
               child: OutlinedButton.icon(
                 onPressed: () => context.push(AppRoutes.profileEdit),
