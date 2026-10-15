@@ -16,66 +16,97 @@ class QrScanSheet extends StatefulWidget {
 
 class _QrScanSheetState extends State<QrScanSheet>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final MobileScannerController _controller;
+  MobileScannerController? _controller;
   late final AnimationController _animController;
   bool _done = false;
   String? _errorMessage;
   bool _torchEnabled = false;
+  bool _checkingPermission = true;
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
-      facing: CameraFacing.back,
-      torchEnabled: false,
-    );
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    _checkAndRequestPermission();
+    _initCameraFlow();
   }
 
-  Future<void> _checkAndRequestPermission() async {
+  Future<void> _initCameraFlow() async {
+    if (mounted) {
+      setState(() => _checkingPermission = true);
+    }
     final status = await Permission.camera.status;
-    if (!status.isGranted) {
+    if (status.isGranted) {
+      _startFreshController();
+    } else {
       final requested = await Permission.camera.request();
-      if (requested.isGranted && mounted) {
-        _restartScanner();
+      if (requested.isGranted) {
+        _startFreshController();
+      } else {
+        if (mounted) {
+          setState(() {
+            _checkingPermission = false;
+            _hasPermission = false;
+          });
+        }
       }
+    }
+  }
+
+  void _startFreshController() {
+    _controller?.dispose();
+    _controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+      formats: const [BarcodeFormat.qrCode],
+    );
+    if (mounted) {
+      setState(() {
+        _checkingPermission = false;
+        _hasPermission = true;
+        _errorMessage = null;
+      });
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkAndRestartIfGranted();
+      Permission.camera.isGranted.then((granted) {
+        if (granted && mounted && (!_hasPermission || _controller == null)) {
+          _startFreshController();
+        }
+      });
     }
   }
 
-  Future<void> _checkAndRestartIfGranted() async {
-    final isGranted = await Permission.camera.isGranted;
-    if (isGranted && mounted) {
-      _restartScanner();
+  Future<void> _handlePermissionButton() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      _startFreshController();
+    } else if (status.isPermanentlyDenied) {
+      await openAppSettings();
+    } else {
+      if (mounted) {
+        setState(() {
+          _hasPermission = false;
+          _checkingPermission = false;
+        });
+      }
     }
-  }
-
-  Future<void> _restartScanner() async {
-    try {
-      await _controller.stop();
-      await _controller.start();
-      if (mounted) setState(() {});
-    } catch (_) {}
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _animController.dispose();
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -108,10 +139,87 @@ class _QrScanSheetState extends State<QrScanSheet>
     });
   }
 
+  Widget _buildErrorState(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required bool isPermissionError,
+  }) {
+    const forestGreen = Color(0xFF14532D);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPermissionError
+                  ? Icons.no_photography_outlined
+                  : Icons.videocam_off_outlined,
+              size: 64,
+              color: Colors.white70,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: forestGreen,
+              ),
+              onPressed: () async {
+                if (isPermissionError) {
+                  await _handlePermissionButton();
+                } else {
+                  _startFreshController();
+                }
+              },
+              icon: Icon(isPermissionError
+                  ? Icons.camera_alt_outlined
+                  : Icons.refresh_rounded),
+              label: Text(isPermissionError
+                  ? 'Grant Camera Access / Try Again'
+                  : 'Restart Camera'),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white38),
+              ),
+              onPressed: () => openAppSettings(),
+              icon: const Icon(Icons.settings_outlined),
+              label: const Text('Open Settings'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white70,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Search by Username Instead'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const forestGreen = Color(0xFF14532D);
     const limeAccent = Color(0xFF8BCF45);
 
     return Scaffold(
@@ -130,15 +238,19 @@ class _QrScanSheetState extends State<QrScanSheet>
               _torchEnabled ? Icons.flash_on_rounded : Icons.flash_off_rounded,
               color: _torchEnabled ? limeAccent : Colors.white,
             ),
-            onPressed: () async {
-              await _controller.toggleTorch();
-              setState(() => _torchEnabled = !_torchEnabled);
-            },
+            onPressed: _controller == null
+                ? null
+                : () async {
+                    await _controller!.toggleTorch();
+                    setState(() => _torchEnabled = !_torchEnabled);
+                  },
           ),
           IconButton(
             tooltip: 'Flip Camera',
             icon: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white),
-            onPressed: () => _controller.switchCamera(),
+            onPressed: _controller == null
+                ? null
+                : () => _controller!.switchCamera(),
           ),
           IconButton(
             tooltip: 'Close',
@@ -150,163 +262,124 @@ class _QrScanSheetState extends State<QrScanSheet>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Mobile Camera View
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-            errorBuilder: (context, error, child) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.no_photography_outlined,
-                        size: 64,
-                        color: Colors.white70,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Camera Access Needed',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Please grant camera permission to scan your friend\'s QR code, or search by their exact username.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: forestGreen,
-                        ),
-                        onPressed: () async {
-                          final status = await Permission.camera.request();
-                          if (status.isGranted) {
-                            await _restartScanner();
-                          } else if (status.isPermanentlyDenied) {
-                            await openAppSettings();
-                          }
-                        },
-                        icon: const Icon(Icons.camera_alt_outlined),
-                        label: const Text('Grant Camera Access / Try Again'),
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white38),
-                        ),
-                        onPressed: () => openAppSettings(),
-                        icon: const Icon(Icons.settings_outlined),
-                        label: const Text('Open Settings'),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                        ),
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Search by Username Instead'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          // 1. Mobile Camera View or Permission / Loading State
+          if (_checkingPermission)
+            const Center(
+              child: CircularProgressIndicator(color: limeAccent),
+            )
+          else if (!_hasPermission || _controller == null)
+            _buildErrorState(
+              context,
+              title: 'Camera Access Needed',
+              message:
+                  'Please grant camera permission to scan your friend\'s QR code, or search by their exact username.',
+              isPermissionError: true,
+            )
+          else
+            MobileScanner(
+              controller: _controller!,
+              onDetect: _onDetect,
+              errorBuilder: (context, error, child) {
+                final isPerm = error.errorCode ==
+                    MobileScannerErrorCode.permissionDenied;
+                return _buildErrorState(
+                  context,
+                  title: isPerm ? 'Camera Access Needed' : 'Camera Unavailable',
+                  message: isPerm
+                      ? 'Please grant camera permission to scan your friend\'s QR code, or search by their exact username.'
+                      : 'Unable to start camera preview (${error.errorCode.name}). Please tap Restart Camera.',
+                  isPermissionError: isPerm,
+                );
+              },
+            ),
 
-          // 2. Custom Viewfinder Overlay
-          AnimatedBuilder(
-            animation: _animController,
-            builder: (context, _) {
-              return CustomPaint(
-                painter: _ViewfinderPainter(
-                  scanProgress: _animController.value,
-                  hasError: _errorMessage != null,
-                ),
-              );
-            },
-          ),
+          // 2. Custom Viewfinder Overlay (active only when scanner is running)
+          if (!_checkingPermission && _hasPermission && _controller != null)
+            AnimatedBuilder(
+              animation: _animController,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _ViewfinderPainter(
+                    scanProgress: _animController.value,
+                    hasError: _errorMessage != null,
+                  ),
+                );
+              },
+            ),
 
           // 3. Instructions & Error Banners
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 40,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_errorMessage != null)
+          if (!_checkingPermission && _hasPermission && _controller != null)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 40,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_errorMessage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: theme.colorScheme.error,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(
+                                color: theme.colorScheme.onErrorContainer,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _resumeScanning,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   Container(
-                    margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 20,
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.white24),
                     ),
-                    child: Row(
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: theme.colorScheme.error,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(
-                              color: theme.colorScheme.onErrorContainer,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        Icon(Icons.qr_code_scanner, color: limeAccent, size: 20),
+                        SizedBox(width: 10),
+                        Text(
+                          'Align QR code inside the frame',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
                           ),
-                        ),
-                        TextButton(
-                          onPressed: _resumeScanning,
-                          child: const Text('Retry'),
                         ),
                       ],
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.qr_code_scanner, color: limeAccent, size: 20),
-                      SizedBox(width: 10),
-                      Text(
-                        'Align QR code inside the frame',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
