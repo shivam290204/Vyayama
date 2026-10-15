@@ -14,5 +14,3 @@
 -dontwarn com.google.android.gms.internal.mlkit_vision_barcode.**
 -dontwarn com.google.android.libraries.barhopper.**
 
-# Step tracking background service
--keep class com.example.fitbuddy.StepForegroundService { *; }

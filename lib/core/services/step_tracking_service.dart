@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:fitbuddy/core/services/health_service.dart';
@@ -7,18 +6,15 @@ import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Service for real-time hardware step counting, background foreground service,
-/// calorie estimation, and active time tracking on the device.
+/// Robust service for real-time hardware step counting, calorie estimation,
+/// and active time tracking on the device.
 class StepTrackingService with WidgetsBindingObserver {
   StepTrackingService._();
   static final StepTrackingService instance = StepTrackingService._();
-
-  static const _channel = MethodChannel('io.vyayama.fitbuddy/step_service');
 
   StreamSubscription<StepCount>? _stepSubscription;
   StreamSubscription<PedestrianStatus>? _statusSubscription;
@@ -34,12 +30,12 @@ class StepTrackingService with WidgetsBindingObserver {
   int get todayCalories => (_todaySteps * 0.04).round();
   int get todayActiveMinutes => (_todaySteps / 100).ceil();
 
-  /// Starts listening to device hardware step sensors and background service if available.
+  /// Starts listening to device hardware step sensors if permissions are granted.
   Future<void> start() async {
-    // 1. Load cached steps for today first
+    // 1. Load cached steps for today first so UI shows latest immediately
     await _loadTodayCache();
 
-    // 2. Register lifecycle observer once to auto-refresh on app resume
+    // 2. Register lifecycle observer once to auto-refresh and reconnect on app resume
     if (!_hasObserver) {
       WidgetsBinding.instance.addObserver(this);
       _hasObserver = true;
@@ -47,43 +43,36 @@ class StepTrackingService with WidgetsBindingObserver {
 
     if (kIsWeb) return;
 
-    // 3. Request permissions required for step counting and foreground notification
+    // 3. Safely check and request ACTIVITY_RECOGNITION permission
     try {
-      final actStatus = await Permission.activityRecognition.request();
-      if (!actStatus.isGranted) {
-        debugPrint('Activity recognition permission: $actStatus');
-      }
-      if (Platform.isAndroid) {
-        final notifStatus = await Permission.notification.request();
-        if (!notifStatus.isGranted) {
-          debugPrint('Notification permission for background tracking: $notifStatus');
+      final status = await Permission.activityRecognition.status;
+      if (!status.isGranted) {
+        final requested = await Permission.activityRecognition.request();
+        if (!requested.isGranted) {
+          debugPrint('StepTrackingService: ACTIVITY_RECOGNITION permission not granted: $requested');
+          return;
         }
       }
     } catch (e) {
-      debugPrint('Permission request error in StepTrackingService: $e');
+      debugPrint('StepTrackingService: Error requesting activity recognition: $e');
+      return;
     }
 
-    // 4. Start native Android background Foreground Service
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        await _channel.invokeMethod('startStepService');
-        debugPrint('Started native Android StepForegroundService for background tracking');
-      } catch (e) {
-        debugPrint('Could not start native StepForegroundService: $e');
-      }
-    }
+    // 4. Connect hardware pedometer stream
+    await _initPedometerStream();
 
-    // 5. Connect Flutter pedometer stream for instant in-app reactivity
-    _initPedometerStream();
-
-    // 6. Refresh steps from native service & Health Connect
+    // 5. Complement steps from Health Connect / Apple Health if available
     unawaited(refresh());
   }
 
-  void _initPedometerStream() {
+  Future<void> _initPedometerStream() async {
+    if (kIsWeb) return;
     if (_stepSubscription != null) return;
 
     try {
+      final isGranted = await Permission.activityRecognition.isGranted;
+      if (!isGranted) return;
+
       _stepSubscription = Pedometer.stepCountStream.listen(
         _onStepCount,
         onError: (error) {
@@ -91,16 +80,8 @@ class StepTrackingService with WidgetsBindingObserver {
           _stepSubscription?.cancel();
           _stepSubscription = null;
           _isListening = false;
-          // Retry after delay in case sensor temporarily unavailable
-          Future.delayed(const Duration(seconds: 10), () {
-            if (!_isListening) _initPedometerStream();
-          });
         },
-        onDone: () {
-          _stepSubscription?.cancel();
-          _stepSubscription = null;
-          _isListening = false;
-        },
+        cancelOnError: false,
       );
 
       _statusSubscription ??= Pedometer.pedestrianStatusStream.listen(
@@ -109,45 +90,36 @@ class StepTrackingService with WidgetsBindingObserver {
         },
         onError: (error) {
           debugPrint('Pedometer status stream error: $error');
+          _statusSubscription?.cancel();
+          _statusSubscription = null;
         },
+        cancelOnError: false,
       );
 
       _isListening = true;
     } catch (e) {
-      debugPrint('Failed to start Pedometer stream: $e');
+      debugPrint('Failed to initialize Pedometer stream: $e');
+      _isListening = false;
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint('StepTrackingService: App resumed, refreshing steps from background service and sensors');
-      _initPedometerStream();
+      debugPrint('StepTrackingService: App resumed, re-checking step stream and refreshing stats');
+      if (!_isListening) {
+        _initPedometerStream();
+      }
       refresh();
     }
   }
 
-  /// Pulls the latest step count from native background service, SharedPreferences,
-  /// and Health Connect, and broadcasts updated stats.
+  /// Pulls the latest step count from SharedPreferences cache
+  /// and Health Connect / Apple Health, then broadcasts updated stats.
   Future<DailyStats> refresh() async {
     await _loadTodayCache();
 
-    // 1. Check native background service steps via MethodChannel if Android
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        final nativeSteps = await _channel.invokeMethod<int>('getTodaySteps');
-        if (nativeSteps != null && nativeSteps > _todaySteps) {
-          _todaySteps = nativeSteps;
-          final prefs = await SharedPreferences.getInstance();
-          final todayKey = dayKey(DateTime.now());
-          await prefs.setInt('today_steps_$todayKey', _todaySteps);
-        }
-      } catch (e) {
-        debugPrint('Failed to get native steps: $e');
-      }
-    }
-
-    // 2. Complement with OS Health Connect / Apple Health if available
+    // Complement with OS Health Connect / Apple Health if available
     try {
       final healthSteps = await HealthService.instance.getStepsToday();
       if (healthSteps != null && healthSteps > _todaySteps) {
@@ -233,7 +205,7 @@ class StepTrackingService with WidgetsBindingObserver {
     );
   }
 
-  /// Stops tracking subscriptions and native foreground service.
+  /// Stops tracking subscriptions and cleans up observers.
   Future<void> stop() async {
     if (_hasObserver) {
       WidgetsBinding.instance.removeObserver(this);
@@ -244,11 +216,5 @@ class StepTrackingService with WidgetsBindingObserver {
     _stepSubscription = null;
     _statusSubscription = null;
     _isListening = false;
-
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        await _channel.invokeMethod('stopStepService');
-      } catch (_) {}
-    }
   }
 }
