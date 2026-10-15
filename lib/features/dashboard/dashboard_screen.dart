@@ -27,6 +27,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
+    await StepTrackingService.instance.refresh();
     ref.invalidate(recentStatsProvider);
     await ref.read(recentStatsProvider.future);
   }

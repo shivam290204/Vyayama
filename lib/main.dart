@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:fitbuddy/app.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
+import 'package:fitbuddy/core/services/step_tracking_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +28,9 @@ Future<void> main() async {
 
   // Initialize native local notification channels and timezones early
   await NotificationService.instance.initialize();
+
+  // Start step tracking service and background tracker early
+  unawaited(StepTrackingService.instance.start());
 
   final prefs = await SharedPreferences.getInstance();
 
