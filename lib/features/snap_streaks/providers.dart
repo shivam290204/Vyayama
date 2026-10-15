@@ -1,8 +1,10 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/snap_streaks/data/mock_ids.dart';
 import 'package:fitbuddy/features/snap_streaks/data/snap_streak.dart';
 import 'package:fitbuddy/features/snap_streaks/data/snap_streak_calculator.dart';
 import 'package:fitbuddy/features/snap_streaks/data/snap_streak_repository.dart';
+import 'package:fitbuddy/features/snap_streaks/data/supabase_snap_streak_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The signed-in user's id. Falls back to a mock id until a profile loads.
@@ -13,8 +15,13 @@ final currentUserIdProvider = Provider<String>((ref) {
 /// Injectable clock so tests and previews can control "now".
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
-/// Swap this for a Supabase-backed repository later.
+/// Provides [SupabaseSnapStreakRepository] when configured, falling back to mock.
 final snapStreakRepositoryProvider = Provider<SnapStreakRepository>((ref) {
+  if (Env.isSupabaseConfigured) {
+    return SupabaseSnapStreakRepository(
+      clock: ref.watch(clockProvider),
+    );
+  }
   return MockSnapStreakRepository(
     currentUserId: ref.watch(currentUserIdProvider),
     clock: ref.watch(clockProvider),

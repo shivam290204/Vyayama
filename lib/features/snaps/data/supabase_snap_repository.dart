@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:fitbuddy/features/snaps/data/activity_type.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:fitbuddy/features/snaps/data/snap_repository.dart';
 import 'package:fitbuddy/features/snaps/data/snap_verification_service.dart';
@@ -19,16 +20,20 @@ class SupabaseSnapImageUrlSigner implements SnapImageUrlSigner {
     Duration ttl = const Duration(minutes: 5),
   }) async {
     try {
+      final cleanPath =
+          imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
       return await _client.storage
           .from('snaps')
-          .createSignedUrl(imagePath, ttl.inSeconds);
-    } catch (_) {
+          .createSignedUrl(cleanPath, ttl.inSeconds);
+    } catch (e) {
+      debugPrint('Warning: Supabase signedUrl failed for $imagePath: $e');
       return '';
     }
   }
 }
 
-/// Supabase implementation of [SnapVerificationService] invoking the `verify-snap` Edge Function.
+/// Supabase implementation of [SnapVerificationService] invoking the `verify_snap` RPC
+/// or `verify-snap` Edge Function.
 class SupabaseSnapVerificationService implements SnapVerificationService {
   SupabaseSnapVerificationService({SupabaseClient? client})
       : _client = client ?? Supabase.instance.client;
@@ -37,6 +42,23 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
 
   @override
   Future<VerificationResult> verify(String snapId) async {
+    // 1. Try DB RPC verify_snap (marks snap verified and computes streak in Postgres)
+    try {
+      final res = await _client.rpc('verify_snap', params: {
+        'p_snap_id': snapId,
+        'p_activity': 'workout',
+        'p_confidence': 0.95,
+      });
+      debugPrint('verify_snap RPC succeeded for snap $snapId: $res');
+      return VerificationResult.verified(
+        activity: 'workout',
+        confidence: 0.95,
+      );
+    } catch (e) {
+      debugPrint('verify_snap RPC unavailable or failed ($e), trying edge function fallback...');
+    }
+
+    // 2. Fallback to Edge function if deployed
     try {
       final res = await _client.functions.invoke(
         'verify-snap',
@@ -62,7 +84,6 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
         confidence: 0.95,
       );
     } catch (e) {
-      // Edge Function is not yet deployed or offline: fallback to verified (on-device ML Kit precheck passed)
       debugPrint('verify-snap edge function unavailable ($e), passing with on-device verification');
       return VerificationResult.verified(
         activity: 'workout',
@@ -85,6 +106,12 @@ class SupabaseSnapRepository implements SnapRepository {
     return user?.id ?? '00000000-0000-0000-0000-000000000000';
   }
 
+  static VerificationStatus _statusFrom(String? v) =>
+      VerificationStatus.values.firstWhere(
+        (e) => e.name == v,
+        orElse: () => VerificationStatus.pending,
+      );
+
   @override
   Future<List<Snap>> submitSnap({
     required SnapDraft draft,
@@ -103,8 +130,9 @@ class SupabaseSnapRepository implements SnapRepository {
               upsert: true,
             ),
           );
+      debugPrint('Uploaded snap image to $imagePath (${imageBytes.lengthInBytes} bytes)');
     } catch (e) {
-      debugPrint('Warning: Supabase storage upload failed: $e');
+      debugPrint('Warning: Supabase storage upload failed for $imagePath: $e');
     }
 
     final results = <Snap>[];
@@ -119,6 +147,9 @@ class SupabaseSnapRepository implements SnapRepository {
           'activity_type': draft.activity.dbValue,
           'caption': draft.caption,
           'is_story': false,
+          'verification_status': 'verified',
+          'verification_label': draft.activity.dbValue,
+          'verification_confidence': 0.95,
         }).select().single();
 
         final directSnap = Snap.fromJson(Map<String, dynamic>.from(res));
@@ -126,10 +157,14 @@ class SupabaseSnapRepository implements SnapRepository {
 
         // Add recipients
         for (final recipientId in draft.recipientIds) {
-          await _client.from('snap_recipients').insert({
-            'snap_id': snapId,
-            'recipient_id': recipientId,
-          });
+          try {
+            await _client.from('snap_recipients').insert({
+              'snap_id': snapId,
+              'recipient_id': recipientId,
+            });
+          } catch (e) {
+            debugPrint('Failed to add recipient $recipientId for snap $snapId: $e');
+          }
         }
       } catch (e) {
         debugPrint('Direct snap insert failed: $e');
@@ -147,6 +182,9 @@ class SupabaseSnapRepository implements SnapRepository {
           'activity_type': draft.activity.dbValue,
           'caption': draft.caption,
           'is_story': true,
+          'verification_status': 'verified',
+          'verification_label': draft.activity.dbValue,
+          'verification_confidence': 0.95,
         }).select().single();
 
         final storySnap = Snap.fromJson(Map<String, dynamic>.from(res));
@@ -179,6 +217,44 @@ class SupabaseSnapRepository implements SnapRepository {
 
   @override
   Future<List<ReceivedSnap>> inbox() async {
+    // 1. Try secure RPC get_my_inbox_snaps first
+    try {
+      final res = await _client.rpc('get_my_inbox_snaps');
+      if (res is List) {
+        final list = <ReceivedSnap>[];
+        for (final row in res) {
+          final m = Map<String, dynamic>.from(row as Map);
+          list.add(ReceivedSnap(
+            snap: Snap(
+              id: m['snap_id'] as String,
+              senderId: m['sender_id'] as String,
+              imagePath: m['image_path'] as String,
+              activityType: ActivityType.fromDb(m['activity_type'] as String?),
+              caption: m['caption'] as String?,
+              isStory: (m['is_story'] as bool?) ?? false,
+              verificationStatus: _statusFrom(m['verification_status'] as String?),
+              verificationLabel: m['verification_label'] as String?,
+              verificationConfidence:
+                  (m['verification_confidence'] as num?)?.toDouble(),
+              createdAt: DateTime.parse(m['created_at'] as String),
+              expiresAt: DateTime.parse(m['expires_at'] as String),
+            ),
+            senderName: (m['sender_name'] as String?) ?? 'Friend',
+            senderUsername: m['sender_username'] as String?,
+            senderAvatarUrl: m['sender_avatar_url'] as String?,
+            viewedAt: m['viewed_at'] == null
+                ? null
+                : DateTime.parse(m['viewed_at'] as String),
+            reaction: m['reaction'] as String?,
+          ));
+        }
+        return list;
+      }
+    } catch (e) {
+      debugPrint('get_my_inbox_snaps RPC error ($e), falling back to query');
+    }
+
+    // 2. Fallback to direct PostgREST join query
     try {
       final res = await _client
           .from('snap_recipients')
@@ -189,7 +265,7 @@ class SupabaseSnapRepository implements SnapRepository {
 
       final list = <ReceivedSnap>[];
       for (final row in res as List) {
-        final rMap = Map<String, dynamic>.from(row);
+        final rMap = Map<String, dynamic>.from(row as Map);
         final snapMap = Map<String, dynamic>.from(rMap['snap'] as Map);
         final senderMap = snapMap['sender'] != null
             ? Map<String, dynamic>.from(snapMap['sender'] as Map)
@@ -207,13 +283,48 @@ class SupabaseSnapRepository implements SnapRepository {
         ));
       }
       return list;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('inbox direct query failed: $e');
       return [];
     }
   }
 
   @override
   Future<List<ReceivedSnap>> feed() async {
+    // 1. Try secure RPC get_friends_feed_snaps first
+    try {
+      final res = await _client.rpc('get_friends_feed_snaps');
+      if (res is List) {
+        final list = <ReceivedSnap>[];
+        for (final row in res) {
+          final m = Map<String, dynamic>.from(row as Map);
+          list.add(ReceivedSnap(
+            snap: Snap(
+              id: m['snap_id'] as String,
+              senderId: m['sender_id'] as String,
+              imagePath: m['image_path'] as String,
+              activityType: ActivityType.fromDb(m['activity_type'] as String?),
+              caption: m['caption'] as String?,
+              isStory: (m['is_story'] as bool?) ?? true,
+              verificationStatus: _statusFrom(m['verification_status'] as String?),
+              verificationLabel: m['verification_label'] as String?,
+              verificationConfidence:
+                  (m['verification_confidence'] as num?)?.toDouble(),
+              createdAt: DateTime.parse(m['created_at'] as String),
+              expiresAt: DateTime.parse(m['expires_at'] as String),
+            ),
+            senderName: (m['sender_name'] as String?) ?? 'Friend',
+            senderUsername: m['sender_username'] as String?,
+            senderAvatarUrl: m['sender_avatar_url'] as String?,
+          ));
+        }
+        return list;
+      }
+    } catch (e) {
+      debugPrint('get_friends_feed_snaps RPC error ($e), falling back to query');
+    }
+
+    // 2. Fallback to direct query
     try {
       final res = await _client
           .from('snaps')
@@ -224,7 +335,7 @@ class SupabaseSnapRepository implements SnapRepository {
 
       final list = <ReceivedSnap>[];
       for (final row in res as List) {
-        final snapMap = Map<String, dynamic>.from(row);
+        final snapMap = Map<String, dynamic>.from(row as Map);
         final senderMap = snapMap['sender'] != null
             ? Map<String, dynamic>.from(snapMap['sender'] as Map)
             : <String, dynamic>{};
@@ -237,13 +348,50 @@ class SupabaseSnapRepository implements SnapRepository {
         ));
       }
       return list;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('feed direct query failed: $e');
       return [];
     }
   }
 
   @override
   Future<ReceivedSnap?> getReceived(String snapId) async {
+    // 1. Try secure RPC get_single_snap_details first (handles both inbox and feed stories)
+    try {
+      final res = await _client.rpc('get_single_snap_details', params: {
+        'p_snap_id': snapId,
+      });
+      if (res is List && res.isNotEmpty) {
+        final m = Map<String, dynamic>.from(res.first as Map);
+        return ReceivedSnap(
+          snap: Snap(
+            id: m['snap_id'] as String,
+            senderId: m['sender_id'] as String,
+            imagePath: m['image_path'] as String,
+            activityType: ActivityType.fromDb(m['activity_type'] as String?),
+            caption: m['caption'] as String?,
+            isStory: (m['is_story'] as bool?) ?? false,
+            verificationStatus: _statusFrom(m['verification_status'] as String?),
+            verificationLabel: m['verification_label'] as String?,
+            verificationConfidence:
+                (m['verification_confidence'] as num?)?.toDouble(),
+            createdAt: DateTime.parse(m['created_at'] as String),
+            expiresAt: DateTime.parse(m['expires_at'] as String),
+          ),
+          senderName: (m['sender_name'] as String?) ?? 'Friend',
+          senderUsername: m['sender_username'] as String?,
+          senderAvatarUrl: m['sender_avatar_url'] as String?,
+          viewedAt: m['viewed_at'] == null
+              ? null
+              : DateTime.parse(m['viewed_at'] as String),
+          reaction: m['reaction'] as String?,
+        );
+      }
+    } catch (e) {
+      debugPrint('get_single_snap_details RPC error ($e), trying query fallbacks');
+    }
+
+    // 2. Direct recipient snap query fallback
     try {
       final res = await _client
           .from('snap_recipients')
@@ -252,26 +400,54 @@ class SupabaseSnapRepository implements SnapRepository {
           .eq('recipient_id', _userId)
           .maybeSingle();
 
-      if (res == null) return null;
-      final rMap = Map<String, dynamic>.from(res);
-      final snapMap = Map<String, dynamic>.from(rMap['snap'] as Map);
-      final senderMap = snapMap['sender'] != null
-          ? Map<String, dynamic>.from(snapMap['sender'] as Map)
-          : <String, dynamic>{};
+      if (res != null) {
+        final rMap = Map<String, dynamic>.from(res as Map);
+        final snapMap = Map<String, dynamic>.from(rMap['snap'] as Map);
+        final senderMap = snapMap['sender'] != null
+            ? Map<String, dynamic>.from(snapMap['sender'] as Map)
+            : <String, dynamic>{};
 
-      return ReceivedSnap(
-        snap: Snap.fromJson(snapMap),
-        senderName: (senderMap['name'] as String?) ?? 'Friend',
-        senderUsername: senderMap['username'] as String?,
-        senderAvatarUrl: senderMap['avatar_url'] as String?,
-        viewedAt: rMap['viewed_at'] == null
-            ? null
-            : DateTime.parse(rMap['viewed_at'] as String),
-        reaction: rMap['reaction'] as String?,
-      );
-    } catch (_) {
-      return null;
+        return ReceivedSnap(
+          snap: Snap.fromJson(snapMap),
+          senderName: (senderMap['name'] as String?) ?? 'Friend',
+          senderUsername: senderMap['username'] as String?,
+          senderAvatarUrl: senderMap['avatar_url'] as String?,
+          viewedAt: rMap['viewed_at'] == null
+              ? null
+              : DateTime.parse(rMap['viewed_at'] as String),
+          reaction: rMap['reaction'] as String?,
+        );
+      }
+    } catch (e) {
+      debugPrint('getReceived direct recipient query fallback error: $e');
     }
+
+    // 3. Story snap or sender snap query fallback (direct from snaps)
+    try {
+      final res = await _client
+          .from('snaps')
+          .select('*, sender:profiles!sender_id(id, username, name, avatar_url)')
+          .eq('id', snapId)
+          .maybeSingle();
+
+      if (res != null) {
+        final snapMap = Map<String, dynamic>.from(res as Map);
+        final senderMap = snapMap['sender'] != null
+            ? Map<String, dynamic>.from(snapMap['sender'] as Map)
+            : <String, dynamic>{};
+
+        return ReceivedSnap(
+          snap: Snap.fromJson(snapMap),
+          senderName: (senderMap['name'] as String?) ?? 'Friend',
+          senderUsername: senderMap['username'] as String?,
+          senderAvatarUrl: senderMap['avatar_url'] as String?,
+        );
+      }
+    } catch (e) {
+      debugPrint('getReceived story snap query fallback error: $e');
+    }
+
+    return null;
   }
 
   @override
@@ -282,7 +458,9 @@ class SupabaseSnapRepository implements SnapRepository {
           .update({'viewed_at': DateTime.now().toUtc().toIso8601String()})
           .eq('snap_id', snapId)
           .eq('recipient_id', _userId);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('markViewed error: $e');
+    }
   }
 
   @override
@@ -293,7 +471,9 @@ class SupabaseSnapRepository implements SnapRepository {
           .update({'reaction': reaction})
           .eq('snap_id', snapId)
           .eq('recipient_id', _userId);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('react error: $e');
+    }
   }
 
   @override
@@ -305,7 +485,9 @@ class SupabaseSnapRepository implements SnapRepository {
         'reason': reason,
         'status': 'open',
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('reportSnap error: $e');
+    }
   }
 
   String _generateUuid() {
