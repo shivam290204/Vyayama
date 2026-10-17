@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -9,11 +11,11 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  static const String wakeAlarmChannelId = 'vyayama_alarm_v3';
-  static const String medicineChannelId = 'vyayama_medicine_v3';
-  static const String mealsChannelId = 'vyayama_meals_v3';
-  static const String sleepChannelId = 'vyayama_sleep_v3';
-  static const String remindersChannelId = 'vyayama_reminders_v3';
+  static const String wakeAlarmChannelId = 'vyayama_alarm_v4';
+  static const String medicineChannelId = 'vyayama_medicine_v4';
+  static const String mealsChannelId = 'vyayama_meals_v4';
+  static const String sleepChannelId = 'vyayama_sleep_v4';
+  static const String remindersChannelId = 'vyayama_reminders_v4';
 
   static final Int64List _alarmVibrationPattern =
       Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
@@ -21,6 +23,10 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+
+  /// Broadcasts notification response taps so screens/dialogs can react.
+  final StreamController<NotificationResponse> onNotificationResponse =
+      StreamController<NotificationResponse>.broadcast();
 
   /// Whether local notifications are supported on the current platform.
   static bool get isSupportedPlatform =>
@@ -85,8 +91,24 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: (response) {
           debugPrint('Notification clicked: ${response.payload}');
+          onNotificationResponse.add(response);
         },
       );
+
+      // Check if app was launched via notification click from killed state
+      try {
+        final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+        if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+          final response = launchDetails.notificationResponse;
+          if (response != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              onNotificationResponse.add(response);
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error checking notification launch details: $e');
+      }
 
       // 3. Pre-create Android Notification Channels with sound and priority
       final android = _plugin.resolvePlatformSpecificImplementation<
@@ -96,11 +118,19 @@ class NotificationService {
         for (final oldId in [
           'vyayama_alarm',
           'vyayama_alarm_v2',
+          'vyayama_alarm_v3',
           'vyayama_medicine',
           'vyayama_medicine_v2',
+          'vyayama_medicine_v3',
           'vyayama_meals',
+          'vyayama_meals_v2',
+          'vyayama_meals_v3',
           'vyayama_sleep',
+          'vyayama_sleep_v2',
+          'vyayama_sleep_v3',
           'vyayama_reminders',
+          'vyayama_reminders_v2',
+          'vyayama_reminders_v3',
         ]) {
           try {
             await android.deleteNotificationChannel(oldId);
@@ -119,6 +149,8 @@ class NotificationService {
             enableVibration: true,
             vibrationPattern: _alarmVibrationPattern,
             audioAttributesUsage: AudioAttributesUsage.alarm,
+            enableLights: true,
+            ledColor: const Color.fromARGB(255, 255, 0, 0),
           ),
         );
 
@@ -134,6 +166,8 @@ class NotificationService {
             enableVibration: true,
             vibrationPattern: _alarmVibrationPattern,
             audioAttributesUsage: AudioAttributesUsage.alarm,
+            enableLights: true,
+            ledColor: const Color.fromARGB(255, 255, 160, 0),
           ),
         );
 
@@ -267,6 +301,7 @@ class NotificationService {
     String? channelName,
     bool exact = false,
     bool alarmStyle = false,
+    String? payload,
   }) async {
     if (!isSupportedPlatform) return false;
     await initialize();
@@ -288,9 +323,10 @@ class NotificationService {
       targetChannelId,
       targetChannelName,
       channelDescription: 'Daily health, sleep, and meal reminders',
-      importance: alarmStyle ? Importance.max : Importance.high,
-      priority: alarmStyle ? Priority.max : Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       fullScreenIntent: alarmStyle,
+      visibility: NotificationVisibility.public,
       category: alarmStyle
           ? AndroidNotificationCategory.alarm
           : AndroidNotificationCategory.reminder,
@@ -301,6 +337,8 @@ class NotificationService {
       audioAttributesUsage: alarmStyle
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
+      ticker: title,
+      color: const Color(0xFF2E7D32),
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -352,6 +390,7 @@ class NotificationService {
           details: details,
           mode: scheduleMode,
           matchComponents: DateTimeComponents.dayOfWeekAndTime,
+          payload: payload,
         );
         if (!ok) allSuccess = false;
       }
@@ -377,6 +416,7 @@ class NotificationService {
         details: details,
         mode: scheduleMode,
         matchComponents: DateTimeComponents.time,
+        payload: payload,
       );
     }
   }
@@ -389,6 +429,7 @@ class NotificationService {
     required NotificationDetails details,
     required AndroidScheduleMode mode,
     required DateTimeComponents matchComponents,
+    String? payload,
   }) async {
     try {
       await _plugin.zonedSchedule(
@@ -397,6 +438,7 @@ class NotificationService {
         body,
         scheduledDate,
         details,
+        payload: payload,
         androidScheduleMode: mode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -414,6 +456,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -431,6 +474,7 @@ class NotificationService {
             body,
             scheduledDate,
             details,
+            payload: payload,
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
@@ -453,6 +497,7 @@ class NotificationService {
     String? channelId,
     String? channelName,
     bool alarmStyle = false,
+    String? payload,
   }) async {
     if (!isSupportedPlatform) return;
     await initialize();
@@ -474,9 +519,10 @@ class NotificationService {
       targetChannelId,
       targetChannelName,
       channelDescription: 'Immediate alerts and tests',
-      importance: alarmStyle ? Importance.max : Importance.high,
-      priority: alarmStyle ? Priority.max : Priority.high,
-      fullScreenIntent: alarmStyle,
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: true,
+      visibility: NotificationVisibility.public,
       category: alarmStyle
           ? AndroidNotificationCategory.alarm
           : AndroidNotificationCategory.reminder,
@@ -487,6 +533,8 @@ class NotificationService {
       audioAttributesUsage: alarmStyle
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
+      ticker: title,
+      color: const Color(0xFF2E7D32),
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -502,7 +550,7 @@ class NotificationService {
     );
 
     try {
-      await _plugin.show(id, title, body, details);
+      await _plugin.show(id, title, body, details, payload: payload);
     } catch (e) {
       debugPrint('Error showing immediate notification $id: $e');
     }
@@ -517,6 +565,7 @@ class NotificationService {
     String? channelId,
     String? channelName,
     bool alarmStyle = true,
+    String? payload,
   }) async {
     if (!isSupportedPlatform) return;
     await initialize();
@@ -542,12 +591,15 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.max,
       fullScreenIntent: true,
+      visibility: NotificationVisibility.public,
       category: AndroidNotificationCategory.alarm,
       playSound: true,
       sound: soundResource,
       enableVibration: true,
       vibrationPattern: _alarmVibrationPattern,
       audioAttributesUsage: AudioAttributesUsage.alarm,
+      ticker: title,
+      color: const Color(0xFF2E7D32),
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -569,6 +621,7 @@ class NotificationService {
         body,
         scheduledDate,
         details,
+        payload: payload,
         androidScheduleMode: AndroidScheduleMode.alarmClock,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -582,6 +635,7 @@ class NotificationService {
           body,
           scheduledDate,
           details,
+          payload: payload,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,

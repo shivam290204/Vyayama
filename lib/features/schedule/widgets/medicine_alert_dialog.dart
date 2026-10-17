@@ -179,20 +179,23 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                   visualDensity: VisualDensity.compact,
                 ),
                 onPressed: () async {
+                  AppSoundService.instance.stop();
                   await NotificationService.instance.scheduleTestAlarmInSeconds(
                     id: 9994,
                     seconds: 5,
                     title: '💊 Medicine Reminder (5s Test)',
-                    body: 'Reminder: ${widget.medicineName}',
+                    body: 'Time to take ${widget.medicineName}',
                     channelId: NotificationService.medicineChannelId,
                     channelName: 'Medicine Reminders',
                     alarmStyle: true,
+                    payload: 'medicine:test:Medicine reminder:Reminder: ${widget.medicineName}',
                   );
                   if (!context.mounted) return;
+                  Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Medicine alarm scheduled for 5s from now! Lock your screen to test 💊',
+                        'Alarm set for 5 seconds from now! Lock your phone now to test the heads-up popup and alarm sound 🔔💊',
                       ),
                       behavior: SnackBarBehavior.floating,
                       duration: Duration(seconds: 4),
@@ -216,9 +219,31 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      onPressed: () {
-                        widget.onSnooze?.call();
-                        Navigator.of(context).pop();
+                      onPressed: () async {
+                        AppSoundService.instance.stop();
+                        if (widget.onSnooze != null) {
+                          widget.onSnooze!();
+                        } else {
+                          await NotificationService.instance.scheduleTestAlarmInSeconds(
+                            id: 9998,
+                            seconds: 600,
+                            title: '💊 Snoozed Medicine Reminder',
+                            body: 'Time to take ${widget.medicineName}',
+                            channelId: NotificationService.medicineChannelId,
+                            channelName: 'Medicine Reminders',
+                            alarmStyle: true,
+                            payload: 'medicine:snooze:Medicine reminder:Reminder: ${widget.medicineName}',
+                          );
+                        }
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Snoozed for 10 minutes ⏰'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
                       },
                       child: const Text('Snooze 10m'),
                     ),
@@ -235,8 +260,17 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                         ),
                       ),
                       onPressed: () {
+                        AppSoundService.instance.stop();
                         widget.onTaken?.call();
                         Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Great job taking ${widget.medicineName}! Stay healthy 🎉",
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
                       },
                       child: const Text(
                         "I've Taken It",

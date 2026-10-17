@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -82,11 +83,16 @@ class _RouterRefresh extends ChangeNotifier {
   }
 }
 
+/// Global navigator key allowing dialogs and top-level navigation from notification clicks.
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'rootNavigator');
+
 /// The app router. Merges every feature's route list.
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refresh = _RouterRefresh(ref);
 
   final router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: kDebugMode,
     refreshListenable: refresh,

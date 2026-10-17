@@ -73,9 +73,10 @@ class AppSoundService {
               ),
               android: AudioContextAndroid(
                 isSpeakerphoneOn: true,
+                stayAwake: true,
                 audioMode: AndroidAudioMode.normal,
                 contentType: AndroidContentType.music,
-                usageType: AndroidUsageType.alarm,
+                usageType: AndroidUsageType.media,
               ),
             ),
           );

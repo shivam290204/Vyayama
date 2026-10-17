@@ -89,7 +89,19 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
               isActive: base?.isActive ?? true,
             ),
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+        final timesStr = _times.map((t) => t.format(context)).join(', ');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '💊 Reminder for $name set for $timesStr! You will get heads-up popups and alarms.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);

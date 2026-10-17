@@ -14,3 +14,8 @@
 -dontwarn com.google.android.gms.internal.mlkit_vision_barcode.**
 -dontwarn com.google.android.libraries.barhopper.**
 
+# flutter_local_notifications ProGuard rules
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
+-dontwarn com.dexterous.flutterlocalnotifications.**
+
+
