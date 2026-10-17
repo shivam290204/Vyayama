@@ -74,14 +74,13 @@ class StepTrackingService with WidgetsBindingObserver {
     }
   }
 
-  /// Explicitly prompts the user for activity recognition permission or opens settings.
+  /// Explicitly prompts the user for activity recognition permission.
   Future<bool> requestPermission() async {
     if (kIsWeb) return false;
     try {
       final status = await Permission.activityRecognition.status;
       if (status.isPermanentlyDenied) {
-        debugPrint('StepTrackingService: Permission permanently denied, opening settings');
-        await openAppSettings();
+        debugPrint('StepTrackingService: Permission permanently denied');
         return false;
       }
 
@@ -115,10 +114,7 @@ class StepTrackingService with WidgetsBindingObserver {
         _onStepCount,
         onError: (error) {
           debugPrint('Pedometer step count stream error: $error');
-          _stepSubscription?.cancel();
-          _stepSubscription = null;
-          _isListening = false;
-          isSensorActive.value = false;
+          _pausePedometerStream();
         },
         cancelOnError: false,
       );
@@ -153,6 +149,18 @@ class StepTrackingService with WidgetsBindingObserver {
     }
   }
 
+  /// Pauses the hardware sensor listener when app goes to background.
+  /// Prevents Android OS / vendor battery savers from forcefully killing the app process.
+  void _pausePedometerStream() {
+    _stepSubscription?.cancel();
+    _stepSubscription = null;
+    _statusSubscription?.cancel();
+    _statusSubscription = null;
+    _isListening = false;
+    isSensorActive.value = false;
+    debugPrint('StepTrackingService: Hardware pedometer stream paused to prevent OS battery kill');
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -163,6 +171,11 @@ class StepTrackingService with WidgetsBindingObserver {
         }
       });
       refresh();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _pausePedometerStream();
     }
   }
 
@@ -298,12 +311,7 @@ class StepTrackingService with WidgetsBindingObserver {
       WidgetsBinding.instance.removeObserver(this);
       _hasObserver = false;
     }
-    await _stepSubscription?.cancel();
-    await _statusSubscription?.cancel();
-    _stepSubscription = null;
-    _statusSubscription = null;
-    _isListening = false;
-    isSensorActive.value = false;
+    _pausePedometerStream();
     pedestrianStatus.value = 'Stationary';
   }
 }

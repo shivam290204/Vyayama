@@ -48,7 +48,7 @@ class LocalReminderScheduler implements ReminderScheduler {
       channelName: channelName,
       exact: request.exact,
       alarmStyle: request.alarmStyle,
-      payload: '${request.kind.name}:${request.id}:${request.title}:${request.body}',
+      payload: '${request.kind.name}|${request.id}|${request.title}|${request.body}',
     );
   }
 

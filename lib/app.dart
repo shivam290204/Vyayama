@@ -29,33 +29,62 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp> {
       final router = ref.read(goRouterProvider);
       DeepLinkService.instance.init(router);
       StepTrackingService.instance.start();
+
+      // Check if app was launched via clicking a notification from killed state
+      NotificationService.instance
+          .getLaunchNotificationPayload()
+          .then((payload) {
+        if (payload != null) {
+          _handleNotificationPayload(payload);
+        }
+      });
     });
 
     _notifSub = NotificationService.instance.onNotificationResponse.stream
         .listen((response) {
-      final payload = response.payload;
-      debugPrint('Notification clicked with payload: $payload');
-      if (payload != null &&
-          (payload.startsWith('medicine') || payload.contains('Medicine'))) {
-        final navState = rootNavigatorKey.currentState;
-        if (navState != null && navState.mounted) {
-          final parts = payload.split(':');
-          String medicineName = 'Medication';
-          if (parts.length >= 4) {
-            medicineName = parts[3].replaceAll('Reminder:', '').trim();
-          } else if (parts.length >= 3) {
-            medicineName = parts[2].trim();
-          }
-          if (medicineName.isEmpty) medicineName = 'Medication';
-
-          MedicineAlertDialog.show(
-            navState.context,
-            medicineName: medicineName,
-            time: 'Now',
-          );
-        }
-      }
+      _handleNotificationPayload(response.payload);
     });
+  }
+
+  void _handleNotificationPayload(String? payload) {
+    if (payload == null) return;
+    debugPrint('Notification clicked with payload: $payload');
+    if (payload.startsWith('medicine') ||
+        payload.contains('Medicine') ||
+        payload.contains('medicine')) {
+      _showMedicineDialogWithRetry(payload);
+    }
+  }
+
+  void _showMedicineDialogWithRetry(String payload, [int attempt = 0]) {
+    final navState = rootNavigatorKey.currentState;
+    if (navState != null && navState.mounted) {
+      String medicineName = 'Medication';
+      if (payload.contains('|')) {
+        final parts = payload.split('|');
+        if (parts.length >= 4) {
+          medicineName = parts[3].replaceAll('Reminder:', '').trim();
+        } else if (parts.length >= 3) {
+          medicineName = parts[2].trim();
+        }
+      } else {
+        final parts = payload.split(':');
+        medicineName = parts.last.replaceAll('Reminder:', '').trim();
+      }
+      if (medicineName.isEmpty) medicineName = 'Medication';
+
+      MedicineAlertDialog.show(
+        navState.context,
+        medicineName: medicineName,
+        time: 'Now',
+      );
+    } else if (attempt < 10) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          _showMedicineDialogWithRetry(payload, attempt + 1);
+        }
+      });
+    }
   }
 
   @override

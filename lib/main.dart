@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,17 @@ import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Guard against unhandled asynchronous exceptions crashing the process
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exception}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('PlatformDispatcher error caught: $error\n$stack');
+    return true; // handled, prevents app from closing
+  };
 
   // `.env` is optional so the app still runs with mock repositories.
   await dotenv.load(fileName: '.env', isOptional: true);

@@ -11,11 +11,11 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  static const String wakeAlarmChannelId = 'vyayama_alarm_v4';
-  static const String medicineChannelId = 'vyayama_medicine_v4';
-  static const String mealsChannelId = 'vyayama_meals_v4';
-  static const String sleepChannelId = 'vyayama_sleep_v4';
-  static const String remindersChannelId = 'vyayama_reminders_v4';
+  static const String wakeAlarmChannelId = 'vyayama_alarm_v5';
+  static const String medicineChannelId = 'vyayama_medicine_v5';
+  static const String mealsChannelId = 'vyayama_meals_v5';
+  static const String sleepChannelId = 'vyayama_sleep_v5';
+  static const String remindersChannelId = 'vyayama_reminders_v5';
 
   static final Int64List _alarmVibrationPattern =
       Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
@@ -27,6 +27,24 @@ class NotificationService {
   /// Broadcasts notification response taps so screens/dialogs can react.
   final StreamController<NotificationResponse> onNotificationResponse =
       StreamController<NotificationResponse>.broadcast();
+
+  NotificationResponse? _launchNotificationResponse;
+
+  /// Consumes and returns any notification payload that launched the app from a killed state.
+  Future<String?> getLaunchNotificationPayload() async {
+    if (_launchNotificationResponse != null) {
+      final p = _launchNotificationResponse!.payload;
+      _launchNotificationResponse = null;
+      return p;
+    }
+    try {
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details != null && details.didNotificationLaunchApp) {
+        return details.notificationResponse?.payload;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   /// Whether local notifications are supported on the current platform.
   static bool get isSupportedPlatform =>
@@ -99,6 +117,7 @@ class NotificationService {
       try {
         final launchDetails = await _plugin.getNotificationAppLaunchDetails();
         if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+          _launchNotificationResponse = launchDetails.notificationResponse;
           final response = launchDetails.notificationResponse;
           if (response != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,18 +138,23 @@ class NotificationService {
           'vyayama_alarm',
           'vyayama_alarm_v2',
           'vyayama_alarm_v3',
+          'vyayama_alarm_v4',
           'vyayama_medicine',
           'vyayama_medicine_v2',
           'vyayama_medicine_v3',
+          'vyayama_medicine_v4',
           'vyayama_meals',
           'vyayama_meals_v2',
           'vyayama_meals_v3',
+          'vyayama_meals_v4',
           'vyayama_sleep',
           'vyayama_sleep_v2',
           'vyayama_sleep_v3',
+          'vyayama_sleep_v4',
           'vyayama_reminders',
           'vyayama_reminders_v2',
           'vyayama_reminders_v3',
+          'vyayama_reminders_v4',
         ]) {
           try {
             await android.deleteNotificationChannel(oldId);
@@ -354,9 +378,7 @@ class NotificationService {
     );
 
     final scheduleMode = exact
-        ? (alarmStyle
-            ? AndroidScheduleMode.alarmClock
-            : AndroidScheduleMode.exactAllowWhileIdle)
+        ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final now = tz.TZDateTime.now(tz.local);
@@ -447,7 +469,7 @@ class NotificationService {
       return true;
     } catch (e) {
       debugPrint(
-        'ZonedSchedule with $mode failed ($e), falling back to exactAllowWhileIdle...',
+        'ZonedSchedule with $mode failed ($e), falling back to inexactAllowWhileIdle...',
       );
       try {
         await _plugin.zonedSchedule(
@@ -457,34 +479,16 @@ class NotificationService {
           scheduledDate,
           details,
           payload: payload,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: matchComponents,
         );
+        debugPrint('Fallback inexactAllowWhileIdle succeeded for notification $id');
         return true;
       } catch (fallbackError) {
-        debugPrint(
-          'Fallback exactAllowWhileIdle failed ($fallbackError), trying inexact...',
-        );
-        try {
-          await _plugin.zonedSchedule(
-            id,
-            title,
-            body,
-            scheduledDate,
-            details,
-            payload: payload,
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
-            matchDateTimeComponents: matchComponents,
-          );
-          return true;
-        } catch (finalError) {
-          debugPrint('All scheduling modes failed for notification $id: $finalError');
-          return false;
-        }
+        debugPrint('All scheduling modes failed for notification $id: $fallbackError');
+        return false;
       }
     }
   }
@@ -622,12 +626,12 @@ class NotificationService {
         scheduledDate,
         details,
         payload: payload,
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
-      debugPrint('Schedule test alarm failed with alarmClock: $e, trying exactAllowWhileIdle...');
+      debugPrint('Schedule test alarm failed with exactAllowWhileIdle: $e, trying inexact...');
       try {
         await _plugin.zonedSchedule(
           id,
@@ -636,7 +640,7 @@ class NotificationService {
           scheduledDate,
           details,
           payload: payload,
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
