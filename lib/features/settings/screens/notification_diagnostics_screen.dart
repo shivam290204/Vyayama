@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
+import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
@@ -25,6 +26,8 @@ class _NotificationDiagnosticsScreenState
   bool _exactAlarmsAllowed = false;
   bool _audioPermissionGranted = true;
   bool _batteryOptIgnored = true;
+  bool _pipSupported = false;
+  bool _pipAllowed = false;
   bool _wakeChannelEnabled = true;
   bool _bedtimeChannelEnabled = true;
   bool _medicineChannelEnabled = true;
@@ -52,6 +55,8 @@ class _NotificationDiagnosticsScreenState
     final exactAllowed = await service.canScheduleExactAlarms();
     final audioGranted = await service.isAudioPermissionGranted();
     final batteryIgnored = await service.isBatteryOptimizationIgnored();
+    final pipSupported = await SystemFeaturesService.instance.isPipSupported();
+    final pipAllowed = await SystemFeaturesService.instance.isPipAllowed();
     final wakeChannel =
         await service.isChannelEnabled(NotificationService.wakeAlarmChannelId);
     final bedtimeChannel =
@@ -85,6 +90,8 @@ class _NotificationDiagnosticsScreenState
       _exactAlarmsAllowed = exactAllowed;
       _audioPermissionGranted = audioGranted;
       _batteryOptIgnored = batteryIgnored;
+      _pipSupported = pipSupported;
+      _pipAllowed = pipAllowed;
       _wakeChannelEnabled = wakeChannel;
       _bedtimeChannelEnabled = bedtimeChannel;
       _medicineChannelEnabled = medicineChannel;
@@ -201,10 +208,106 @@ class _NotificationDiagnosticsScreenState
     await _loadDiagnostics();
   }
 
+  Future<void> _testPictureInPicture() async {
+    setState(() => _testStatusMessage = 'Entering Picture-in-Picture mode...');
+    final supported = await SystemFeaturesService.instance.isPipSupported();
+    if (!supported) {
+      if (!mounted) return;
+      setState(() => _testStatusMessage =
+          'Picture-in-picture is not supported on this device/Android version.');
+      return;
+    }
+    final entered = await SystemFeaturesService.instance.enterPip();
+    if (!entered && mounted) {
+      final allowed = await SystemFeaturesService.instance.isPipAllowed();
+      setState(() {
+        _testStatusMessage = allowed
+            ? 'Failed to enter Picture-in-Picture.'
+            : 'Picture-in-picture permission is disabled in App Info! Tap "Allow in App Info" above.';
+      });
+    } else if (mounted) {
+      setState(() => _testStatusMessage =
+          'Entered Picture-in-Picture mode successfully!');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = scheme.brightness == Brightness.dark;
+    final inPip = ref.watch(pipModeProvider);
+
+    if (inPip) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF101216),
+        ),
+        home: Scaffold(
+          backgroundColor: const Color(0xFF101216),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppPalette.primary.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.picture_in_picture_alt_rounded,
+                          size: 16,
+                          color: AppPalette.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'FitBuddy PiP Active',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF4CAF50).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'ACTIVE',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF81C784),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Alarms & Reminders: Ready\nTap window to return to full app',
+                    style: TextStyle(fontSize: 11, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -335,11 +438,28 @@ class _NotificationDiagnosticsScreenState
             const Divider(height: 16),
             _buildStatusRow(
               icon: Icons.alarm_rounded,
-              label: 'Exact Alarms (SCHEDULE_EXACT_ALARM)',
+              label: 'Alarms & Reminders (App Info)',
+              subtitle: 'SCHEDULE_EXACT_ALARM • Allows medicine alarms to ring on time',
               status: _exactAlarmsAllowed,
-              actionLabel: _exactAlarmsAllowed ? null : 'Grant in Settings',
+              actionLabel: _exactAlarmsAllowed ? 'Configure' : 'Allow in App Info',
               onAction: () async {
-                await NotificationService.instance.openExactAlarmSettings();
+                await SystemFeaturesService.instance.openAlarmsAndRemindersSettings();
+                await _loadDiagnostics();
+              },
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.picture_in_picture_alt_rounded,
+              label: 'Picture-in-Picture (App Info)',
+              subtitle: _pipSupported
+                  ? 'Allows floating workout timer and live reminders over other apps'
+                  : 'Picture-in-picture is not supported on this Android OS version',
+              status: _pipAllowed,
+              actionLabel: _pipSupported
+                  ? (_pipAllowed ? 'Configure' : 'Allow in App Info')
+                  : null,
+              onAction: () async {
+                await SystemFeaturesService.instance.openPipSettings();
                 await _loadDiagnostics();
               },
             ),
@@ -646,6 +766,26 @@ class _NotificationDiagnosticsScreenState
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 onPressed: _testFiveSecondMedicineAlarm,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF673AB7),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.picture_in_picture_alt_rounded),
+                label: const Text(
+                  'Test Picture-in-Picture (PiP) Window',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: _testPictureInPicture,
               ),
             ),
             const SizedBox(height: 10),

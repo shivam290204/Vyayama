@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:fitbuddy/features/workouts/providers.dart';
@@ -9,6 +10,7 @@ import 'package:fitbuddy/features/workouts/widgets/session_exercise_view.dart';
 import 'package:fitbuddy/features/workouts/widgets/session_rest_view.dart';
 import 'package:fitbuddy/features/workouts/widgets/session_summary_view.dart';
 import 'package:fitbuddy/features/workouts/widgets/state_views.dart';
+import 'package:fitbuddy/features/workouts/widgets/workout_pip_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,15 +56,18 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           weightKg: weight,
         );
     setState(() => _ready = true);
+    await SystemFeaturesService.instance.setAutoEnterPip(true);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    SystemFeaturesService.instance.setAutoEnterPip(false);
     super.dispose();
   }
 
   void _leave() {
+    SystemFeaturesService.instance.setAutoEnterPip(false);
     ref.read(workoutSessionProvider.notifier).reset();
     context.go(AppRoutes.workouts);
   }
@@ -145,6 +150,17 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
     final notifier = ref.read(workoutSessionProvider.notifier);
     final finished = s.isFinished;
+    final inPip = ref.watch(pipModeProvider);
+
+    // When the user enters Android Picture-in-Picture mode, render the purpose-built compact view!
+    if (inPip && !finished) {
+      return WorkoutPipView(
+        state: s,
+        onTogglePause: notifier.togglePause,
+        onNext: notifier.next,
+        onDoneSet: notifier.completeSet,
+      );
+    }
 
     return PopScope(
       canPop: finished,
@@ -198,11 +214,36 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             ],
           ),
           actions: [
-            if (!finished)
+            if (!finished) ...[
+              IconButton(
+                tooltip: 'Picture-in-Picture',
+                icon: const Icon(Icons.picture_in_picture_alt_rounded),
+                onPressed: () async {
+                  final entered = await SystemFeaturesService.instance.enterPip();
+                  if (!entered && mounted) {
+                    final allowed =
+                        await SystemFeaturesService.instance.isPipAllowed();
+                    if (!allowed && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                              'Picture-in-picture is disabled in App Info.'),
+                          action: SnackBarAction(
+                            label: 'Settings',
+                            onPressed:
+                                SystemFeaturesService.instance.openPipSettings,
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
               TextButton(
                 onPressed: notifier.finishNow,
                 child: const Text('Finish'),
               ),
+            ],
           ],
         ),
         body: SafeArea(

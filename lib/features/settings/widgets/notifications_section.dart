@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
 import 'package:fitbuddy/features/settings/widgets/settings_section.dart';
@@ -75,6 +76,37 @@ class NotificationsSection extends ConsumerWidget {
               onChanged: (on) => notifier.setMuted(category, !on),
             ),
           const Divider(height: AppSpacing.lg),
+          ListTile(
+            minTileHeight: 52,
+            leading: const Icon(Icons.alarm_on_rounded, color: Color(0xFFFF9500)),
+            title: const Text(
+              'Alarms & Reminders (App Info)',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Allow exact alarms in system settings for timely alerts',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+            onTap: () =>
+                SystemFeaturesService.instance.openAlarmsAndRemindersSettings(),
+          ),
+          ListTile(
+            minTileHeight: 52,
+            leading: const Icon(Icons.picture_in_picture_alt_rounded,
+                color: Color(0xFF673AB7)),
+            title: const Text(
+              'Picture-in-Picture (App Info)',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            subtitle: const Text(
+              'Allow floating workout timer and live reminders',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+            onTap: () => SystemFeaturesService.instance.openPipSettings(),
+          ),
+          const Divider(height: AppSpacing.md),
           Container(
             margin: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,

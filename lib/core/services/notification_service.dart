@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:fitbuddy/core/services/schedule_result.dart';
+import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -323,13 +324,14 @@ class NotificationService {
   Future<void> openExactAlarmSettings() async {
     if (!isSupportedPlatform) return;
     try {
+      await SystemFeaturesService.instance.openAlarmsAndRemindersSettings();
+    } catch (e) {
+      debugPrint('openExactAlarmSettings error: $e');
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
         await android.requestExactAlarmsPermission();
       }
-    } catch (e) {
-      debugPrint('openExactAlarmSettings error: $e');
     }
   }
 
@@ -339,17 +341,20 @@ class NotificationService {
     if (!isSupportedPlatform) return false;
     await initialize();
     try {
+      final nativeCheck =
+          await SystemFeaturesService.instance.canScheduleExactAlarms();
+      if (!nativeCheck) return false;
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
         final can = await android.canScheduleExactNotifications();
-        return can ?? false;
+        return can ?? nativeCheck;
       }
+      return nativeCheck;
     } catch (e) {
       debugPrint('canScheduleExactAlarms error: $e');
       return false;
     }
-    return false;
   }
 
   /// Checks whether music & audio permission is granted (READ_MEDIA_AUDIO on Android 13+ or storage on older Android).
