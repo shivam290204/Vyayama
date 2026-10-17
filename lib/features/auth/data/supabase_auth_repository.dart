@@ -32,7 +32,7 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       await _client.signInWithPassword(email: email, password: password);
     } on supa.AuthException catch (e) {
-      throw AuthFailure(e.message);
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to sign in. Please try again.');
     }
@@ -59,10 +59,24 @@ class SupabaseAuthRepository implements AuthRepository {
         },
       );
     } on supa.AuthException catch (e) {
-      throw AuthFailure(e.message);
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to sign up. Please try again.');
     }
+  }
+
+  static String _friendlyAuthErrorMessage(supa.AuthException e) {
+    final msg = e.message.toLowerCase();
+    if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit')) {
+      return 'Email rate limit reached by server. Please wait a moment or try again shortly.';
+    }
+    if (msg.contains('user already registered') || msg.contains('already registered')) {
+      return 'An account with this email already exists. Please log in.';
+    }
+    if (msg.contains('invalid login credentials') || msg.contains('invalid credentials')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    return e.message;
   }
 
   @override
@@ -73,7 +87,7 @@ class SupabaseAuthRepository implements AuthRepository {
         redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://login-callback',
       );
     } on supa.AuthException catch (e) {
-      throw AuthFailure(e.message);
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to sign in with Google.');
     }
@@ -84,7 +98,7 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       await _client.resetPasswordForEmail(email);
     } on supa.AuthException catch (e) {
-      throw AuthFailure(e.message);
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to send reset email.');
     }
@@ -132,7 +146,7 @@ class SupabaseAuthRepository implements AuthRepository {
       // 3. Clear local session
       await signOut();
     } on supa.AuthException catch (e) {
-      throw AuthFailure(e.message);
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to delete account: $e');
     }
