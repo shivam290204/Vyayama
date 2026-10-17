@@ -154,31 +154,36 @@ class ReminderTogglesCard extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              isAlarmOn
-                                  ? Icons.alarm_on_rounded
-                                  : Icons.alarm_off_rounded,
-                              size: 16,
-                              color: isAlarmOn
-                                  ? const Color(0xFFFF9500)
-                                  : scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isAlarmOn
-                                  ? 'Alarm Scheduled ($wake)'
-                                  : 'Alarm Inactive (Off)',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                isAlarmOn
+                                    ? Icons.alarm_on_rounded
+                                    : Icons.alarm_off_rounded,
+                                size: 16,
                                 color: isAlarmOn
                                     ? const Color(0xFFFF9500)
                                     : scheme.onSurfaceVariant,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  isAlarmOn
+                                      ? 'Alarm Scheduled ($wake)'
+                                      : 'Alarm Inactive (Off)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isAlarmOn
+                                        ? const Color(0xFFFF9500)
+                                        : scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         if (!isAlarmOn)
                           TextButton(
@@ -219,43 +224,76 @@ class ReminderTogglesCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: List.generate(7, (i) {
                         final dayIndex = i + 1;
                         final isSelected =
                             settings.alarmDays.contains(dayIndex);
-                        return FilterChip(
-                          label: Text(_dayLabels[i]),
-                          selected: isSelected,
-                          showCheckmark: false,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isSelected
-                                ? const Color(0xFF142014)
-                                : scheme.onSurface,
+                        return Expanded(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 2.5),
+                            child: InkWell(
+                              onTap: () {
+                                final updated =
+                                    List<int>.from(settings.alarmDays);
+                                if (isSelected) {
+                                  if (updated.length > 1) {
+                                    updated.remove(dayIndex);
+                                  }
+                                } else {
+                                  if (!updated.contains(dayIndex)) {
+                                    updated.add(dayIndex);
+                                  }
+                                }
+                                notifier.setAlarmDays(updated..sort());
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                height: 38,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isSelected
+                                      ? AppPalette.limeGreen
+                                      : (isDark
+                                          ? const Color(0xFF253325)
+                                          : const Color(0xFFE5EDE3)),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppPalette.limeGreen
+                                        : (isDark
+                                            ? const Color(0xFF334533)
+                                            : const Color(0xFFCCD7CA)),
+                                    width: 1,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppPalette.limeGreen
+                                                .withValues(alpha: 0.35),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Text(
+                                  _dayLabels[i],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? const Color(0xFF142014)
+                                        : (isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF3C4A3C)),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          selectedColor: AppPalette.limeGreen,
-                          backgroundColor: isDark
-                              ? const Color(0xFF253325)
-                              : Colors.white,
-                          onSelected: (selected) {
-                            final updated =
-                                List<int>.from(settings.alarmDays);
-                            if (selected) {
-                              if (!updated.contains(dayIndex)) {
-                                updated.add(dayIndex);
-                              }
-                            } else {
-                              if (updated.length > 1) {
-                                updated.remove(dayIndex);
-                              }
-                            }
-                            notifier.setAlarmDays(updated..sort());
-                          },
                         );
                       }),
                     ),
@@ -263,120 +301,166 @@ class ReminderTogglesCard extends ConsumerWidget {
 
                     // Sound selection with Preview Button
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.music_note_rounded,
-                              size: 18,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Text('Alarm sound', style: text.bodyMedium),
-                          ],
+                        Icon(
+                          Icons.music_note_rounded,
+                          size: 18,
+                          color: scheme.onSurfaceVariant,
                         ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _soundOptions.contains(settings.alarmSound)
-                                    ? settings.alarmSound
-                                    : _soundOptions.first,
-                                borderRadius: BorderRadius.circular(14),
-                                dropdownColor: isDark
-                                    ? const Color(0xFF1E281E)
-                                    : Colors.white,
-                                style: text.bodyMedium?.copyWith(
-                                  color: AppPalette.limeGreen,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                items: _soundOptions
-                                    .map(
-                                      (s) => DropdownMenuItem(
-                                        value: s,
-                                        child: Text(s),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (sound) {
-                                  if (sound != null) {
-                                    notifier.setAlarmSound(sound);
-                                    // Play a short preview when sound selection changes
-                                    AppSoundService.instance.playWakeUpAlarm();
-                                  }
-                                },
-                              ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Alarm sound',
+                            style: text.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.only(left: 10, right: 2),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF253325)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF334533)
+                                  : const Color(0xFFCCD7CA),
+                              width: 1,
                             ),
-                            const SizedBox(width: 4),
-                            ValueListenableBuilder<bool>(
-                              valueListenable:
-                                  AppSoundService.instance.isPlayingNotifier,
-                              builder: (context, isPlaying, _) {
-                                return IconButton(
-                                  tooltip: isPlaying
-                                      ? 'Stop preview'
-                                      : 'Preview alarm sound',
-                                  icon: Icon(
-                                    isPlaying
-                                        ? Icons.stop_circle_rounded
-                                        : Icons.play_circle_fill_rounded,
-                                    color: const Color(0xFFFF9500),
-                                    size: 24,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  isDense: true,
+                                  value: _soundOptions
+                                          .contains(settings.alarmSound)
+                                      ? settings.alarmSound
+                                      : _soundOptions.first,
+                                  borderRadius: BorderRadius.circular(14),
+                                  dropdownColor: isDark
+                                      ? const Color(0xFF1E281E)
+                                      : Colors.white,
+                                  style: text.bodyMedium?.copyWith(
+                                    color: AppPalette.limeGreen,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
-                                  onPressed: () {
-                                    if (isPlaying) {
-                                      AppSoundService.instance.stop();
-                                    } else {
+                                  items: _soundOptions
+                                      .map(
+                                        (s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (sound) {
+                                    if (sound != null) {
+                                      notifier.setAlarmSound(sound);
                                       AppSoundService.instance.playWakeUpAlarm();
                                     }
                                   },
-                                );
-                              },
-                            ),
-                          ],
+                                ),
+                              ),
+                              ValueListenableBuilder<bool>(
+                                valueListenable:
+                                    AppSoundService.instance.isPlayingNotifier,
+                                builder: (context, isPlaying, _) {
+                                  return IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 32, minHeight: 32),
+                                    tooltip: isPlaying
+                                        ? 'Stop preview'
+                                        : 'Preview alarm sound',
+                                    icon: Icon(
+                                      isPlaying
+                                          ? Icons.stop_circle_rounded
+                                          : Icons.play_circle_fill_rounded,
+                                      color: const Color(0xFFFF9500),
+                                      size: 22,
+                                    ),
+                                    onPressed: () {
+                                      if (isPlaying) {
+                                        AppSoundService.instance.stop();
+                                      } else {
+                                        AppSoundService.instance.playWakeUpAlarm();
+                                      }
+                                    },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // Snooze Duration
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.snooze_rounded,
-                              size: 18,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 6),
-                            Text('Snooze time', style: text.bodyMedium),
-                          ],
+                        Icon(
+                          Icons.snooze_rounded,
+                          size: 18,
+                          color: scheme.onSurfaceVariant,
                         ),
-                        Wrap(
-                          spacing: 6,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Snooze time',
+                            style: text.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: _snoozeOptions.map((m) {
                             final isSelected = settings.snoozeMinutes == m;
-                            return ChoiceChip(
-                              label: Text('${m}m'),
-                              selected: isSelected,
-                              selectedColor: AppPalette.limeGreen,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 2),
-                              labelStyle: TextStyle(
-                                fontSize: 12,
-                                color: isSelected
-                                    ? const Color(0xFF142014)
-                                    : scheme.onSurface,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: InkWell(
+                                onTap: () => notifier.setSnoozeMinutes(m),
+                                borderRadius: BorderRadius.circular(10),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 11, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppPalette.limeGreen
+                                        : (isDark
+                                            ? const Color(0xFF253325)
+                                            : Colors.white),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppPalette.limeGreen
+                                          : (isDark
+                                              ? const Color(0xFF334533)
+                                              : const Color(0xFFCCD7CA)),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${m}m',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isSelected
+                                          ? FontWeight.bold
+                                          : FontWeight.w600,
+                                      color: isSelected
+                                          ? const Color(0xFF142014)
+                                          : (isDark
+                                              ? Colors.white70
+                                              : Colors.black87),
+                                    ),
+                                  ),
+                                ),
                               ),
-                              onSelected: (_) =>
-                                  notifier.setSnoozeMinutes(m),
                             );
                           }).toList(),
                         ),
