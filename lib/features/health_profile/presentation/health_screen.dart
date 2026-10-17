@@ -60,6 +60,17 @@ class HealthScreen extends ConsumerWidget {
                           }
                         },
                       ),
+                      actions: [
+                        IconButton(
+                          tooltip: 'Alarm & Notification Diagnostics',
+                          icon: const Icon(
+                            Icons.healing_rounded,
+                            color: Color(0xFFFF9500),
+                          ),
+                          onPressed: () =>
+                              context.push(AppRoutes.notificationDiagnostics),
+                        ),
+                      ],
                       flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
                         title: Text(

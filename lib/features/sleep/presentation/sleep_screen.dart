@@ -60,6 +60,17 @@ class SleepScreen extends ConsumerWidget {
                           }
                         },
                       ),
+                      actions: [
+                        IconButton(
+                          tooltip: 'Alarm & Notification Diagnostics',
+                          icon: const Icon(
+                            Icons.healing_rounded,
+                            color: Color(0xFFFF9500),
+                          ),
+                          onPressed: () =>
+                              context.push(AppRoutes.notificationDiagnostics),
+                        ),
+                      ],
                       flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(left: 48, bottom: 16),
                         title: Text(

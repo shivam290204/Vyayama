@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -268,6 +269,11 @@ class NotificationService {
         } catch (e) {
           debugPrint('Exact alarms permission request: $e');
         }
+        try {
+          await requestAudioPermission();
+        } catch (e) {
+          debugPrint('Audio permission request: $e');
+        }
         return granted;
       }
 
@@ -342,6 +348,65 @@ class NotificationService {
     } catch (e) {
       debugPrint('canScheduleExactAlarms error: $e');
       return false;
+    }
+    return false;
+  }
+
+  /// Checks whether music & audio permission is granted (READ_MEDIA_AUDIO on Android 13+ or storage on older Android).
+  Future<bool> isAudioPermissionGranted() async {
+    if (!isSupportedPlatform) return true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final status = await Permission.audio.status;
+        if (status.isGranted) return true;
+        final storage = await Permission.storage.status;
+        return storage.isGranted;
+      }
+    } catch (e) {
+      debugPrint('isAudioPermissionGranted error: $e');
+    }
+    return true;
+  }
+
+  /// Requests music & audio permission at runtime.
+  Future<bool> requestAudioPermission() async {
+    if (!isSupportedPlatform) return true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final res = await Permission.audio.request();
+        if (res.isGranted) return true;
+        final storage = await Permission.storage.request();
+        return storage.isGranted;
+      }
+    } catch (e) {
+      debugPrint('requestAudioPermission error: $e');
+    }
+    return false;
+  }
+
+  /// Checks whether battery optimization is ignored for reliable background alarms.
+  Future<bool> isBatteryOptimizationIgnored() async {
+    if (!isSupportedPlatform) return true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return await Permission.ignoreBatteryOptimizations.isGranted;
+      }
+    } catch (e) {
+      debugPrint('isBatteryOptimizationIgnored error: $e');
+    }
+    return true;
+  }
+
+  /// Requests exemption from battery optimizations.
+  Future<bool> requestIgnoreBatteryOptimizations() async {
+    if (!isSupportedPlatform) return true;
+    try {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final status = await Permission.ignoreBatteryOptimizations.request();
+        return status.isGranted;
+      }
+    } catch (e) {
+      debugPrint('requestIgnoreBatteryOptimizations error: $e');
     }
     return false;
   }
@@ -545,13 +610,18 @@ class NotificationService {
       macOS: darwinDetails,
     );
 
-    // Bedtime guidance uses inexact scheduling; Wake alarms and Medicines use exactAllowWhileIdle
+    // Wake alarms and medicines use AndroidScheduleMode.alarmClock for native clock-level priority,
+    // waking the screen, and bypassing OEM battery limits.
+    // Bedtime guidance uses inexact scheduling; other exact reminders use exactAllowWhileIdle.
     final effectiveExact = requiresExact && !isBedtime;
-    final scheduleMode = effectiveExact
-        ? AndroidScheduleMode.exactAllowWhileIdle
-        : AndroidScheduleMode.inexactAllowWhileIdle;
+    final scheduleMode = (isWakeAlarm || isMedicine)
+        ? AndroidScheduleMode.alarmClock
+        : (effectiveExact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle);
 
-    final now = tz.TZDateTime.now(tz.local);
+    final deviceNow = DateTime.now();
+    final isSameMinute = deviceNow.hour == hour && deviceNow.minute == minute;
 
     final selectedDays = weekdays != null && weekdays.isNotEmpty && weekdays.length < 7
         ? weekdays
@@ -559,18 +629,18 @@ class NotificationService {
 
     if (selectedDays != null) {
       for (final day in selectedDays) {
-        var scheduledDate = tz.TZDateTime(
-          tz.local,
-          now.year,
-          now.month,
-          now.day,
+        var target = DateTime(
+          deviceNow.year,
+          deviceNow.month,
+          deviceNow.day,
           hour,
           minute,
         );
-        while (scheduledDate.weekday != day || scheduledDate.isBefore(now)) {
-          scheduledDate = scheduledDate.add(const Duration(days: 1));
+        while (target.weekday != day || target.isBefore(deviceNow)) {
+          target = target.add(const Duration(days: 1));
         }
 
+        final scheduledDate = tz.TZDateTime.from(target, tz.local);
         final subId = (id * 10 + day) & 0x7FFFFFFF;
         final res = await _scheduleSingle(
           id: subId,
@@ -589,19 +659,20 @@ class NotificationService {
       }
       return ScheduleResult.success(exact: effectiveExact, notificationId: id);
     } else {
-      var scheduledDate = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day,
+      var target = DateTime(
+        deviceNow.year,
+        deviceNow.month,
+        deviceNow.day,
         hour,
         minute,
       );
-      if (scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      if (target.isBefore(deviceNow) || isSameMinute) {
+        target = target.add(const Duration(days: 1));
       }
 
-      return _scheduleSingle(
+      final scheduledDate = tz.TZDateTime.from(target, tz.local);
+
+      final result = await _scheduleSingle(
         id: id,
         title: title,
         body: body,
@@ -612,6 +683,32 @@ class NotificationService {
         isWakeAlarm: isWakeAlarm || isMedicine,
         payload: payload,
       );
+
+      // If user scheduled for the exact current minute (e.g. testing Aspirin at 18:05 right now),
+      // also schedule a 5-second one-shot alarm trigger so they immediately get the alarm popup & sound today!
+      if (isSameMinute && (isWakeAlarm || isMedicine)) {
+        try {
+          final immediateTarget =
+              tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5));
+          final oneShotId = (id + 50000) & 0x7FFFFFFF;
+          await _plugin.zonedSchedule(
+            oneShotId,
+            title,
+            body,
+            immediateTarget,
+            details,
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.alarmClock,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          debugPrint('Scheduled immediate same-minute alarm trigger for $id in 5s');
+        } catch (e) {
+          debugPrint('Immediate same-minute trigger fallback: $e');
+        }
+      }
+
+      return result;
     }
   }
 
@@ -641,12 +738,39 @@ class NotificationService {
       );
       debugPrint('Scheduled notification $id at $scheduledDate (mode: $mode)');
       return ScheduleResult.success(
-        exact: mode == AndroidScheduleMode.exactAllowWhileIdle,
+        exact: mode == AndroidScheduleMode.exactAllowWhileIdle ||
+            mode == AndroidScheduleMode.alarmClock,
         notificationId: id,
       );
     } catch (e) {
       _lastSchedulingError = e.toString();
       debugPrint('ZonedSchedule with $mode failed for $id: $e');
+
+      // If alarmClock failed, try exactAllowWhileIdle as fallback
+      if (mode == AndroidScheduleMode.alarmClock) {
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            details,
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: matchComponents,
+          );
+          debugPrint('Fallback to exactAllowWhileIdle succeeded for $id');
+          return ScheduleResult.success(
+            exact: true,
+            notificationId: id,
+          );
+        } catch (fallbackError) {
+          _lastSchedulingError = fallbackError.toString();
+          debugPrint('Fallback exactAllowWhileIdle failed: $fallbackError');
+        }
+      }
 
       // WAKE ALARMS AND MEDICINES MUST NEVER BE SILENTLY CONVERTED TO INEXACT!
       if (isWakeAlarm) {
@@ -827,12 +951,14 @@ class NotificationService {
         scheduledDate,
         details,
         payload: payload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: alarmStyle
+            ? AndroidScheduleMode.alarmClock
+            : AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
-      debugPrint('Schedule test alarm failed with exactAllowWhileIdle: $e, trying inexact...');
+      debugPrint('Schedule test alarm failed with primary mode ($e), trying exactAllowWhileIdle...');
       try {
         await _plugin.zonedSchedule(
           id,
@@ -841,12 +967,27 @@ class NotificationService {
           scheduledDate,
           details,
           payload: payload,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
       } catch (fallbackError) {
-        debugPrint('Fallback test schedule error: $fallbackError');
+        debugPrint('Fallback exactAllowWhileIdle test error ($fallbackError), trying inexact...');
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            details,
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+        } catch (inexactError) {
+          debugPrint('Final fallback test schedule error: $inexactError');
+        }
       }
     }
   }
@@ -920,6 +1061,12 @@ class NotificationService {
       iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
 
+    final targetMode = (exact && isWakeAlarm)
+        ? AndroidScheduleMode.alarmClock
+        : (exact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle);
+
     try {
       await _plugin.zonedSchedule(
         id,
@@ -931,14 +1078,28 @@ class NotificationService {
         scheduledDate,
         details,
         payload: 'test:${isWakeAlarm ? "wake" : "bedtime"}',
-        androidScheduleMode: exact
-            ? AndroidScheduleMode.exactAllowWhileIdle
-            : AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: targetMode,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
       return ScheduleResult.success(exact: exact, notificationId: id);
     } catch (e) {
+      if (targetMode == AndroidScheduleMode.alarmClock) {
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title ?? '⏰ Diagnostic Wake Alarm Test',
+            body ?? 'Exact wake alarm delivered via AlarmManager in ${delayMinutes}m!',
+            scheduledDate,
+            details,
+            payload: 'test:${isWakeAlarm ? "wake" : "bedtime"}',
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          return ScheduleResult.success(exact: true, notificationId: id);
+        } catch (_) {}
+      }
       _lastSchedulingError = e.toString();
       return ScheduleResult.failure(
         ScheduleStatus.nativeException,

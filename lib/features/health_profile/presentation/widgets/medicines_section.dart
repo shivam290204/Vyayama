@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
@@ -7,6 +8,7 @@ import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/schedule/widgets/medicine_alert_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Medicine reminders: name and times only.
@@ -240,6 +242,20 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                       children: [
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFF9500),
+                            side: const BorderSide(color: Color(0xFFFF9500)),
+                          ),
+                          onPressed: () =>
+                              context.push(AppRoutes.notificationDiagnostics),
+                          icon: const Icon(Icons.healing_rounded, size: 16),
+                          label: const Text(
+                            'Diagnostics',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFE5A000),
                             side: const BorderSide(color: Color(0xFFE5A000)),
                           ),
@@ -427,6 +443,18 @@ class _EmptyMedicines extends StatelessWidget {
               icon: const Icon(Icons.timer_outlined, size: 16),
               label: const Text(
                 'Test 5s Alarm (Lock phone to test)',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFFF9500),
+              ),
+              onPressed: () => context.push(AppRoutes.notificationDiagnostics),
+              icon: const Icon(Icons.healing_rounded, size: 16),
+              label: const Text(
+                'Alarm & Notification Diagnostics',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
             ),

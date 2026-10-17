@@ -14,6 +14,7 @@ class ProfileLinks extends StatelessWidget {
     (Icons.emoji_events_outlined, 'Challenges', AppRoutes.challenges),
     (Icons.groups_outlined, 'Teams', AppRoutes.teams),
     (Icons.auto_awesome_outlined, 'Daily Boost', AppRoutes.dailyBoost),
+    (Icons.healing_rounded, 'Alarm Diagnostics', AppRoutes.notificationDiagnostics),
     (Icons.settings_outlined, 'Settings', AppRoutes.settings),
   ];
 

@@ -23,6 +23,8 @@ class _NotificationDiagnosticsScreenState
   bool _isLoading = true;
   bool _notifEnabled = false;
   bool _exactAlarmsAllowed = false;
+  bool _audioPermissionGranted = true;
+  bool _batteryOptIgnored = true;
   bool _wakeChannelEnabled = true;
   bool _bedtimeChannelEnabled = true;
   bool _medicineChannelEnabled = true;
@@ -48,6 +50,8 @@ class _NotificationDiagnosticsScreenState
 
     final notifEnabled = await service.areNotificationsEnabled();
     final exactAllowed = await service.canScheduleExactAlarms();
+    final audioGranted = await service.isAudioPermissionGranted();
+    final batteryIgnored = await service.isBatteryOptimizationIgnored();
     final wakeChannel =
         await service.isChannelEnabled(NotificationService.wakeAlarmChannelId);
     final bedtimeChannel =
@@ -79,6 +83,8 @@ class _NotificationDiagnosticsScreenState
     setState(() {
       _notifEnabled = notifEnabled;
       _exactAlarmsAllowed = exactAllowed;
+      _audioPermissionGranted = audioGranted;
+      _batteryOptIgnored = batteryIgnored;
       _wakeChannelEnabled = wakeChannel;
       _bedtimeChannelEnabled = bedtimeChannel;
       _medicineChannelEnabled = medicineChannel;
@@ -161,11 +167,35 @@ class _NotificationDiagnosticsScreenState
     await _loadDiagnostics();
   }
 
+  Future<void> _testFiveSecondMedicineAlarm() async {
+    setState(() => _testStatusMessage = 'Scheduling 5s Clock-style Medicine Alarm...');
+    try {
+      await NotificationService.instance.scheduleTestAlarmInSeconds(
+        id: 9993,
+        seconds: 5,
+        title: '💊 Medicine Alarm (Clock Style Test)',
+        body: 'Time to take Aspirin (Diagnostic Test)',
+        channelId: NotificationService.medicineChannelId,
+        channelName: 'Medicine Reminders',
+        alarmStyle: true,
+        payload: 'medicine:test:Medicine reminder:Reminder: Aspirin',
+      );
+      if (!mounted) return;
+      setState(() => _testStatusMessage =
+          '5s Clock Alarm scheduled! Lock your phone immediately to test background alarm ringing.');
+      await _loadDiagnostics();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _testStatusMessage = 'Test error: $e');
+    }
+  }
+
   Future<void> _cancelTestAlarms() async {
     setState(() => _testStatusMessage = 'Canceling diagnostic test alarms...');
     await NotificationService.instance.cancelDiagnosticTest(9999);
     await NotificationService.instance.cancelDiagnosticTest(9998);
     await NotificationService.instance.cancelDiagnosticTest(9997);
+    await NotificationService.instance.cancelDiagnosticTest(9993);
     if (!mounted) return;
     setState(() => _testStatusMessage = 'Diagnostic tests canceled.');
     await _loadDiagnostics();
@@ -310,6 +340,30 @@ class _NotificationDiagnosticsScreenState
               actionLabel: _exactAlarmsAllowed ? null : 'Grant in Settings',
               onAction: () async {
                 await NotificationService.instance.openExactAlarmSettings();
+                await _loadDiagnostics();
+              },
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.music_note_rounded,
+              label: 'Music & Audio (READ_MEDIA_AUDIO)',
+              subtitle: 'Allows playback of custom alarm audio files',
+              status: _audioPermissionGranted,
+              actionLabel: _audioPermissionGranted ? null : 'Request Audio',
+              onAction: () async {
+                await NotificationService.instance.requestAudioPermission();
+                await _loadDiagnostics();
+              },
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.battery_charging_full_rounded,
+              label: 'Battery Optimization (Unrestricted)',
+              subtitle: 'Ensures background alarms ring even in deep sleep/Doze',
+              status: _batteryOptIgnored,
+              actionLabel: _batteryOptIgnored ? null : 'Exempt / Fix',
+              onAction: () async {
+                await NotificationService.instance.requestIgnoreBatteryOptimizations();
                 await _loadDiagnostics();
               },
             ),
@@ -572,6 +626,26 @@ class _NotificationDiagnosticsScreenState
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 onPressed: _testImmediate,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE5A000),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.medication_rounded),
+                label: const Text(
+                  'Test 5s Medicine Alarm (Clock Style)',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: _testFiveSecondMedicineAlarm,
               ),
             ),
             const SizedBox(height: 10),

@@ -75,21 +75,52 @@ class NotificationsSection extends ConsumerWidget {
               onChanged: (on) => notifier.setMuted(category, !on),
             ),
           const Divider(height: AppSpacing.lg),
-          ListTile(
-            leading: const Icon(
-              Icons.healing_rounded,
-              color: Color(0xFFFF9500),
+          Container(
+            margin: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
             ),
-            title: const Text(
-              'Alarm & Notification Diagnostics',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF9500).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFFF9500).withValues(alpha: 0.35),
+                width: 1.5,
+              ),
             ),
-            subtitle: const Text(
-              'Check permissions, channels, pending alarms & run tests',
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 4,
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9500).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.healing_rounded,
+                  color: Color(0xFFFF9500),
+                  size: 24,
+                ),
+              ),
+              title: const Text(
+                'Alarm & Notification Diagnostics',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              subtitle: const Text(
+                'Check exact alarms, music & audio permissions, notification channels & run tests',
+                style: TextStyle(fontSize: 12),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFFF9500),
+              ),
+              onTap: () => context.push(AppRoutes.notificationDiagnostics),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => context.push(AppRoutes.notificationDiagnostics),
           ),
+          const SizedBox(height: AppSpacing.sm),
         ],
       ),
     );
