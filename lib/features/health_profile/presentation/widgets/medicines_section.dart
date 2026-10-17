@@ -21,6 +21,7 @@ class MedicinesSection extends ConsumerStatefulWidget {
 class _MedicinesSectionState extends ConsumerState<MedicinesSection>
     with WidgetsBindingObserver {
   bool _notificationsEnabled = true;
+  bool _exactAlarmsEnabled = true;
 
   @override
   void initState() {
@@ -43,10 +44,15 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
   }
 
   Future<void> _checkPermissions() async {
-    final enabled =
+    final notif =
         await NotificationService.instance.areNotificationsEnabled();
+    final exact =
+        await NotificationService.instance.canScheduleExactAlarms();
     if (mounted) {
-      setState(() => _notificationsEnabled = enabled);
+      setState(() {
+        _notificationsEnabled = notif;
+        _exactAlarmsEnabled = exact;
+      });
     }
   }
 
@@ -126,6 +132,76 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                   icon: const Icon(Icons.notifications_active_rounded, size: 18),
                   label: const Text(
                     'Enable Notifications',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (!_exactAlarmsEnabled) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF9500)
+                  .withValues(alpha: isDark ? 0.15 : 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFFF9500).withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF9500).withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.alarm_off_rounded,
+                        color: Color(0xFFFF9500),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Alarms & Reminders permission needed',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isDark ? Colors.white : const Color(0xFF8A5A00),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'To ring loud alarms and show popups when the app is closed, Android requires "Alarms & Reminders" permission.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white70 : const Color(0xFF5A4A20),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9500),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    await NotificationService.instance.openExactAlarmSettings();
+                    await _checkPermissions();
+                  },
+                  icon: const Icon(Icons.alarm_on_rounded, size: 18),
+                  label: const Text(
+                    'Grant Alarm Permission',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -368,9 +444,25 @@ class _MedicineTile extends ConsumerWidget {
 
   final Medicine medicine;
 
-  void _showError(BuildContext context) {
+  void _showError(BuildContext context, [Object? error]) {
+    final msg =
+        error?.toString().replaceFirst(RegExp(r'^Exception:\s*'), '') ?? '';
+    final isExact = msg.toLowerCase().contains('exact alarm') ||
+        msg.toLowerCase().contains('alarms & reminders');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Something went wrong. Please try again.')),
+      SnackBar(
+        content: Text(
+          msg.isNotEmpty ? msg : 'Something went wrong. Please try again.',
+        ),
+        behavior: SnackBarBehavior.floating,
+        action: isExact
+            ? SnackBarAction(
+                label: 'Settings',
+                onPressed: () =>
+                    NotificationService.instance.openExactAlarmSettings(),
+              )
+            : null,
+      ),
     );
   }
 
@@ -379,10 +471,52 @@ class _MedicineTile extends ConsumerWidget {
     WidgetRef ref,
     bool value,
   ) async {
+    if (value) {
+      final notifAllowed =
+          await NotificationService.instance.areNotificationsEnabled();
+      if (!notifAllowed) {
+        await NotificationService.instance.requestNotificationPermission();
+      }
+      final exactAllowed =
+          await NotificationService.instance.canScheduleExactAlarms();
+      if (!exactAllowed) {
+        await NotificationService.instance.openExactAlarmSettings();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Please grant "Alarms & Reminders" permission in Settings to turn on medicine alarms.',
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () =>
+                    NotificationService.instance.openExactAlarmSettings(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
     try {
       await ref.read(medicinesProvider.notifier).setActive(medicine, value);
-    } catch (_) {
-      if (context.mounted) _showError(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? '💊 Alarms active for ${medicine.name}!'
+                  : 'Alarm turned off for ${medicine.name}.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) _showError(context, e);
     }
   }
 

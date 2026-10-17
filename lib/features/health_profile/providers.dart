@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
@@ -10,9 +12,11 @@ import 'package:fitbuddy/features/health_profile/data/profile_snapshot.dart';
 import 'package:fitbuddy/features/health_profile/data/shared_prefs_health_repository.dart';
 import 'package:fitbuddy/features/health_profile/domain/condition_tags.dart';
 import 'package:fitbuddy/features/health_profile/reminders/local_reminder_scheduler.dart';
+import 'package:fitbuddy/features/health_profile/reminders/mock_reminder_scheduler.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_builders.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -30,8 +34,14 @@ final healthRepositoryProvider = Provider<HealthRepository>(
 );
 
 /// Reminder scheduler backed by flutter_local_notifications.
+/// Automatically falls back to MockReminderScheduler during test execution.
 final reminderSchedulerProvider = Provider<ReminderScheduler>(
-  (ref) => LocalReminderScheduler(),
+  (ref) {
+    if (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')) {
+      return MockReminderScheduler();
+    }
+    return LocalReminderScheduler();
+  },
 );
 
 /// Plain-value view of the signed-in user's profile (shared by nutrition,
@@ -123,9 +133,29 @@ class MedicinesNotifier extends AsyncNotifier<List<Medicine>> {
       await scheduler.cancel(medicineReminderId(saved.id, i));
     }
     if (saved.isActive) {
-      await NotificationService.instance.requestPermissions();
+      final notifAllowed =
+          await NotificationService.instance.areNotificationsEnabled();
+      if (!notifAllowed) {
+        await NotificationService.instance.requestNotificationPermission();
+      }
+      final exactAllowed =
+          await NotificationService.instance.canScheduleExactAlarms();
+      if (!exactAllowed) {
+        await NotificationService.instance.openExactAlarmSettings();
+      }
+
       for (final request in buildMedicineReminders(saved)) {
-        await scheduler.schedule(request);
+        final res = await scheduler.schedule(request);
+        if (!res.isSuccess) {
+          // Cancel any scheduled so far
+          for (var i = 0; i < saved.reminderTimes.length; i++) {
+            await scheduler.cancel(medicineReminderId(saved.id, i));
+          }
+          // Save back as inactive so state matches reality
+          await repo.saveMedicine(saved.copyWith(isActive: false));
+          state = AsyncData<List<Medicine>>(await repo.listMedicines());
+          throw Exception(res.userFriendlyMessage);
+        }
       }
     }
     state = AsyncData<List<Medicine>>(await repo.listMedicines());
@@ -168,8 +198,19 @@ class MealRemindersNotifier extends AsyncNotifier<MealReminderSettings> {
     await ref.read(healthRepositoryProvider).saveMealReminders(next);
     await scheduler.cancel(mealReminderId(slot));
     if (updated.enabled) {
-      await NotificationService.instance.requestPermissions();
-      await scheduler.schedule(buildMealReminder(slot, updated));
+      final notifAllowed =
+          await NotificationService.instance.areNotificationsEnabled();
+      if (!notifAllowed) {
+        await NotificationService.instance.requestNotificationPermission();
+      }
+      final res = await scheduler.schedule(buildMealReminder(slot, updated));
+      if (!res.isSuccess) {
+        // Revert slot
+        final reverted = current.withSlot(slot, current.of(slot));
+        await ref.read(healthRepositoryProvider).saveMealReminders(reverted);
+        state = AsyncData<MealReminderSettings>(reverted);
+        throw Exception(res.userFriendlyMessage);
+      }
     }
   }
 }

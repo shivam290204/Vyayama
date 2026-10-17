@@ -45,6 +45,7 @@ abstract final class AppRoutes {
 
   // Settings and profile
   static const String settings = '/settings';
+  static const String notificationDiagnostics = '/settings/diagnostics';
   static const String profile = '/profile';
   static const String profileEdit = '/profile/edit';
 

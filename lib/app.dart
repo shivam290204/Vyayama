@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:fitbuddy/core/router/app_router.dart';
 import 'package:fitbuddy/core/services/deep_link_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/theme_provider.dart';
@@ -18,17 +19,22 @@ class VyayamaApp extends ConsumerStatefulWidget {
   ConsumerState<VyayamaApp> createState() => _VyayamaAppState();
 }
 
-class _VyayamaAppState extends ConsumerState<VyayamaApp> {
+class _VyayamaAppState extends ConsumerState<VyayamaApp>
+    with WidgetsBindingObserver {
   StreamSubscription<NotificationResponse>? _notifSub;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final router = ref.read(goRouterProvider);
       DeepLinkService.instance.init(router);
       StepTrackingService.instance.start();
+
+      // Reconcile and recover active alarms & reminders on startup
+      ReminderReconciliationService.instance.reconcile(ref);
 
       // Check if app was launched via clicking a notification from killed state
       NotificationService.instance
@@ -44,6 +50,14 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp> {
         .listen((response) {
       _handleNotificationPayload(response.payload);
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-verify alarms and permissions when app returns to foreground
+      ReminderReconciliationService.instance.reconcile(ref);
+    }
   }
 
   void _handleNotificationPayload(String? payload) {
@@ -89,6 +103,7 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notifSub?.cancel();
     DeepLinkService.instance.dispose();
     super.dispose();

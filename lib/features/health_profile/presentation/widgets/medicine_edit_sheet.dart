@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/data/time_codec.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
@@ -80,33 +81,80 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
     setState(() => _saving = true);
     try {
       final base = widget.medicine;
+      final exactAllowed =
+          await NotificationService.instance.canScheduleExactAlarms();
+      final notifAllowed =
+          await NotificationService.instance.areNotificationsEnabled();
+      if (!notifAllowed) {
+        await NotificationService.instance.requestNotificationPermission();
+      }
+
+      // If exact alarm permission is not granted yet, save as inactive until permission is granted
+      final shouldBeActive = exactAllowed && (base?.isActive ?? true);
+
       await ref.read(medicinesProvider.notifier).save(
             Medicine(
               id: base?.id ?? '',
               userId: base?.userId ?? '',
               name: name,
               reminderTimes: _times,
-              isActive: base?.isActive ?? true,
+              isActive: shouldBeActive,
             ),
           );
+
       if (mounted) {
         Navigator.of(context).pop();
         final timesStr = _times.map((t) => t.format(context)).join(', ');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '💊 Reminder for $name set for $timesStr! You will get heads-up popups and alarms.',
+        if (shouldBeActive) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '💊 Reminder for $name set for $timesStr! You will get heads-up popups and alarms.',
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
             ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+          );
+        } else {
+          // Open settings to guide user directly
+          await NotificationService.instance.openExactAlarmSettings();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '💊 Reminder for $name saved! Please grant "Alarms & Reminders" in Settings to activate the alarm.',
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () =>
+                    NotificationService.instance.openExactAlarmSettings(),
+              ),
+            ),
+          );
+        }
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      final isExact = msg.toLowerCase().contains('exact alarm') ||
+          msg.toLowerCase().contains('alarms & reminders');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save. Please try again.')),
+        SnackBar(
+          content: Text(
+            msg.isNotEmpty ? msg : 'Could not save. Please try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          action: isExact
+              ? SnackBarAction(
+                  label: 'Settings',
+                  onPressed: () =>
+                      NotificationService.instance.openExactAlarmSettings(),
+                )
+              : null,
+        ),
       );
     }
   }

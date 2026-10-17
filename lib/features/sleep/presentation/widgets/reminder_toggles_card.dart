@@ -87,7 +87,28 @@ class ReminderTogglesCard extends ConsumerWidget {
                 value: isAlarmOn,
                 onChanged: (on) async {
                   if (on) {
-                    await NotificationService.instance.requestPermissions();
+                    final notifAllowed =
+                        await NotificationService.instance.areNotificationsEnabled();
+                    if (!notifAllowed) {
+                      await NotificationService.instance.requestNotificationPermission();
+                    }
+                    final exactAllowed =
+                        await NotificationService.instance.canScheduleExactAlarms();
+                    if (!exactAllowed) {
+                      await NotificationService.instance.openExactAlarmSettings();
+                    }
+                    final channelActive = await NotificationService.instance
+                        .isChannelEnabled(NotificationService.wakeAlarmChannelId);
+                    if (!channelActive && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Wake Alarms channel is muted/disabled in system settings. Please unmute it to hear alarms.',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
                   }
                   if (!context.mounted) return;
                   final ok = await runSafely(
@@ -167,7 +188,16 @@ class ReminderTogglesCard extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 8),
                             ),
                             onPressed: () async {
-                              await NotificationService.instance.requestPermissions();
+                              final notifAllowed =
+                                  await NotificationService.instance.areNotificationsEnabled();
+                              if (!notifAllowed) {
+                                await NotificationService.instance.requestNotificationPermission();
+                              }
+                              final exactAllowed =
+                                  await NotificationService.instance.canScheduleExactAlarms();
+                              if (!exactAllowed) {
+                                await NotificationService.instance.openExactAlarmSettings();
+                              }
                               if (!context.mounted) return;
                               await runSafely(context, () => notifier.setWakeAlarm(true));
                             },
@@ -440,7 +470,11 @@ class ReminderTogglesCard extends ConsumerWidget {
                 value: isBedtimeReminderOn,
                 onChanged: (v) async {
                   if (v) {
-                    await NotificationService.instance.requestPermissions();
+                    final notifAllowed =
+                        await NotificationService.instance.areNotificationsEnabled();
+                    if (!notifAllowed) {
+                      await NotificationService.instance.requestNotificationPermission();
+                    }
                   }
                   if (!context.mounted) return;
                   final ok = await runSafely(

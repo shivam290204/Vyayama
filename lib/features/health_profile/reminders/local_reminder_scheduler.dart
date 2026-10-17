@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_request.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 
@@ -21,7 +22,7 @@ class LocalReminderScheduler implements ReminderScheduler {
   final NotificationService _service;
 
   @override
-  Future<void> schedule(ReminderRequest request) async {
+  Future<ScheduleResult> schedule(ReminderRequest request) async {
     final intId = stableNotificationId(request.id);
     final channelId = switch (request.kind) {
       ReminderKind.medicine => NotificationService.medicineChannelId,
@@ -37,7 +38,7 @@ class LocalReminderScheduler implements ReminderScheduler {
       ReminderKind.wakeAlarm => 'Wake Alarms',
     };
 
-    await _service.scheduleDaily(
+    return await _service.scheduleDaily(
       id: intId,
       title: request.title,
       body: request.body,

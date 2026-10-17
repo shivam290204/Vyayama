@@ -233,7 +233,14 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
     try {
       await _syncReminders(next, plan);
     } catch (e) {
-      debugPrint('SleepSettings _syncReminders non-fatal error: $e');
+      debugPrint('SleepSettings _syncReminders error: $e');
+      // Revert state and settings if reminder scheduling failed
+      state = AsyncData<SleepSettings>(previous);
+      try {
+        await ref.read(sleepRepositoryProvider).saveSettings(previous);
+        await _syncReminders(previous, _computePlan(previous));
+      } catch (_) {}
+      rethrow;
     }
 
     try {
@@ -267,22 +274,25 @@ class SleepSettingsNotifier extends AsyncNotifier<SleepSettings> {
   }
 
   Future<void> _syncReminders(SleepSettings settings, SleepPlan plan) async {
-    try {
-      final scheduler = ref.read(reminderSchedulerProvider);
-      await scheduler.cancel(bedtimeReminderId);
-      await scheduler.cancel(wakeAlarmReminderId);
-      if (settings.bedtimeReminderOn) {
-        await scheduler.schedule(
-          buildBedtimeReminder(plan, days: settings.alarmDays),
-        );
+    final scheduler = ref.read(reminderSchedulerProvider);
+    await scheduler.cancel(bedtimeReminderId);
+    await scheduler.cancel(wakeAlarmReminderId);
+
+    if (settings.bedtimeReminderOn) {
+      final res = await scheduler.schedule(
+        buildBedtimeReminder(plan, days: settings.alarmDays),
+      );
+      if (!res.isSuccess) {
+        throw Exception(res.userFriendlyMessage);
       }
-      if (settings.wakeAlarmOn) {
-        await scheduler.schedule(
-          buildWakeAlarm(plan, days: settings.alarmDays),
-        );
+    }
+    if (settings.wakeAlarmOn) {
+      final res = await scheduler.schedule(
+        buildWakeAlarm(plan, days: settings.alarmDays),
+      );
+      if (!res.isSuccess) {
+        throw Exception(res.userFriendlyMessage);
       }
-    } catch (e) {
-      debugPrint('SleepSettings _syncReminders error: $e');
     }
   }
 }

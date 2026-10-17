@@ -45,10 +45,14 @@ class _MealRow extends ConsumerWidget {
   Future<void> _run(BuildContext context, Future<void> Function() action) async {
     try {
       await action();
-    } catch (_) {
+    } catch (e) {
       if (!context.mounted) return;
+      final msg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save. Please try again.')),
+        SnackBar(
+          content: Text(msg.isNotEmpty ? msg : 'Could not save. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }

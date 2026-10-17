@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_request.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 
@@ -10,8 +11,9 @@ class MockReminderScheduler implements ReminderScheduler {
       List<ReminderRequest>.unmodifiable(_scheduled.values);
 
   @override
-  Future<void> schedule(ReminderRequest request) async {
+  Future<ScheduleResult> schedule(ReminderRequest request) async {
     _scheduled[request.id] = request;
+    return ScheduleResult.success(exact: request.exact);
   }
 
   @override

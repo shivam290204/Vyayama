@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -23,6 +24,11 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+
+  String? _lastSchedulingError;
+  String? get lastSchedulingError => _lastSchedulingError;
+
+  bool? lastReconciliationResult;
 
   /// Broadcasts notification response taps so screens/dialogs can react.
   final StreamController<NotificationResponse> onNotificationResponse =
@@ -246,6 +252,7 @@ class NotificationService {
 
   /// Requests notification permissions on iOS/macOS and Android 13+.
   /// Also checks/requests exact alarm permission on Android 12+.
+  /// Requests notification permissions on iOS/macOS and Android 13+.
   Future<bool> requestPermissions() async {
     if (!isSupportedPlatform) return false;
     await initialize();
@@ -280,7 +287,48 @@ class NotificationService {
     return false;
   }
 
+  /// Requests notification display permission (POST_NOTIFICATIONS on Android 13+).
+  Future<bool> requestNotificationPermission() async {
+    if (!isSupportedPlatform) return false;
+    await initialize();
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        return await android.requestNotificationsPermission() ?? false;
+      }
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        final granted = await ios.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        return granted ?? false;
+      }
+    } catch (e) {
+      debugPrint('requestNotificationPermission error: $e');
+    }
+    return false;
+  }
+
+  /// Opens the system settings for exact alarms (SCHEDULE_EXACT_ALARM on Android 12+).
+  Future<void> openExactAlarmSettings() async {
+    if (!isSupportedPlatform) return;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.requestExactAlarmsPermission();
+      }
+    } catch (e) {
+      debugPrint('openExactAlarmSettings error: $e');
+    }
+  }
+
   /// Whether exact alarms are permitted by the OS (Android 12+).
+  /// Returns false on failure or revocation (never pretends true).
   Future<bool> canScheduleExactAlarms() async {
     if (!isSupportedPlatform) return false;
     await initialize();
@@ -288,12 +336,14 @@ class NotificationService {
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (android != null) {
-        return await android.canScheduleExactNotifications() ?? false;
+        final can = await android.canScheduleExactNotifications();
+        return can ?? false;
       }
     } catch (e) {
       debugPrint('canScheduleExactAlarms error: $e');
+      return false;
     }
-    return true;
+    return false;
   }
 
   /// Whether notifications are enabled system-wide for this app.
@@ -306,15 +356,67 @@ class NotificationService {
       if (android != null) {
         return await android.areNotificationsEnabled() ?? false;
       }
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        final status = await ios.checkPermissions();
+        return status?.isEnabled ?? false;
+      }
     } catch (e) {
       debugPrint('areNotificationsEnabled error: $e');
+    }
+    return false;
+  }
+
+  /// Checks whether a specific notification channel is enabled and not blocked.
+  Future<bool> isChannelEnabled(String channelId) async {
+    if (!isSupportedPlatform) return true;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final channels = await android.getNotificationChannels();
+        if (channels != null) {
+          final matched = channels.where((c) => c.id == channelId).firstOrNull;
+          if (matched != null) {
+            return matched.importance != Importance.none;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('isChannelEnabled error: $e');
     }
     return true;
   }
 
+  /// Retrieves all currently pending/scheduled notifications from the system.
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    if (!isSupportedPlatform) return const [];
+    await initialize();
+    try {
+      return await _plugin.pendingNotificationRequests();
+    } catch (e) {
+      debugPrint('getPendingNotifications error: $e');
+      return const [];
+    }
+  }
+
+  /// Cancels only a diagnostic test notification without canceling real user reminders.
+  Future<void> cancelDiagnosticTest([int testId = 9999]) async {
+    if (!isSupportedPlatform) return;
+    try {
+      await _plugin.cancel(testId);
+    } catch (e) {
+      debugPrint('cancelDiagnosticTest error: $e');
+    }
+  }
+
   /// Schedules a repeating notification at the given [hour] and [minute].
   /// Supports optional [weekdays] (1 = Mon ... 7 = Sun).
-  Future<bool> scheduleDaily({
+  ///
+  /// Distinguishes between exact wake-up/medicine alarms (which require exact scheduling
+  /// and are NEVER silently converted to inexact) and gentle reminders (bedtime guidance/meals).
+  Future<ScheduleResult> scheduleDaily({
     required int id,
     required String title,
     required String body,
@@ -327,38 +429,104 @@ class NotificationService {
     bool alarmStyle = false,
     String? payload,
   }) async {
-    if (!isSupportedPlatform) return false;
+    if (!isSupportedPlatform) {
+      return const ScheduleResult.failure(
+        ScheduleStatus.initializationFailed,
+        errorMessage: 'Unsupported platform',
+      );
+    }
     await initialize();
-    if (!_isInitialized) return false;
+    if (!_isInitialized) {
+      return const ScheduleResult.failure(
+        ScheduleStatus.initializationFailed,
+        errorMessage: 'Notification service not initialized',
+      );
+    }
+
+    // 1. Verify notification permission
+    final allowed = await areNotificationsEnabled();
+    if (!allowed) {
+      return ScheduleResult.failure(
+        ScheduleStatus.notificationPermissionDenied,
+        notificationId: id,
+        errorMessage: 'Notification permission is disabled',
+      );
+    }
+
+    final bool isWakeAlarm = (channelId == wakeAlarmChannelId) ||
+        (channelName != null && channelName.toLowerCase().contains('wake'));
+    final bool isMedicine = (channelId == medicineChannelId) ||
+        (channelName != null && channelName.toLowerCase().contains('medicine'));
+    final bool isBedtime = (channelId == sleepChannelId) ||
+        (channelName != null && channelName.toLowerCase().contains('bedtime'));
 
     final targetChannelId = channelId ??
-        (alarmStyle ? wakeAlarmChannelId : remindersChannelId);
+        (isWakeAlarm
+            ? wakeAlarmChannelId
+            : (isBedtime
+                ? sleepChannelId
+                : (isMedicine ? medicineChannelId : remindersChannelId)));
     final targetChannelName = channelName ??
-        (alarmStyle ? 'Wake Alarms' : 'Reminders');
+        (isWakeAlarm
+            ? 'Wake Alarms'
+            : (isBedtime
+                ? 'Bedtime Guidance'
+                : (isMedicine ? 'Medicine Reminders' : 'Reminders')));
 
-    final AndroidNotificationSound? soundResource =
-        (targetChannelId == wakeAlarmChannelId || targetChannelId.contains('alarm'))
-            ? const RawResourceAndroidNotificationSound('wakeup_alarm')
-            : ((targetChannelId == medicineChannelId || targetChannelId.contains('medicine'))
-                ? const RawResourceAndroidNotificationSound('warning_alarm')
-                : null);
+    // 2. Verify target notification channel is enabled
+    final channelActive = await isChannelEnabled(targetChannelId);
+    if (!channelActive) {
+      return ScheduleResult.failure(
+        ScheduleStatus.channelDisabled,
+        notificationId: id,
+        errorMessage: 'Notification channel $targetChannelName is disabled',
+      );
+    }
+
+    // 3. For exact wake alarms and medicines, verify exact alarm permission
+    final bool requiresExact = exact || isWakeAlarm || isMedicine;
+    if (requiresExact) {
+      final exactAllowed = await canScheduleExactAlarms();
+      if (!exactAllowed) {
+        if (isWakeAlarm || isMedicine) {
+          // Never silently downgrade a wake alarm or medicine reminder!
+          debugPrint('Exact alarm required for $id but SCHEDULE_EXACT_ALARM is not granted.');
+          return ScheduleResult.failure(
+            ScheduleStatus.exactAlarmPermissionDenied,
+            notificationId: id,
+            errorMessage: 'SCHEDULE_EXACT_ALARM permission not granted',
+          );
+        }
+      }
+    }
+
+    // Wake alarms and medicines use alarm sound & high priority; Bedtime guidance uses standard notification
+    final AndroidNotificationSound? soundResource = isWakeAlarm
+        ? const RawResourceAndroidNotificationSound('wakeup_alarm')
+        : (isMedicine
+            ? const RawResourceAndroidNotificationSound('warning_alarm')
+            : null);
 
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
       targetChannelName,
-      channelDescription: 'Daily health, sleep, and meal reminders',
-      importance: Importance.max,
-      priority: Priority.max,
-      fullScreenIntent: alarmStyle,
+      channelDescription: isWakeAlarm
+          ? 'Urgent morning wake-up alarms'
+          : (isBedtime
+              ? 'Calming wind-down and bedtime nudges'
+              : (isMedicine ? 'Timely reminders for medications' : 'Daily reminders')),
+      importance: (isWakeAlarm || isMedicine) ? Importance.max : Importance.high,
+      priority: (isWakeAlarm || isMedicine) ? Priority.max : Priority.high,
+      fullScreenIntent: (isWakeAlarm || isMedicine) && alarmStyle,
       visibility: NotificationVisibility.public,
-      category: alarmStyle
+      category: (isWakeAlarm || isMedicine)
           ? AndroidNotificationCategory.alarm
           : AndroidNotificationCategory.reminder,
       playSound: true,
       sound: soundResource,
       enableVibration: true,
-      vibrationPattern: alarmStyle ? _alarmVibrationPattern : null,
-      audioAttributesUsage: alarmStyle
+      vibrationPattern: (isWakeAlarm || isMedicine) ? _alarmVibrationPattern : null,
+      audioAttributesUsage: (isWakeAlarm || isMedicine)
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
@@ -377,19 +545,19 @@ class NotificationService {
       macOS: darwinDetails,
     );
 
-    final scheduleMode = exact
+    // Bedtime guidance uses inexact scheduling; Wake alarms and Medicines use exactAllowWhileIdle
+    final effectiveExact = requiresExact && !isBedtime;
+    final scheduleMode = effectiveExact
         ? AndroidScheduleMode.exactAllowWhileIdle
         : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final now = tz.TZDateTime.now(tz.local);
 
-    // If weekdays specified and not all 7 days, schedule for each specific day
     final selectedDays = weekdays != null && weekdays.isNotEmpty && weekdays.length < 7
         ? weekdays
         : null;
 
     if (selectedDays != null) {
-      var allSuccess = true;
       for (final day in selectedDays) {
         var scheduledDate = tz.TZDateTime(
           tz.local,
@@ -404,7 +572,7 @@ class NotificationService {
         }
 
         final subId = (id * 10 + day) & 0x7FFFFFFF;
-        final ok = await _scheduleSingle(
+        final res = await _scheduleSingle(
           id: subId,
           title: title,
           body: body,
@@ -412,11 +580,14 @@ class NotificationService {
           details: details,
           mode: scheduleMode,
           matchComponents: DateTimeComponents.dayOfWeekAndTime,
+          isWakeAlarm: isWakeAlarm || isMedicine,
           payload: payload,
         );
-        if (!ok) allSuccess = false;
+        if (!res.isSuccess) {
+          return res;
+        }
       }
-      return allSuccess;
+      return ScheduleResult.success(exact: effectiveExact, notificationId: id);
     } else {
       var scheduledDate = tz.TZDateTime(
         tz.local,
@@ -438,12 +609,13 @@ class NotificationService {
         details: details,
         mode: scheduleMode,
         matchComponents: DateTimeComponents.time,
+        isWakeAlarm: isWakeAlarm || isMedicine,
         payload: payload,
       );
     }
   }
 
-  Future<bool> _scheduleSingle({
+  Future<ScheduleResult> _scheduleSingle({
     required int id,
     required String title,
     required String body,
@@ -451,6 +623,7 @@ class NotificationService {
     required NotificationDetails details,
     required AndroidScheduleMode mode,
     required DateTimeComponents matchComponents,
+    required bool isWakeAlarm,
     String? payload,
   }) async {
     try {
@@ -466,30 +639,58 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: matchComponents,
       );
-      return true;
-    } catch (e) {
-      debugPrint(
-        'ZonedSchedule with $mode failed ($e), falling back to inexactAllowWhileIdle...',
+      debugPrint('Scheduled notification $id at $scheduledDate (mode: $mode)');
+      return ScheduleResult.success(
+        exact: mode == AndroidScheduleMode.exactAllowWhileIdle,
+        notificationId: id,
       );
-      try {
-        await _plugin.zonedSchedule(
-          id,
-          title,
-          body,
-          scheduledDate,
-          details,
-          payload: payload,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: matchComponents,
+    } catch (e) {
+      _lastSchedulingError = e.toString();
+      debugPrint('ZonedSchedule with $mode failed for $id: $e');
+
+      // WAKE ALARMS AND MEDICINES MUST NEVER BE SILENTLY CONVERTED TO INEXACT!
+      if (isWakeAlarm) {
+        return ScheduleResult.failure(
+          ScheduleStatus.nativeException,
+          notificationId: id,
+          errorMessage: e.toString(),
         );
-        debugPrint('Fallback inexactAllowWhileIdle succeeded for notification $id');
-        return true;
-      } catch (fallbackError) {
-        debugPrint('All scheduling modes failed for notification $id: $fallbackError');
-        return false;
       }
+
+      // Gentle/inexact reminders can fall back to inexact if not already inexact
+      if (mode != AndroidScheduleMode.inexactAllowWhileIdle) {
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            details,
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: matchComponents,
+          );
+          return ScheduleResult.success(
+            exact: false,
+            notificationId: id,
+          );
+        } catch (fallbackError) {
+          _lastSchedulingError = fallbackError.toString();
+          return ScheduleResult.failure(
+            ScheduleStatus.nativeException,
+            notificationId: id,
+            errorMessage: fallbackError.toString(),
+          );
+        }
+      }
+
+      return ScheduleResult.failure(
+        ScheduleStatus.nativeException,
+        notificationId: id,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -647,6 +848,103 @@ class NotificationService {
       } catch (fallbackError) {
         debugPrint('Fallback test schedule error: $fallbackError');
       }
+    }
+  }
+
+  /// Schedules a diagnostic test notification using Android's native AlarmManager mechanism.
+  /// Does NOT touch real user alarms.
+  Future<ScheduleResult> scheduleDiagnosticTest({
+    required int id,
+    int delayMinutes = 2,
+    required bool exact,
+    required bool isWakeAlarm,
+    String? title,
+    String? body,
+  }) async {
+    if (!isSupportedPlatform) {
+      return const ScheduleResult.failure(
+        ScheduleStatus.initializationFailed,
+        errorMessage: 'Unsupported platform',
+      );
+    }
+    await initialize();
+
+    final allowed = await areNotificationsEnabled();
+    if (!allowed) {
+      return const ScheduleResult.failure(
+        ScheduleStatus.notificationPermissionDenied,
+      );
+    }
+
+    if (exact) {
+      final canExact = await canScheduleExactAlarms();
+      if (!canExact) {
+        return const ScheduleResult.failure(
+          ScheduleStatus.exactAlarmPermissionDenied,
+        );
+      }
+    }
+
+    final targetChannelId = isWakeAlarm ? wakeAlarmChannelId : sleepChannelId;
+    final targetChannelName = isWakeAlarm ? 'Wake Alarms' : 'Bedtime Guidance';
+
+    final scheduledDate =
+        tz.TZDateTime.now(tz.local).add(Duration(minutes: delayMinutes));
+
+    final AndroidNotificationSound? soundResource = isWakeAlarm
+        ? const RawResourceAndroidNotificationSound('wakeup_alarm')
+        : null;
+
+    final androidDetails = AndroidNotificationDetails(
+      targetChannelId,
+      targetChannelName,
+      channelDescription: 'Diagnostic test notification',
+      importance: isWakeAlarm ? Importance.max : Importance.high,
+      priority: isWakeAlarm ? Priority.max : Priority.high,
+      fullScreenIntent: isWakeAlarm,
+      visibility: NotificationVisibility.public,
+      category: isWakeAlarm
+          ? AndroidNotificationCategory.alarm
+          : AndroidNotificationCategory.reminder,
+      playSound: true,
+      sound: soundResource,
+      enableVibration: true,
+      vibrationPattern: isWakeAlarm ? _alarmVibrationPattern : null,
+      audioAttributesUsage: isWakeAlarm
+          ? AudioAttributesUsage.alarm
+          : AudioAttributesUsage.notification,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
+    );
+
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title ?? (isWakeAlarm ? '⏰ Diagnostic Wake Alarm Test' : '🌙 Diagnostic Bedtime Test'),
+        body ??
+            (isWakeAlarm
+                ? 'Exact wake alarm delivered via AlarmManager in ${delayMinutes}m!'
+                : 'Bedtime test notification delivered in ${delayMinutes}m!'),
+        scheduledDate,
+        details,
+        payload: 'test:${isWakeAlarm ? "wake" : "bedtime"}',
+        androidScheduleMode: exact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      return ScheduleResult.success(exact: exact, notificationId: id);
+    } catch (e) {
+      _lastSchedulingError = e.toString();
+      return ScheduleResult.failure(
+        ScheduleStatus.nativeException,
+        errorMessage: e.toString(),
+        notificationId: id,
+      );
     }
   }
 

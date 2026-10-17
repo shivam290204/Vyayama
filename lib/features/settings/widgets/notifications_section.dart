@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
 import 'package:fitbuddy/features/settings/widgets/settings_section.dart';
@@ -72,6 +74,22 @@ class NotificationsSection extends ConsumerWidget {
               value: !prefs.isMuted(category),
               onChanged: (on) => notifier.setMuted(category, !on),
             ),
+          const Divider(height: AppSpacing.lg),
+          ListTile(
+            leading: const Icon(
+              Icons.healing_rounded,
+              color: Color(0xFFFF9500),
+            ),
+            title: const Text(
+              'Alarm & Notification Diagnostics',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text(
+              'Check permissions, channels, pending alarms & run tests',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(AppRoutes.notificationDiagnostics),
+          ),
         ],
       ),
     );

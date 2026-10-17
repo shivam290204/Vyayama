@@ -1,0 +1,704 @@
+import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
+import 'package:fitbuddy/core/theme/app_palette.dart';
+import 'package:fitbuddy/core/theme/app_spacing.dart';
+import 'package:fitbuddy/core/widgets/glass_card.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:timezone/timezone.dart' as tz;
+
+/// Screen providing diagnostics and manual tests for local notifications and alarms.
+class NotificationDiagnosticsScreen extends ConsumerStatefulWidget {
+  const NotificationDiagnosticsScreen({super.key});
+
+  @override
+  ConsumerState<NotificationDiagnosticsScreen> createState() =>
+      _NotificationDiagnosticsScreenState();
+}
+
+class _NotificationDiagnosticsScreenState
+    extends ConsumerState<NotificationDiagnosticsScreen> {
+  bool _isLoading = true;
+  bool _notifEnabled = false;
+  bool _exactAlarmsAllowed = false;
+  bool _wakeChannelEnabled = true;
+  bool _bedtimeChannelEnabled = true;
+  bool _medicineChannelEnabled = true;
+  bool _mealsChannelEnabled = true;
+  String _timezoneName = 'Unknown';
+  String _timezoneOffset = '';
+  List<PendingNotificationRequest> _pendingNotifications = [];
+  String? _lastError;
+  bool? _reconciliationSuccess;
+  DateTime? _reconciliationTime;
+  String? _testStatusMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiagnostics();
+  }
+
+  Future<void> _loadDiagnostics() async {
+    setState(() => _isLoading = true);
+    final service = NotificationService.instance;
+    await service.initialize();
+
+    final notifEnabled = await service.areNotificationsEnabled();
+    final exactAllowed = await service.canScheduleExactAlarms();
+    final wakeChannel =
+        await service.isChannelEnabled(NotificationService.wakeAlarmChannelId);
+    final bedtimeChannel =
+        await service.isChannelEnabled(NotificationService.sleepChannelId);
+    final medicineChannel =
+        await service.isChannelEnabled(NotificationService.medicineChannelId);
+    final mealsChannel =
+        await service.isChannelEnabled(NotificationService.mealsChannelId);
+    final pending = await service.getPendingNotifications();
+
+    String tzName = 'Unknown';
+    String tzOffset = '';
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      tzName = info.identifier;
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset;
+      final sign = offset.isNegative ? '-' : '+';
+      final hours = offset.inHours.abs().toString().padLeft(2, '0');
+      final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+      tzOffset = 'UTC$sign$hours:$minutes';
+    } catch (_) {
+      tzName = tz.local.name;
+    }
+
+    final recon = ReminderReconciliationService.instance;
+
+    if (!mounted) return;
+    setState(() {
+      _notifEnabled = notifEnabled;
+      _exactAlarmsAllowed = exactAllowed;
+      _wakeChannelEnabled = wakeChannel;
+      _bedtimeChannelEnabled = bedtimeChannel;
+      _medicineChannelEnabled = medicineChannel;
+      _mealsChannelEnabled = mealsChannel;
+      _pendingNotifications = pending;
+      _timezoneName = tzName;
+      _timezoneOffset = tzOffset;
+      _lastError = service.lastSchedulingError ?? recon.lastError;
+      _reconciliationSuccess = service.lastReconciliationResult;
+      _reconciliationTime = recon.lastReconciledAt;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _runReconciliation() async {
+    setState(() => _testStatusMessage = 'Running alarm reconciliation...');
+    final ok = await ReminderReconciliationService.instance.reconcile(ref);
+    if (!mounted) return;
+    setState(() {
+      _testStatusMessage = ok
+          ? 'Reconciliation completed successfully! Alarms synced.'
+          : 'Reconciliation encountered an issue.';
+    });
+    await _loadDiagnostics();
+  }
+
+  Future<void> _testImmediate() async {
+    setState(() => _testStatusMessage = 'Firing immediate alert test...');
+    try {
+      await NotificationService.instance.showImmediateNotification(
+        id: 9999,
+        title: '⏰ Alarm Diagnostic Test',
+        body: 'Immediate notification alert! Sound and popup verified.',
+        channelId: NotificationService.wakeAlarmChannelId,
+        channelName: 'Wake Alarms',
+        alarmStyle: true,
+        payload: 'test:immediate',
+      );
+      setState(() => _testStatusMessage = 'Immediate alert sent to system!');
+    } catch (e) {
+      setState(() => _testStatusMessage = 'Immediate test error: $e');
+    }
+  }
+
+  Future<void> _testTwoMinuteWakeAlarm() async {
+    setState(() => _testStatusMessage = 'Scheduling 2-min exact wake alarm...');
+    final res = await NotificationService.instance.scheduleDiagnosticTest(
+      id: 9998,
+      delayMinutes: 2,
+      exact: true,
+      isWakeAlarm: true,
+      title: '⏰ 2-Min Exact Wake Alarm Test',
+      body: 'This exact alarm was scheduled via AlarmManager and triggered on time!',
+    );
+    if (!mounted) return;
+    setState(() {
+      _testStatusMessage = res.isSuccess
+          ? '2-Min exact wake alarm scheduled! Close the app to test background firing.'
+          : 'Failed to schedule: ${res.userFriendlyMessage}';
+    });
+    await _loadDiagnostics();
+  }
+
+  Future<void> _testTwoMinuteNormal() async {
+    setState(() => _testStatusMessage = 'Scheduling 2-min normal notification...');
+    final res = await NotificationService.instance.scheduleDiagnosticTest(
+      id: 9997,
+      delayMinutes: 2,
+      exact: false,
+      isWakeAlarm: false,
+      title: '🌙 2-Min Bedtime Reminder Test',
+      body: 'Standard notification reminder delivered successfully!',
+    );
+    if (!mounted) return;
+    setState(() {
+      _testStatusMessage = res.isSuccess
+          ? '2-Min reminder scheduled!'
+          : 'Failed to schedule: ${res.userFriendlyMessage}';
+    });
+    await _loadDiagnostics();
+  }
+
+  Future<void> _cancelTestAlarms() async {
+    setState(() => _testStatusMessage = 'Canceling diagnostic test alarms...');
+    await NotificationService.instance.cancelDiagnosticTest(9999);
+    await NotificationService.instance.cancelDiagnosticTest(9998);
+    await NotificationService.instance.cancelDiagnosticTest(9997);
+    if (!mounted) return;
+    setState(() => _testStatusMessage = 'Diagnostic tests canceled.');
+    await _loadDiagnostics();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Alarm & Notification Diagnostics'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh Status',
+            onPressed: _loadDiagnostics,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadDiagnostics,
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  // Status summary banner
+                  _buildSummaryBanner(isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // OS Permission Card
+                  _buildPermissionsCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Channels Card
+                  _buildChannelsCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Timezone & Recovery Card
+                  _buildEnvironmentCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Pending Notifications Card
+                  _buildPendingCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Manual Testing Suite
+                  _buildTestingSuiteCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.xl),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _buildSummaryBanner(bool isDark) {
+    final allHealthy = _notifEnabled &&
+        _exactAlarmsAllowed &&
+        _wakeChannelEnabled &&
+        _bedtimeChannelEnabled;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: allHealthy
+            ? (isDark ? const Color(0xFF142B14) : const Color(0xFFE8F5E9))
+            : (isDark ? const Color(0xFF2C1E14) : const Color(0xFFFFF3E0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: allHealthy ? Colors.green.shade400 : Colors.orange.shade400,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            allHealthy ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+            color: allHealthy ? Colors.green : Colors.orange,
+            size: 32,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  allHealthy
+                      ? 'Alarm Subsystem Fully Operational'
+                      : 'Alarm Permissions Need Attention',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  allHealthy
+                      ? 'Exact alarms, notification channels, and recovery are configured properly.'
+                      : 'Some notifications or exact alarms might be blocked by system settings.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPermissionsCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'System Permissions',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            _buildStatusRow(
+              icon: Icons.notifications_active_rounded,
+              label: 'Notifications Enabled',
+              status: _notifEnabled,
+              actionLabel: _notifEnabled ? null : 'Request',
+              onAction: () async {
+                await NotificationService.instance.requestNotificationPermission();
+                await _loadDiagnostics();
+              },
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.alarm_rounded,
+              label: 'Exact Alarms (SCHEDULE_EXACT_ALARM)',
+              status: _exactAlarmsAllowed,
+              actionLabel: _exactAlarmsAllowed ? null : 'Grant in Settings',
+              onAction: () async {
+                await NotificationService.instance.openExactAlarmSettings();
+                await _loadDiagnostics();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChannelsCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Notification Channels (Android 8+)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            _buildStatusRow(
+              icon: Icons.alarm_on_rounded,
+              label: 'Wake Alarms Channel',
+              subtitle: 'Sound: wakeup_alarm.wav | High Priority',
+              status: _wakeChannelEnabled,
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.bedtime_rounded,
+              label: 'Bedtime Guidance Channel',
+              subtitle: 'Gentle wind-down reminder',
+              status: _bedtimeChannelEnabled,
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.medication_rounded,
+              label: 'Medicine Reminders Channel',
+              subtitle: 'Sound: warning_alarm.wav | High Priority',
+              status: _medicineChannelEnabled,
+            ),
+            const Divider(height: 16),
+            _buildStatusRow(
+              icon: Icons.restaurant_rounded,
+              label: 'Meal Reminders Channel',
+              subtitle: 'Daily meal timing nudges',
+              status: _mealsChannelEnabled,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnvironmentCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Environment & Recovery',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            _buildInfoRow(
+              'Device Timezone',
+              '$_timezoneName ($_timezoneOffset)',
+              Icons.schedule_rounded,
+            ),
+            const Divider(height: 16),
+            _buildInfoRow(
+              'Startup Reconciliation',
+              _reconciliationTime != null
+                  ? '${_reconciliationSuccess == true ? "Healthy" : (_reconciliationSuccess == false ? "Failed" : "Unknown")} • Last run: ${_reconciliationTime!.hour.toString().padLeft(2, '0')}:${_reconciliationTime!.minute.toString().padLeft(2, '0')}:${_reconciliationTime!.second.toString().padLeft(2, '0')}'
+                  : 'Pending first check',
+              Icons.sync_rounded,
+              trailingWidget: TextButton(
+                onPressed: _runReconciliation,
+                child: const Text('Re-sync Now'),
+              ),
+            ),
+            if (_lastError != null) ...[
+              const Divider(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Last native error: $_lastError',
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendingCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Pending System Alarms',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppPalette.limeGreen.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_pendingNotifications.length} Active',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Color(0xFF2E7D32),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_pendingNotifications.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No alarms currently registered in the Android system. Enable Wake-up alarm or Medicine reminders in their respective tabs to register alarms.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              ...List.generate(_pendingNotifications.length, (index) {
+                final item = _pendingNotifications[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF253325)
+                          : const Color(0xFFF1F5F0),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.alarm_rounded,
+                            size: 18, color: Color(0xFFFF9500)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title ?? 'Alarm #${item.id}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (item.body != null)
+                                Text(
+                                  item.body!,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          'ID: ${item.id}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurfaceVariant,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTestingSuiteCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Diagnostic Test Suite',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Validate that alarms ring and appear properly when the app is in the background or killed.',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+            if (_testStatusMessage != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppPalette.limeGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppPalette.limeGreen, width: 1),
+                ),
+                child: Text(
+                  _testStatusMessage!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF9500),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.notifications_active_rounded),
+                label: const Text(
+                  'Test Immediate Notification Alert',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: _testImmediate,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.timer_outlined, size: 18),
+                    label: const Text(
+                      '2m Wake Alarm',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: _testTwoMinuteWakeAlarm,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.bedtime_outlined, size: 18),
+                    label: const Text(
+                      '2m Bedtime Nudge',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: _testTwoMinuteNormal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  visualDensity: VisualDensity.compact,
+                ),
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: const Text('Cancel Test Alarms'),
+                onPressed: _cancelTestAlarms,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusRow({
+    required IconData icon,
+    required String label,
+    String? subtitle,
+    required bool status,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          status ? Icons.check_circle_rounded : Icons.cancel_rounded,
+          color: status ? Colors.green : Colors.redAccent,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+            ],
+          ),
+        ),
+        if (actionLabel != null && onAction != null)
+          TextButton(
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            onPressed: onAction,
+            child: Text(
+              actionLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, IconData icon,
+      {Widget? trailingWidget}) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(value,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+        ),
+        if (trailingWidget != null) trailingWidget,
+      ],
+    );
+  }
+}
