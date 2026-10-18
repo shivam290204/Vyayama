@@ -1,5 +1,4 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
-import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/friends/widgets/friend_avatar.dart';
@@ -78,7 +77,6 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
       await ref.read(friendRepositoryProvider).sendRequest(user.id);
       ref.invalidate(friendRequestsProvider);
       ref.invalidate(userRelationProvider(user.id));
-      AppSoundService.instance.playNotificationSound();
       if (!mounted) return;
       setState(() => _relation = FriendRelation.requestSent);
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,3 @@
-import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
@@ -63,7 +62,6 @@ class SendSnapController extends Notifier<SendSnapState> {
       } else {
         state = const SendSnapState(phase: SendPhase.verified);
         ref.read(capturedPhotoProvider.notifier).set(null);
-        AppSoundService.instance.playNotificationSound();
       }
       ref
         ..invalidate(snapStreaksProvider)
