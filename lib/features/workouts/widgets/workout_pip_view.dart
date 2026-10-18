@@ -47,12 +47,11 @@ class WorkoutPipView extends StatelessWidget {
                 ? formatClock(state.secondsLeft)
                 : '${item?.prescription.reps ?? 10} reps');
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
+    return Theme(
+      data: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF101216),
       ),
-      home: Scaffold(
+      child: Scaffold(
         backgroundColor: const Color(0xFF101216),
         body: SafeArea(
           child: Padding(

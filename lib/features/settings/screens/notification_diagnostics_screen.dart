@@ -238,12 +238,11 @@ class _NotificationDiagnosticsScreenState
     final inPip = ref.watch(pipModeProvider);
 
     if (inPip) {
-      return MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData.dark().copyWith(
+      return Theme(
+        data: ThemeData.dark().copyWith(
           scaffoldBackgroundColor: const Color(0xFF101216),
         ),
-        home: Scaffold(
+        child: Scaffold(
           backgroundColor: const Color(0xFF101216),
           body: SafeArea(
             child: Padding(
