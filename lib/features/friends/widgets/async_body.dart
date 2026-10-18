@@ -91,6 +91,8 @@ class AsyncBody<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return value.when(
+      skipLoadingOnReload: true,
+      skipLoadingOnRefresh: true,
       loading: () => Center(
         child: Semantics(
           label: 'Loading',

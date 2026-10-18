@@ -49,29 +49,34 @@ class AppSoundService {
   /// Designed for incoming/outgoing friend requests and snaps.
   Future<void> playNotificationSound() async {
     try {
-      _notificationPlayer ??= AudioPlayer();
-      if (!kIsWeb) {
-        try {
-          await _notificationPlayer!.setAudioContext(
-            AudioContext(
-              iOS: AudioContextIOS(
-                category: AVAudioSessionCategory.ambient,
-                options: const {AVAudioSessionOptions.mixWithOthers},
+      if (_notificationPlayer == null) {
+        final player = AudioPlayer();
+        if (!kIsWeb) {
+          try {
+            await player.setAudioContext(
+              AudioContext(
+                iOS: AudioContextIOS(
+                  category: AVAudioSessionCategory.ambient,
+                  options: const {AVAudioSessionOptions.mixWithOthers},
+                ),
+                android: AudioContextAndroid(
+                  isSpeakerphoneOn: false,
+                  stayAwake: false,
+                  audioMode: AndroidAudioMode.normal,
+                  contentType: AndroidContentType.sonification,
+                  usageType: AndroidUsageType.notification,
+                ),
               ),
-              android: AudioContextAndroid(
-                isSpeakerphoneOn: false,
-                stayAwake: false,
-                audioMode: AndroidAudioMode.normal,
-                contentType: AndroidContentType.sonification,
-                usageType: AndroidUsageType.notification,
-              ),
-            ),
-          );
-        } catch (_) {}
+            );
+          } catch (_) {}
+        }
+        await player.setVolume(1.0);
+        await player.setReleaseMode(ReleaseMode.stop);
+        _notificationPlayer = player;
       }
-      await _notificationPlayer!.setVolume(1.0);
-      await _notificationPlayer!.setReleaseMode(ReleaseMode.stop);
-      await _notificationPlayer!.stop();
+      try {
+        await _notificationPlayer!.stop();
+      } catch (_) {}
       await _notificationPlayer!.play(AssetSource(AppSounds.notification));
     } catch (e) {
       debugPrint('AppSoundService playNotificationSound error: $e');

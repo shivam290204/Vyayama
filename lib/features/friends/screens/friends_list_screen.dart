@@ -44,7 +44,7 @@ class FriendsListScreen extends ConsumerWidget {
                 : 'Snap inbox',
             icon: Badge(
               isLabelVisible: unviewedSnaps > 0,
-              label: Text('$unviewedSnaps'),
+              label: Text(unviewedSnaps > 9 ? '9+' : '$unviewedSnaps'),
               backgroundColor: Colors.redAccent,
               child: const Icon(Icons.inbox_outlined),
             ),
@@ -56,15 +56,17 @@ class FriendsListScreen extends ConsumerWidget {
                 : 'Messages',
             icon: Badge(
               isLabelVisible: totalMessages > 0,
-              label: Text('$totalMessages'),
+              label: Text(totalMessages > 9 ? '9+' : '$totalMessages'),
               backgroundColor: Colors.redAccent,
               child: const Icon(Icons.mail_outline),
             ),
             onPressed: () {
               if (requests > 0) {
                 context.push(AppRoutes.friendsRequests);
-              } else {
+              } else if (unviewedSnaps > 0) {
                 context.push(AppRoutes.snapsInbox);
+              } else {
+                context.push(AppRoutes.friendsRequests);
               }
             },
           ),
