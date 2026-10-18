@@ -2,14 +2,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/router/app_bottom_bar.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
+import 'package:fitbuddy/features/snap_streaks/providers.dart';
+import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:fitbuddy/features/snaps/providers.dart';
 
 /// Tab shell: Home, Workouts, Friends and Profile are branches. The center
@@ -35,20 +37,16 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell>
     with WidgetsBindingObserver {
-  static const _kLastIncomingCountKey = 'last_seen_incoming_requests_count';
-  static const _kLastUnviewedSnapsKey = 'last_seen_unviewed_snaps_count';
-
   Timer? _pollingTimer;
   RealtimeChannel? _realtimeChannel;
-  int _lastIncomingCount = 0;
-  int _lastUnviewedSnapsCount = 0;
-  bool _initializedPrefs = false;
+
+  int _knownIncomingRequests = -1;
+  int _knownUnviewedSnaps = -1;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initLastSeenCounts();
     _initRealtime();
 
     // Fast 5-second polling while app is active in foreground
@@ -58,34 +56,6 @@ class _AppShellState extends ConsumerState<AppShell>
         ref.invalidate(inboxProvider);
       }
     });
-  }
-
-  Future<void> _initLastSeenCounts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _lastIncomingCount = prefs.getInt(_kLastIncomingCountKey) ?? 0;
-      _lastUnviewedSnapsCount = prefs.getInt(_kLastUnviewedSnapsKey) ?? 0;
-      _initializedPrefs = true;
-
-      if (mounted) {
-        // Check if new items arrived while the app was closed
-        final currentReqs = ref.read(incomingRequestCountProvider);
-        if (currentReqs > _lastIncomingCount) {
-          AppSoundService.instance.playNotificationSound();
-        }
-        _lastIncomingCount = currentReqs;
-        await prefs.setInt(_kLastIncomingCountKey, currentReqs);
-
-        final currentSnaps = ref.read(unviewedSnapsCountProvider);
-        if (currentSnaps > _lastUnviewedSnapsCount) {
-          AppSoundService.instance.playNotificationSound();
-        }
-        _lastUnviewedSnapsCount = currentSnaps;
-        await prefs.setInt(_kLastUnviewedSnapsKey, currentSnaps);
-      }
-    } catch (_) {
-      _initializedPrefs = true;
-    }
   }
 
   void _initRealtime() {
@@ -115,30 +85,6 @@ class _AppShellState extends ConsumerState<AppShell>
     }
   }
 
-  void _onIncomingRequestsUpdated(int currentCount) {
-    if (!_initializedPrefs) return;
-    if (currentCount > _lastIncomingCount) {
-      // Incoming request arrived for receiver!
-      AppSoundService.instance.playNotificationSound();
-    }
-    _lastIncomingCount = currentCount;
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setInt(_kLastIncomingCountKey, currentCount);
-    }).catchError((_) {});
-  }
-
-  void _onUnviewedSnapsUpdated(int currentCount) {
-    if (!_initializedPrefs) return;
-    if (currentCount > _lastUnviewedSnapsCount) {
-      // Incoming snap arrived for receiver!
-      AppSoundService.instance.playNotificationSound();
-    }
-    _lastUnviewedSnapsCount = currentCount;
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setInt(_kLastUnviewedSnapsKey, currentCount);
-    }).catchError((_) {});
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
@@ -164,14 +110,40 @@ class _AppShellState extends ConsumerState<AppShell>
     final hideBar =
         AppShell._fullScreenPrefixes.any(widget.currentPath.startsWith);
 
+    // Reset known counts if user switches accounts
+    ref.listen<String>(currentUserIdProvider, (previous, next) {
+      if (previous != next) {
+        _knownIncomingRequests = -1;
+        _knownUnviewedSnaps = -1;
+      }
+    });
+
     // Play notification sound on receiver's device when a new incoming friend request arrives
-    ref.listen<int>(incomingRequestCountProvider, (previous, next) {
-      _onIncomingRequestsUpdated(next);
+    ref.listen<AsyncValue<List<FriendRequest>>>(friendRequestsProvider,
+        (previous, next) {
+      if (next.hasValue) {
+        final currentIncoming =
+            next.value!.where((r) => r.incoming).length;
+        if (_knownIncomingRequests >= 0 &&
+            currentIncoming > _knownIncomingRequests) {
+          // New friend request arrived for this user!
+          AppSoundService.instance.playNotificationSound();
+        }
+        _knownIncomingRequests = currentIncoming;
+      }
     });
 
     // Play notification sound on receiver's device when a new incoming direct snap arrives
-    ref.listen<int>(unviewedSnapsCountProvider, (previous, next) {
-      _onUnviewedSnapsUpdated(next);
+    ref.listen<AsyncValue<List<ReceivedSnap>>>(inboxProvider, (previous, next) {
+      if (next.hasValue) {
+        final currentUnviewed =
+            next.value!.where((s) => s.isUnviewed).length;
+        if (_knownUnviewedSnaps >= 0 && currentUnviewed > _knownUnviewedSnaps) {
+          // New snap arrived for this user!
+          AppSoundService.instance.playNotificationSound();
+        }
+        _knownUnviewedSnaps = currentUnviewed;
+      }
     });
 
     final requests = ref.watch(incomingRequestCountProvider);
