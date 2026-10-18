@@ -68,6 +68,12 @@ final inboxProvider = FutureProvider<List<ReceivedSnap>>((ref) {
   return ref.watch(snapRepositoryProvider).inbox();
 });
 
+/// Number of unviewed direct snaps in the inbox (for badges and notifications).
+final unviewedSnapsCountProvider = Provider<int>((ref) {
+  final list = ref.watch(inboxProvider).valueOrNull ?? const [];
+  return list.where((s) => s.isUnviewed).length;
+});
+
 /// Friends Feed posts from the last 24 hours.
 final feedProvider = FutureProvider<List<ReceivedSnap>>((ref) {
   return ref.watch(snapRepositoryProvider).feed();

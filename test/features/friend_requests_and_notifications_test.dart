@@ -1,9 +1,12 @@
+import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/health_profile/reminders/local_reminder_scheduler.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_request.dart';
 import 'package:fitbuddy/features/sleep/domain/day_time.dart';
 import 'package:fitbuddy/features/sleep/domain/sleep_planner.dart';
 import 'package:fitbuddy/features/sleep/reminders/sleep_reminder_builders.dart';
+import 'package:fitbuddy/features/snaps/data/activity_type.dart';
+import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -128,4 +131,52 @@ void main() {
       expect(request.weekdays, equals([1, 2, 3, 4, 5, 6, 7]));
     });
   });
+
+  group('Part 4: Notification Audio Asset & Sound Service', () {
+    test('AppSounds.notification points to notification.mp3', () {
+      expect(AppSounds.notification, equals('audio/notification.mp3'));
+    });
+  });
+
+  group('Part 5: Snaps Unviewed Count & Message Badges Logic', () {
+    test('unviewed count properly filters viewedAt null', () {
+      final now = DateTime.now();
+      Snap createMockSnap(String id) => Snap(
+            id: id,
+            senderId: 'user-$id',
+            imagePath: 'snaps/$id.jpg',
+            activityType: ActivityType.workout,
+            createdAt: now,
+            expiresAt: now.add(const Duration(hours: 24)),
+          );
+
+      final snapA = ReceivedSnap(
+        snap: createMockSnap('s1'),
+        senderName: 'Alice',
+        viewedAt: null, // Unviewed
+      );
+
+      final snapB = ReceivedSnap(
+        snap: createMockSnap('s2'),
+        senderName: 'Bob',
+        viewedAt: now, // Viewed
+      );
+
+      final snapC = ReceivedSnap(
+        snap: createMockSnap('s3'),
+        senderName: 'Charlie',
+        viewedAt: null, // Unviewed
+      );
+
+      final snaps = [snapA, snapB, snapC];
+      final unviewedCount = snaps.where((s) => s.isUnviewed).length;
+      expect(unviewedCount, equals(2));
+
+      // Test combined message badge (Friend requests + unviewed snaps)
+      const friendRequestsCount = 3;
+      final totalMessagesBadge = friendRequestsCount + unviewedCount;
+      expect(totalMessagesBadge, equals(5));
+    });
+  });
 }
+

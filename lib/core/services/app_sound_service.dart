@@ -10,9 +10,12 @@ abstract final class AppSounds {
 
   /// Medicine / warning reminder sound.
   static const String medicineWarning = 'audio/warningalarm.mp3';
+
+  /// Friend request & snap notification sound.
+  static const String notification = 'audio/notification.mp3';
 }
 
-/// Singleton service that plays the two bundled alarm sounds.
+/// Singleton service that plays the bundled alarm and notification sounds.
 ///
 /// Use [AppSoundService.instance] to play a sound anywhere, or inject via
 /// [appSoundServiceProvider] inside Riverpod widgets.
@@ -21,6 +24,7 @@ class AppSoundService {
   static final AppSoundService instance = AppSoundService._();
 
   AudioPlayer? _player;
+  AudioPlayer? _notificationPlayer;
   StreamSubscription<void>? _completionSub;
   bool _playing = false;
 
@@ -40,6 +44,39 @@ class AppSoundService {
   /// Play the medicine / warning reminder sound once.
   Future<void> playMedicineAlert() =>
       _play(AppSounds.medicineWarning, loop: false);
+
+  /// Play the notification sound ('assets/audio/notification.mp3') once.
+  /// Designed for incoming/outgoing friend requests and snaps.
+  Future<void> playNotificationSound() async {
+    try {
+      _notificationPlayer ??= AudioPlayer();
+      if (!kIsWeb) {
+        try {
+          await _notificationPlayer!.setAudioContext(
+            AudioContext(
+              iOS: AudioContextIOS(
+                category: AVAudioSessionCategory.ambient,
+                options: const {AVAudioSessionOptions.mixWithOthers},
+              ),
+              android: AudioContextAndroid(
+                isSpeakerphoneOn: false,
+                stayAwake: false,
+                audioMode: AndroidAudioMode.normal,
+                contentType: AndroidContentType.sonification,
+                usageType: AndroidUsageType.notification,
+              ),
+            ),
+          );
+        } catch (_) {}
+      }
+      await _notificationPlayer!.setVolume(1.0);
+      await _notificationPlayer!.setReleaseMode(ReleaseMode.stop);
+      await _notificationPlayer!.stop();
+      await _notificationPlayer!.play(AssetSource(AppSounds.notification));
+    } catch (e) {
+      debugPrint('AppSoundService playNotificationSound error: $e');
+    }
+  }
 
   /// Stop any currently playing alarm/alert.
   Future<void> stop() async {
@@ -108,6 +145,8 @@ class AppSoundService {
     _completionSub = null;
     _player?.dispose();
     _player = null;
+    _notificationPlayer?.dispose();
+    _notificationPlayer = null;
     _playing = false;
     isPlayingNotifier.value = false;
     currentPlayingSoundNotifier.value = null;

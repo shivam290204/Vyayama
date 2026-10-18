@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
@@ -29,6 +30,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref.read(friendRepositoryProvider).sendRequest(user.id);
       invalidateFriendData(ref);
       ref.invalidate(userRelationProvider(user.id));
+      AppSoundService.instance.playNotificationSound();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -60,6 +62,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await ref.read(friendRepositoryProvider).acceptRequest(req.friendship.id);
       invalidateFriendData(ref);
       ref.invalidate(userRelationProvider(user.id));
+      AppSoundService.instance.playNotificationSound();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('You and ${user.name} are now friends! 🎉')),

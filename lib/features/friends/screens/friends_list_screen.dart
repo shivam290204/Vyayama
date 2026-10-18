@@ -3,6 +3,7 @@ import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/friends/widgets/async_body.dart';
 import 'package:fitbuddy/features/friends/widgets/friend_tile.dart';
+import 'package:fitbuddy/features/snaps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +21,9 @@ class FriendsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(friendsWithStreakProvider);
     final requests = ref.watch(incomingRequestCountProvider);
+    final unviewedSnaps = ref.watch(unviewedSnapsCountProvider);
+    final totalMessages = requests + unviewedSnaps;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Friends'),
@@ -35,20 +39,34 @@ class FriendsListScreen extends ConsumerWidget {
             onPressed: () => context.push(AppRoutes.feed),
           ),
           IconButton(
-            tooltip: 'Snap inbox',
-            icon: const Icon(Icons.inbox_outlined),
+            tooltip: unviewedSnaps > 0
+                ? 'Snap inbox ($unviewedSnaps new)'
+                : 'Snap inbox',
+            icon: Badge(
+              isLabelVisible: unviewedSnaps > 0,
+              label: Text('$unviewedSnaps'),
+              backgroundColor: Colors.redAccent,
+              child: const Icon(Icons.inbox_outlined),
+            ),
             onPressed: () => context.push(AppRoutes.snapsInbox),
           ),
           IconButton(
-            tooltip: requests > 0
-                ? 'Friend requests, $requests waiting'
-                : 'Friend requests',
+            tooltip: totalMessages > 0
+                ? 'Messages ($totalMessages waiting)'
+                : 'Messages',
             icon: Badge(
-              isLabelVisible: requests > 0,
-              label: Text('$requests'),
+              isLabelVisible: totalMessages > 0,
+              label: Text('$totalMessages'),
+              backgroundColor: Colors.redAccent,
               child: const Icon(Icons.mail_outline),
             ),
-            onPressed: () => context.push(AppRoutes.friendsRequests),
+            onPressed: () {
+              if (requests > 0) {
+                context.push(AppRoutes.friendsRequests);
+              } else {
+                context.push(AppRoutes.snapsInbox);
+              }
+            },
           ),
         ],
       ),

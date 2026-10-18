@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/friends/widgets/async_body.dart';
@@ -13,11 +14,15 @@ class FriendRequestsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Future<void> Function() action,
-    String done,
-  ) async {
+    String done, {
+    bool playSound = false,
+  }) async {
     try {
       await action();
       invalidateFriendData(ref);
+      if (playSound) {
+        AppSoundService.instance.playNotificationSound();
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
       }
@@ -71,9 +76,13 @@ class FriendRequestsScreen extends ConsumerWidget {
                         child: const Text('Decline'),
                       ),
                       FilledButton(
-                        onPressed: () => _run(context, ref,
-                            () => repo.acceptRequest(r.friendship.id),
-                            'You and ${r.user.name} are friends 🔥'),
+                        onPressed: () => _run(
+                          context,
+                          ref,
+                          () => repo.acceptRequest(r.friendship.id),
+                          'You and ${r.user.name} are friends 🔥',
+                          playSound: true,
+                        ),
                         child: const Text('Accept'),
                       ),
                     ],

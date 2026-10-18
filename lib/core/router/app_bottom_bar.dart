@@ -9,11 +9,13 @@ class AppBottomBar extends StatelessWidget {
     required this.selectedBranch,
     required this.onBranchSelected,
     required this.onCameraPressed,
+    this.friendsBadgeCount = 0,
   });
 
   final int selectedBranch;
   final ValueChanged<int> onBranchSelected;
   final VoidCallback onCameraPressed;
+  final int friendsBadgeCount;
 
   static const _home = _TabSpec(0, 'Home', Icons.home_outlined, Icons.home_rounded);
   static const _workouts = _TabSpec(
@@ -38,6 +40,7 @@ class AppBottomBar extends StatelessWidget {
   Widget _tab(_TabSpec spec) => _TabButton(
         spec: spec,
         selected: selectedBranch == spec.branch,
+        badgeCount: spec.branch == 2 ? friendsBadgeCount : 0,
         onTap: () => onBranchSelected(spec.branch),
       );
 
@@ -84,11 +87,13 @@ class _TabButton extends StatelessWidget {
     required this.spec,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final _TabSpec spec;
   final bool selected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -117,9 +122,14 @@ class _TabButton extends StatelessWidget {
                     color: selected ? scheme.primaryContainer : Colors.transparent,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
-                  child: Icon(
-                    selected ? spec.selectedIcon : spec.icon,
-                    color: color,
+                  child: Badge(
+                    isLabelVisible: badgeCount > 0,
+                    label: badgeCount > 9 ? const Text('9+') : Text('$badgeCount'),
+                    backgroundColor: Colors.redAccent,
+                    child: Icon(
+                      selected ? spec.selectedIcon : spec.icon,
+                      color: color,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
