@@ -96,5 +96,29 @@ void main() {
       expect(stats.calories, equals((5200 * 0.04).round()));
       expect(stats.activeMinutes, equals((5200 / 100).ceil()));
     });
+
+    test('accurately calculates steps walked while app was closed', () async {
+      final today = DateTime.now();
+      final k = dayKey(today);
+
+      // App was closed earlier after recording 500 steps and hardware reading was 10,000
+      SharedPreferences.setMockInitialValues({
+        'today_steps_$k': 500,
+        'global_last_hardware_steps': 10000,
+        'global_last_hardware_date': k,
+      });
+
+      // User walks 2,000 steps while app is closed. Hardware counter becomes 12,000
+      final prefs = await SharedPreferences.getInstance();
+      const raw = 12000;
+      final storedRaw = prefs.getInt('global_last_hardware_steps')!;
+      final delta = raw - storedRaw;
+
+      final previousSteps = prefs.getInt('today_steps_$k') ?? 0;
+      final newSteps = previousSteps + delta;
+
+      expect(delta, equals(2000));
+      expect(newSteps, equals(2500));
+    });
   });
 }

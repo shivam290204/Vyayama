@@ -27,21 +27,32 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
       authStateProvider.select((auth) => auth.valueOrNull?.id),
     );
     if (userId == null) return null;
+
+    // 1. Read locally cached profile (< 1ms)
+    Profile? cached;
     try {
-      return await ref.read(profileRepositoryProvider).fetchProfile(userId);
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('cached_profile_$userId');
+      if (raw != null && raw.isNotEmpty) {
+        cached = Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      }
+      final wasCompleted =
+          prefs.getBool('onboarding_completed_$userId') ?? true;
+      cached ??= Profile(id: userId, onboardingCompleted: wasCompleted);
+    } catch (_) {
+      cached = Profile(id: userId, onboardingCompleted: true);
+    }
+
+    // 2. Attempt remote fetch with a 1.5-second timeout so offline startup NEVER hangs
+    try {
+      final remote = await ref
+          .read(profileRepositoryProvider)
+          .fetchProfile(userId)
+          .timeout(const Duration(milliseconds: 1500));
+      return remote ?? cached;
     } catch (e) {
-      debugPrint('[CurrentProfileNotifier] fetchProfile error: $e');
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final raw = prefs.getString('cached_profile_$userId');
-        if (raw != null && raw.isNotEmpty) {
-          return Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-        }
-        final wasCompleted =
-            prefs.getBool('onboarding_completed_$userId') ?? true;
-        return Profile(id: userId, onboardingCompleted: wasCompleted);
-      } catch (_) {}
-      return Profile(id: userId, onboardingCompleted: true);
+      debugPrint('[CurrentProfileNotifier] Offline or timeout, using cached profile: $e');
+      return cached;
     }
   }
 

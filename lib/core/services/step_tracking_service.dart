@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fitbuddy/core/services/health_service.dart';
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/data/local_daily_stats_storage.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
@@ -172,12 +173,9 @@ class StepTrackingService with WidgetsBindingObserver {
         }
       });
       refresh();
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      _pausePedometerStream();
     }
+    // We intentionally do not pause the pedometer stream when minimized or screen locked.
+    // Keeping it active ensures walking with the phone in your pocket continues counting live!
   }
 
   /// Manually increments step count (e.g. treadmill workout or testing).
@@ -204,11 +202,12 @@ class StepTrackingService with WidgetsBindingObserver {
   Future<void> resetTodaySteps() async {
     final prefs = await SharedPreferences.getInstance();
     final todayKey = dayKey(DateTime.now());
-    final rawKey = 'last_raw_steps_$todayKey';
     _todaySteps = 0;
-    _lastRawSensorSteps = null;
     await prefs.setInt('today_steps_$todayKey', 0);
-    await prefs.remove(rawKey);
+    if (_lastRawSensorSteps != null) {
+      await prefs.setInt('global_last_hardware_steps', _lastRawSensorSteps!);
+      await prefs.setString('global_last_hardware_date', todayKey);
+    }
     _emitCurrentStats();
   }
 
@@ -256,41 +255,56 @@ class StepTrackingService with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  /// Real-time delta accumulation: Every step you walk or run immediately adds to today's steps!
+  /// Real-time hardware step processing:
+  /// Accurately computes steps walked when app is open, minimized, or completely closed.
   Future<void> _onStepCount(StepCount event) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
       final todayKey = dayKey(now);
-      final rawKey = 'last_raw_steps_$todayKey';
 
-      _lastRawSensorSteps ??= prefs.getInt(rawKey);
+      final raw = event.steps;
+      final storedLastRaw = prefs.getInt('global_last_hardware_steps');
+      final storedLastDate = prefs.getString('global_last_hardware_date');
 
-      if (_lastRawSensorSteps == null) {
-        // Initial reading for today: establish base hardware counter
-        _lastRawSensorSteps = event.steps;
-        await prefs.setInt(rawKey, _lastRawSensorSteps!);
-        debugPrint('StepTrackingService: Hardware step baseline set at ${event.steps}');
-        return;
-      }
-
-      if (event.steps < _lastRawSensorSteps!) {
-        // Phone reboot detected: sensor counter reset
-        debugPrint('StepTrackingService: Phone reboot detected (${event.steps} < $_lastRawSensorSteps)');
-        _lastRawSensorSteps = event.steps;
-        await prefs.setInt(rawKey, _lastRawSensorSteps!);
-        return;
-      }
-
-      final delta = event.steps - _lastRawSensorSteps!;
-      if (delta > 0) {
-        _todaySteps += delta;
-        _lastRawSensorSteps = event.steps;
-        await prefs.setInt(rawKey, _lastRawSensorSteps!);
+      if (storedLastRaw == null) {
+        // First hardware reading established on this device
+        await prefs.setInt('global_last_hardware_steps', raw);
+        await prefs.setString('global_last_hardware_date', todayKey);
         await prefs.setInt('today_steps_$todayKey', _todaySteps);
-        debugPrint('StepTrackingService: Walked +$delta steps! Today total: $_todaySteps');
+        _lastRawSensorSteps = raw;
+        debugPrint('StepTrackingService: Hardware sensor baseline set at $raw steps');
         _emitCurrentStats();
+        return;
       }
+
+      int delta = 0;
+      if (raw < storedLastRaw) {
+        // Device was rebooted while app was open or closed: counter reset to 0
+        debugPrint('StepTrackingService: Phone reboot detected ($raw < $storedLastRaw)');
+        delta = raw;
+      } else {
+        delta = raw - storedLastRaw;
+      }
+
+      if (storedLastDate != todayKey) {
+        // Day rolled over (e.g. overnight while app was closed or running)
+        debugPrint('StepTrackingService: New day detected ($storedLastDate -> $todayKey)');
+        _todaySteps = delta > 0 ? delta : 0;
+      } else {
+        // Same day: add steps taken (including any while app was closed!)
+        if (delta > 0) {
+          _todaySteps += delta;
+        }
+      }
+
+      _lastRawSensorSteps = raw;
+      await prefs.setInt('global_last_hardware_steps', raw);
+      await prefs.setString('global_last_hardware_date', todayKey);
+      await prefs.setInt('today_steps_$todayKey', _todaySteps);
+
+      debugPrint('StepTrackingService: Processed +$delta steps (raw: $raw). Today total: $_todaySteps');
+      _emitCurrentStats();
     } catch (e) {
       debugPrint('Error updating step count: $e');
     }
@@ -306,6 +320,14 @@ class StepTrackingService with WidgetsBindingObserver {
     );
     unawaited(LocalDailyStatsStorage.instance.save(stats));
     _statsController.add(stats);
+
+    // Keep persistent lockscreen notification updated so live steps show at all times
+    unawaited(NotificationService.instance.updateStepTrackingNotification(
+      steps: _todaySteps,
+      target: 10000,
+      calories: todayCalories,
+      activeMinutes: todayActiveMinutes,
+    ));
   }
 
   /// Returns current today stats synchronously if already loaded.

@@ -21,6 +21,7 @@ class NotificationService {
   static const String sleepChannelId = 'vyayama_sleep_v5';
   static const String remindersChannelId = 'vyayama_reminders_v5';
   static const String socialNotificationChannelId = 'vyayama_social_v1';
+  static const String stepTrackerChannelId = 'vyayama_steps_v1';
 
   static final Int64List _alarmVibrationPattern =
       Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
@@ -259,6 +260,19 @@ class NotificationService {
             enableLights: true,
             ledColor: Color.fromARGB(255, 46, 125, 50),
             showBadge: true,
+          ),
+        );
+
+        // Ongoing Step Tracker channel (low priority, silent, persistent)
+        await android.createNotificationChannel(
+          const AndroidNotificationChannel(
+            stepTrackerChannelId,
+            'Step Tracker',
+            description: 'Live step counting and active fitness tracker',
+            importance: Importance.low,
+            playSound: false,
+            enableVibration: false,
+            showBadge: false,
           ),
         );
       }
@@ -1281,6 +1295,57 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('Error showing snap notification: $e');
+    }
+  }
+
+  static const int stepNotificationId = 999999;
+
+  /// Updates or displays live step progress notification.
+  Future<void> updateStepTrackingNotification({
+    required int steps,
+    required int target,
+    required int calories,
+    required int activeMinutes,
+  }) async {
+    if (!isSupportedPlatform || !_isInitialized) return;
+    try {
+      final safeTarget = target > 0 ? target : 10000;
+      final percent = ((steps / safeTarget) * 100).clamp(0, 100).toInt();
+      const androidDetails = AndroidNotificationDetails(
+        stepTrackerChannelId,
+        'Step Tracker',
+        channelDescription: 'Live step counting and active fitness tracker',
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        showWhen: false,
+        icon: '@mipmap/ic_launcher',
+        category: AndroidNotificationCategory.status,
+      );
+
+      const darwinDetails = DarwinNotificationDetails(
+        presentAlert: false,
+        presentBadge: false,
+        presentSound: false,
+      );
+
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+        macOS: darwinDetails,
+      );
+
+      await _plugin.show(
+        stepNotificationId,
+        '🏃 $steps steps today ($percent%)',
+        '$calories kcal burned · $activeMinutes min active',
+        details,
+        payload: '{"type":"step_tracker"}',
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] updateStepTrackingNotification error: $e');
     }
   }
 }

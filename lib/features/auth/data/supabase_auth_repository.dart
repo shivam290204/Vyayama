@@ -1,30 +1,80 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 class SupabaseAuthRepository implements AuthRepository {
   final _client = supa.Supabase.instance.client.auth;
 
+  static AuthUser? _cachedUser;
+
   AuthUser _mapUser(supa.User user) {
-    return AuthUser(
+    final mapped = AuthUser(
       id: user.id,
       email: user.email ?? '',
       displayName: user.userMetadata?['name'] as String?,
     );
+    _cacheUser(mapped);
+    return mapped;
+  }
+
+  static void _cacheUser(AuthUser user) {
+    _cachedUser = user;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('last_signed_in_user_id', user.id);
+      prefs.setString('last_signed_in_user_email', user.email);
+      if (user.displayName != null && user.displayName!.isNotEmpty) {
+        prefs.setString('last_signed_in_user_name', user.displayName!);
+      }
+    }).catchError((_) {});
+  }
+
+  static void _clearCachedUser() {
+    _cachedUser = null;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('last_signed_in_user_id');
+      prefs.remove('last_signed_in_user_email');
+      prefs.remove('last_signed_in_user_name');
+    }).catchError((_) {});
   }
 
   @override
   AuthUser? get currentUser {
     final user = _client.currentUser;
-    return user != null ? _mapUser(user) : null;
+    if (user != null) return _mapUser(user);
+
+    // Fallback: check in-memory cache
+    if (_cachedUser != null) return _cachedUser;
+    return null;
   }
 
   @override
-  Stream<AuthUser?> authStateChanges() {
-    return _client.onAuthStateChange.map((event) {
+  Stream<AuthUser?> authStateChanges() async* {
+    // 1. Immediately yield current or cached user so stream never blocks when offline
+    var current = currentUser;
+    if (current == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final id = prefs.getString('last_signed_in_user_id');
+        if (id != null && id.isNotEmpty) {
+          final email = prefs.getString('last_signed_in_user_email') ?? '';
+          final name = prefs.getString('last_signed_in_user_name');
+          current = AuthUser(id: id, email: email, displayName: name);
+          _cachedUser = current;
+        }
+      } catch (_) {}
+    }
+    yield current;
+
+    // 2. Stream subsequent auth state changes from Supabase
+    await for (final event in _client.onAuthStateChange) {
       final user = event.session?.user;
-      return user != null ? _mapUser(user) : null;
-    });
+      final mapped = user != null ? _mapUser(user) : null;
+      if (event.event == supa.AuthChangeEvent.signedOut) {
+        _clearCachedUser();
+      }
+      yield mapped;
+    }
   }
 
   @override
@@ -106,6 +156,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    _clearCachedUser();
     try {
       await _client.signOut();
     } catch (e) {
