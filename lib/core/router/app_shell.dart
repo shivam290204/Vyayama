@@ -58,6 +58,14 @@ class _AppShellState extends ConsumerState<AppShell>
         ref.invalidate(inboxProvider);
       }
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentId = ref.read(currentUserIdProvider);
+      if (currentId.isNotEmpty && currentId != 'u-me') {
+        BackgroundSyncService.instance.syncCurrentUserId(currentId);
+      }
+    });
   }
 
   void _initRealtime() {
@@ -95,6 +103,10 @@ class _AppShellState extends ConsumerState<AppShell>
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      final currentId = ref.read(currentUserIdProvider);
+      if (currentId.isNotEmpty && currentId != 'u-me') {
+        BackgroundSyncService.instance.syncCurrentUserId(currentId);
+      }
       BackgroundSyncService.instance.scheduleOnAppClosed();
     }
   }

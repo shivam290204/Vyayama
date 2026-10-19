@@ -258,6 +258,7 @@ class NotificationService {
             audioAttributesUsage: AudioAttributesUsage.notification,
             enableLights: true,
             ledColor: Color.fromARGB(255, 46, 125, 50),
+            showBadge: true,
           ),
         );
       }
@@ -1179,6 +1180,8 @@ class NotificationService {
       enableVibration: true,
       audioAttributesUsage: AudioAttributesUsage.notification,
       category: AndroidNotificationCategory.social,
+      channelShowBadge: true,
+      visibility: NotificationVisibility.public,
       ticker: 'New friend request',
       color: Color(0xFF2E7D32),
     );
@@ -1239,6 +1242,8 @@ class NotificationService {
       enableVibration: true,
       audioAttributesUsage: AudioAttributesUsage.notification,
       category: AndroidNotificationCategory.social,
+      channelShowBadge: true,
+      visibility: NotificationVisibility.public,
       ticker: 'New snap received',
       color: Color(0xFF2E7D32),
     );

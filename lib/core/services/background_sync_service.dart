@@ -40,6 +40,14 @@ void callbackDispatcher() {
         return true;
       }
 
+      final isUuid = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(userId);
+
+      if (!isUuid) {
+        return true;
+      }
+
       final notifiedIds =
           prefs.getStringList('notified_social_ids')?.toSet() ?? <String>{};
 

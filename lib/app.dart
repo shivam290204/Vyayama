@@ -70,10 +70,14 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
         final data = jsonDecode(payload) as Map<String, dynamic>;
         final type = data['type'] as String?;
         if (type == 'friend_request') {
-          ref.read(goRouterProvider).push(AppRoutes.friendsRequests);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(goRouterProvider).push(AppRoutes.friendsRequests);
+          });
           return;
         } else if (type == 'snap') {
-          ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
+          });
           return;
         }
       }
