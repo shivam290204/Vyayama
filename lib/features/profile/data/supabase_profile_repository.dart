@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/data/profile_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase implementation of [ProfileRepository] backed by the `profiles` table.
@@ -19,7 +21,12 @@ class SupabaseProfileRepository implements ProfileRepository {
           .maybeSingle();
 
       if (res == null) return null;
-      return Profile.fromJson(Map<String, dynamic>.from(res));
+      final profile = Profile.fromJson(Map<String, dynamic>.from(res));
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_profile_$userId', jsonEncode(profile.toJson()));
+      } catch (_) {}
+      return profile;
     } on PostgrestException catch (e) {
       // 401 Unauthorized or invalid API key: the auth session or project key is invalid.
       // Auto-sign out so the user is cleanly redirected to login instead of stuck on splash.
@@ -32,11 +39,25 @@ class SupabaseProfileRepository implements ProfileRepository {
         } catch (_) {}
         return null;
       }
+      final cached = await _getCachedProfile(userId);
+      if (cached != null) return cached;
       rethrow;
     } catch (e) {
-      // Re-throw or handle network/auth errors as needed
+      final cached = await _getCachedProfile(userId);
+      if (cached != null) return cached;
       rethrow;
     }
+  }
+
+  Future<Profile?> _getCachedProfile(String userId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('cached_profile_$userId');
+      if (raw != null && raw.isNotEmpty) {
+        return Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -66,6 +87,11 @@ class SupabaseProfileRepository implements ProfileRepository {
         .select()
         .single();
 
-    return Profile.fromJson(Map<String, dynamic>.from(res));
+    final saved = Profile.fromJson(Map<String, dynamic>.from(res));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_profile_${saved.id}', jsonEncode(saved.toJson()));
+    } catch (_) {}
+    return saved;
   }
 }

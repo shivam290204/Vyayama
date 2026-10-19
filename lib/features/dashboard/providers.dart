@@ -42,9 +42,9 @@ final recentStatsProvider = FutureProvider<List<DailyStats>>((ref) async {
   if (days.isNotEmpty) {
     final last = days.last;
     final updatedToday = last.copyWith(
-      steps: liveToday.steps,
-      calories: liveToday.calories,
-      activeMinutes: liveToday.activeMinutes,
+      steps: liveToday.steps > last.steps ? liveToday.steps : last.steps,
+      calories: liveToday.calories > last.calories ? liveToday.calories : last.calories,
+      activeMinutes: liveToday.activeMinutes > last.activeMinutes ? liveToday.activeMinutes : last.activeMinutes,
     );
     days[days.length - 1] = updatedToday;
     unawaited(repo.upsert(updatedToday));
@@ -60,9 +60,9 @@ final todayStatsProvider = Provider<AsyncValue<DailyStats>>((ref) {
     final today = days.last;
     if (live == null) return today;
     return today.copyWith(
-      steps: live.steps,
-      calories: live.calories,
-      activeMinutes: live.activeMinutes,
+      steps: live.steps > today.steps ? live.steps : today.steps,
+      calories: live.calories > today.calories ? live.calories : today.calories,
+      activeMinutes: live.activeMinutes > today.activeMinutes ? live.activeMinutes : today.activeMinutes,
     );
   });
 });

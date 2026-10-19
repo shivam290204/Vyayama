@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fitbuddy/core/services/health_service.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
+import 'package:fitbuddy/features/dashboard/data/local_daily_stats_storage.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -238,8 +239,19 @@ class StepTrackingService with WidgetsBindingObserver {
   Future<void> _loadTodayCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final todayKey = dayKey(DateTime.now());
-      _todaySteps = prefs.getInt('today_steps_$todayKey') ?? 0;
+      final now = DateTime.now();
+      final todayKey = dayKey(now);
+      var cachedSteps = prefs.getInt('today_steps_$todayKey');
+
+      if (cachedSteps == null || cachedSteps == 0) {
+        final local = await LocalDailyStatsStorage.instance.get(now);
+        if (local != null && local.steps > 0) {
+          cachedSteps = local.steps;
+          await prefs.setInt('today_steps_$todayKey', cachedSteps);
+        }
+      }
+
+      _todaySteps = cachedSteps ?? 0;
       _emitCurrentStats();
     } catch (_) {}
   }
@@ -292,6 +304,7 @@ class StepTrackingService with WidgetsBindingObserver {
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
+    unawaited(LocalDailyStatsStorage.instance.save(stats));
     _statsController.add(stats);
   }
 

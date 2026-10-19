@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
+import 'package:fitbuddy/features/dashboard/data/local_daily_stats_storage.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 
 /// Storage for daily activity numbers.
@@ -32,11 +34,15 @@ class MockDailyStatsRepository implements DailyStatsRepository {
   @override
   Future<List<DailyStats>> fetchRange(DateTime from, DateTime to) async {
     final end = dayOnly(to);
+    final local = await LocalDailyStatsStorage.instance.getRange(from, to);
+    final localMap = {for (final r in local) dayKey(r.date): r};
+
     final result = <DailyStats>[];
     for (var d = dayOnly(from);
         !d.isAfter(end);
         d = DateTime(d.year, d.month, d.day + 1)) {
-      result.add(_saved[dayKey(d)] ?? _generate(d));
+      final k = dayKey(d);
+      result.add(localMap[k] ?? _saved[k] ?? _generate(d));
     }
     return result;
   }
@@ -44,6 +50,7 @@ class MockDailyStatsRepository implements DailyStatsRepository {
   @override
   Future<void> upsert(DailyStats stats) async {
     _saved[dayKey(stats.date)] = stats.copyWith(userId: mockUserId);
+    unawaited(LocalDailyStatsStorage.instance.save(stats));
   }
 
   DailyStats _generate(DateTime day) {
