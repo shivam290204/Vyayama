@@ -56,6 +56,14 @@ class SupabaseProfileRepository implements ProfileRepository {
       if (raw != null && raw.isNotEmpty) {
         return Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       }
+      final wasCompleted = prefs.getBool('onboarding_completed_$userId') ?? true;
+      final lastId = prefs.getString('last_signed_in_user_id');
+      if (lastId == userId) {
+        return Profile(
+          id: userId,
+          onboardingCompleted: wasCompleted,
+        );
+      }
     } catch (_) {}
     return null;
   }

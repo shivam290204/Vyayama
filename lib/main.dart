@@ -26,28 +26,48 @@ Future<void> main() async {
   };
 
   // `.env` is optional so the app still runs with mock repositories.
-  await dotenv.load(fileName: '.env', isOptional: true);
+  try {
+    await dotenv.load(fileName: '.env', isOptional: true);
+  } catch (e) {
+    debugPrint('dotenv.load error: $e');
+  }
 
   // Supabase is only initialised when real keys are present.
   if (Env.isSupabaseConfigured) {
-    await Supabase.initialize(
-      url: Env.supabaseUrl,
-      publishableKey: Env.supabaseAnonKey,
-    );
+    try {
+      await Supabase.initialize(
+        url: Env.supabaseUrl,
+        publishableKey: Env.supabaseAnonKey,
+      );
+    } catch (e) {
+      debugPrint('Supabase.initialize error: $e');
+    }
   }
 
   // Initialize native local notification channels and timezones early
-  await NotificationService.instance.initialize();
+  try {
+    await NotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('NotificationService.initialize error: $e');
+  }
 
   // Initialize background sync service for social notifications when app is closed
-  await BackgroundSyncService.instance.initialize();
+  try {
+    await BackgroundSyncService.instance.initialize();
+  } catch (e) {
+    debugPrint('BackgroundSyncService.initialize error: $e');
+  }
 
   final prefs = await SharedPreferences.getInstance();
 
   if (Env.isSupabaseConfigured) {
-    await BackgroundSyncService.instance.syncCurrentUserId(
-      Supabase.instance.client.auth.currentUser?.id,
-    );
+    try {
+      await BackgroundSyncService.instance.syncCurrentUserId(
+        Supabase.instance.client.auth.currentUser?.id,
+      );
+    } catch (e) {
+      debugPrint('BackgroundSyncService.syncCurrentUserId error: $e');
+    }
   }
 
   runApp(

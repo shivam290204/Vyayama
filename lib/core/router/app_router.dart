@@ -65,6 +65,11 @@ String? appRedirect({
 
   // Logged in: wait for the profile before deciding where to go.
   if (profile.isLoading || !profile.hasValue) {
+    if (profile.hasError) {
+      // Authenticated but profile encountered an error (e.g. offline)
+      // Allow user into the app instead of getting stuck on splash screen
+      return _entryPaths.contains(location) ? AppRoutes.home : null;
+    }
     return atSplash ? null : AppRoutes.splash;
   }
 

@@ -69,6 +69,15 @@ void main() {
       );
       expect(dest, isNull);
     });
+
+    test('redirects authenticated user with offline profile error to /home from entry routes', () {
+      final dest = appRedirect(
+        location: AppRoutes.splash,
+        auth: const AsyncData(user),
+        profile: AsyncError('Network offline', StackTrace.empty),
+      );
+      expect(dest, AppRoutes.home);
+    });
   });
 
   group('OnboardingDraft Validation', () {

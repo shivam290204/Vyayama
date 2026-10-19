@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
@@ -24,7 +27,22 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
       authStateProvider.select((auth) => auth.valueOrNull?.id),
     );
     if (userId == null) return null;
-    return ref.read(profileRepositoryProvider).fetchProfile(userId);
+    try {
+      return await ref.read(profileRepositoryProvider).fetchProfile(userId);
+    } catch (e) {
+      debugPrint('[CurrentProfileNotifier] fetchProfile error: $e');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString('cached_profile_$userId');
+        if (raw != null && raw.isNotEmpty) {
+          return Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        }
+        final wasCompleted =
+            prefs.getBool('onboarding_completed_$userId') ?? true;
+        return Profile(id: userId, onboardingCompleted: wasCompleted);
+      } catch (_) {}
+      return Profile(id: userId, onboardingCompleted: true);
+    }
   }
 
   /// Saves [profile] and updates the cached value without a loading flash.
