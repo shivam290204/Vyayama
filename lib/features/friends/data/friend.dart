@@ -23,13 +23,26 @@ class FriendUser {
     this.timezone = 'UTC',
   });
 
-  factory FriendUser.fromJson(Map<String, dynamic> j) => FriendUser(
-        id: j['id'] as String,
-        username: (j['username'] as String?) ?? '',
-        name: (j['name'] as String?) ?? (j['username'] as String?) ?? 'Friend',
-        avatarUrl: j['avatar_url'] as String?,
-        timezone: (j['timezone'] as String?) ?? 'UTC',
-      );
+  factory FriendUser.fromJson(Map<String, dynamic> j) {
+    final rawName = (j['name'] as String?)?.trim();
+    final rawUname = (j['username'] as String?)?.trim();
+    final name = (rawName != null &&
+            rawName.isNotEmpty &&
+            rawName != 'Athlete' &&
+            rawName != 'Pending Friend')
+        ? rawName
+        : ((rawUname != null && rawUname.isNotEmpty)
+            ? rawUname
+            : (rawName != null && rawName.isNotEmpty ? rawName : 'Friend'));
+
+    return FriendUser(
+      id: j['id'] as String,
+      username: rawUname ?? '',
+      name: name,
+      avatarUrl: j['avatar_url'] as String?,
+      timezone: (j['timezone'] as String?) ?? 'UTC',
+    );
+  }
 
   final String id;
   final String username;
@@ -47,9 +60,17 @@ class FriendUser {
 
   /// One or two capital letters for avatar fallbacks.
   String get initials {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    if (parts.isEmpty) return '?';
-    return parts.take(2).map((p) => p[0].toUpperCase()).join();
+    final clean = name.trim();
+    if (clean.isNotEmpty && clean != '?') {
+      final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+      if (parts.isNotEmpty) {
+        return parts.take(2).map((p) => p[0].toUpperCase()).join();
+      }
+    }
+    if (username.trim().isNotEmpty) {
+      return username.trim()[0].toUpperCase();
+    }
+    return '?';
   }
 }
 
