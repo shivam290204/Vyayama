@@ -185,7 +185,7 @@ class StepTrackingService with WidgetsBindingObserver {
     final todayKey = dayKey(DateTime.now());
     _todaySteps += count;
     await prefs.setInt('today_steps_$todayKey', _todaySteps);
-    _emitCurrentStats();
+    _emitCurrentStats(forceSync: true);
   }
 
   /// Manually sets step count to a specific value.
@@ -195,7 +195,7 @@ class StepTrackingService with WidgetsBindingObserver {
     final todayKey = dayKey(DateTime.now());
     _todaySteps = count;
     await prefs.setInt('today_steps_$todayKey', _todaySteps);
-    _emitCurrentStats();
+    _emitCurrentStats(forceSync: true);
   }
 
   /// Resets today's step count back to 0 so the user can test physical walking from zero.
@@ -208,13 +208,13 @@ class StepTrackingService with WidgetsBindingObserver {
       await prefs.setInt('global_last_hardware_steps', _lastRawSensorSteps!);
       await prefs.setString('global_last_hardware_date', todayKey);
     }
-    _emitCurrentStats();
+    _emitCurrentStats(forceSync: true);
   }
 
   /// Pulls the latest step count from SharedPreferences cache, then broadcasts updated stats.
   Future<DailyStats> refresh() async {
     await _loadTodayCache();
-    _emitCurrentStats();
+    _emitCurrentStats(forceSync: true);
     return getTodayStats();
   }
 
@@ -290,7 +290,7 @@ class StepTrackingService with WidgetsBindingObserver {
       if (storedLastDate != todayKey) {
         // Day rolled over (e.g. overnight while app was closed or running)
         debugPrint('StepTrackingService: New day detected ($storedLastDate -> $todayKey)');
-        _todaySteps = delta > 0 ? delta : 0;
+        _todaySteps += (delta > 0 ? delta : 0);
       } else {
         // Same day: add steps taken (including any while app was closed!)
         if (delta > 0) {
@@ -310,7 +310,10 @@ class StepTrackingService with WidgetsBindingObserver {
     }
   }
 
-  void _emitCurrentStats() {
+  DateTime? _lastNotificationUpdateTime;
+  int _lastNotifiedSteps = -1;
+
+  void _emitCurrentStats({bool forceSync = false}) {
     final now = DateTime.now();
     final stats = DailyStats(
       date: now,
@@ -318,16 +321,28 @@ class StepTrackingService with WidgetsBindingObserver {
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
-    unawaited(LocalDailyStatsStorage.instance.save(stats));
+    // Always broadcast live stats to UI subscribers immediately
     _statsController.add(stats);
 
-    // Keep persistent lockscreen notification updated so live steps show at all times
-    unawaited(NotificationService.instance.updateStepTrackingNotification(
-      steps: _todaySteps,
-      target: 10000,
-      calories: todayCalories,
-      activeMinutes: todayActiveMinutes,
-    ));
+    final timeSinceLastNotif = _lastNotificationUpdateTime == null
+        ? const Duration(seconds: 10)
+        : now.difference(_lastNotificationUpdateTime!);
+
+    if (forceSync ||
+        timeSinceLastNotif.inSeconds >= 2 ||
+        (_todaySteps - _lastNotifiedSteps).abs() >= 5) {
+      _lastNotificationUpdateTime = now;
+      _lastNotifiedSteps = _todaySteps;
+      unawaited(LocalDailyStatsStorage.instance.save(stats));
+
+      // Keep persistent lockscreen notification updated so live steps show at all times
+      unawaited(NotificationService.instance.updateStepTrackingNotification(
+        steps: _todaySteps,
+        target: 10000,
+        calories: todayCalories,
+        activeMinutes: todayActiveMinutes,
+      ));
+    }
   }
 
   /// Returns current today stats synchronously if already loaded.

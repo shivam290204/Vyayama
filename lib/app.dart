@@ -79,6 +79,11 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
             ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
           });
           return;
+        } else if (type == 'step_tracker') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(goRouterProvider).push(AppRoutes.dashboard);
+          });
+          return;
         }
       }
     } catch (e) {

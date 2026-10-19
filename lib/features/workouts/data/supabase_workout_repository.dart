@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
@@ -26,10 +27,22 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
   List<Exercise>? _assetExercises;
   List<WorkoutPlan>? _assetSystemPlans;
 
+  Future<String?> _resolveUserId() async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user != null) return user.id;
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('last_signed_in_user_id');
+    } catch (_) {}
+    return null;
+  }
+
   String get _userId {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('User not signed in');
-    return user.id;
+    if (user != null) return user.id;
+    throw StateError('User not signed in');
   }
 
   Future<Map<String, dynamic>> _loadAsset(String path) async {
@@ -93,20 +106,55 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<List<WorkoutPlan>> getMyPlans() async {
-    try {
-      final res = await _client
-          .from('workout_plans')
-          .select('*, days:plan_days(*, exercises:plan_exercises(*))')
-          .eq('is_system', false)
-          .eq('owner_id', _userId)
-          .order('created_at', ascending: false);
+    final uid = await _resolveUserId();
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        final res = await _client
+            .from('workout_plans')
+            .select('*, days:plan_days(*, exercises:plan_exercises(*))')
+            .eq('is_system', false)
+            .eq('owner_id', uid)
+            .order('created_at', ascending: false);
 
-      return (res as List)
-          .map((r) => WorkoutPlan.fromJson(Map<String, dynamic>.from(r)))
-          .toList();
-    } catch (_) {
-      return [];
+        final plans = (res as List)
+            .map((r) => WorkoutPlan.fromJson(Map<String, dynamic>.from(r)))
+            .toList();
+
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final raw = jsonEncode([for (final p in plans) p.toJson()]);
+          await prefs.setString('cached_my_plans_$uid', raw);
+        } catch (_) {}
+
+        return plans;
+      } catch (_) {}
     }
+
+    // Offline fallback: load from cached plans in SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = uid != null ? 'cached_my_plans_$uid' : null;
+      String? raw;
+      if (key != null) {
+        raw = prefs.getString(key);
+      }
+      if (raw == null || raw.isEmpty) {
+        for (final k in prefs.getKeys()) {
+          if (k.startsWith('cached_my_plans_')) {
+            raw = prefs.getString(k);
+            if (raw != null && raw.isNotEmpty) break;
+          }
+        }
+      }
+      if (raw != null && raw.isNotEmpty) {
+        final list = jsonDecode(raw) as List;
+        return [
+          for (final item in list)
+            WorkoutPlan.fromJson(Map<String, dynamic>.from(item as Map)),
+        ];
+      }
+    } catch (_) {}
+    return [];
   }
 
   @override
@@ -120,6 +168,14 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       if (res != null) {
         return WorkoutPlan.fromJson(Map<String, dynamic>.from(res));
+      }
+    } catch (_) {}
+
+    // Check custom plans cache fallback
+    try {
+      final myPlans = await getMyPlans();
+      for (final p in myPlans) {
+        if (p.id == id) return p;
       }
     } catch (_) {}
 
@@ -142,6 +198,14 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       if (dayRow != null && dayRow['plan_id'] != null) {
         return await getPlan(dayRow['plan_id'].toString());
+      }
+    } catch (_) {}
+
+    // Check custom plans cache fallback
+    try {
+      final myPlans = await getMyPlans();
+      for (final p in myPlans) {
+        if (p.days.any((d) => d.id == dayId)) return p;
       }
     } catch (_) {}
 
