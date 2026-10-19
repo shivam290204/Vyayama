@@ -34,4 +34,13 @@
 -dontwarn com.dexterous.flutterlocalnotifications.**
 -keepclassmembers class com.dexterous.flutterlocalnotifications.** { *; }
 
+# WorkManager & Flutter workmanager plugin ProGuard rules
+-keep class dev.fluttercommunity.workmanager.** { *; }
+-dontwarn dev.fluttercommunity.workmanager.**
+-keepclassmembers class dev.fluttercommunity.workmanager.** { *; }
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**
+-keepclassmembers class androidx.work.** { *; }
+
+
 

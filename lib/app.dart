@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:fitbuddy/core/router/app_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/deep_link_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
@@ -9,6 +10,7 @@ import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/theme_provider.dart';
 import 'package:fitbuddy/features/schedule/widgets/medicine_alert_dialog.dart';
+import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,6 +61,15 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
     if (state == AppLifecycleState.resumed) {
       // Re-verify alarms and permissions when app returns to foreground
       ReminderReconciliationService.instance.reconcile(ref);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      final currentId = ref.read(currentUserIdProvider);
+      if (currentId.isNotEmpty && currentId != 'u-me') {
+        BackgroundSyncService.instance.syncCurrentUserId(currentId);
+      }
+      BackgroundSyncService.instance.scheduleOnAppClosed();
     }
   }
 

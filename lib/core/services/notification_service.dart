@@ -1180,9 +1180,6 @@ class NotificationService {
     await initialize();
     if (!_isInitialized) return;
 
-    final allowed = await areNotificationsEnabled();
-    if (!allowed) return;
-
     const androidDetails = AndroidNotificationDetails(
       socialNotificationChannelId,
       'Social & Snaps',
@@ -1241,9 +1238,6 @@ class NotificationService {
     if (!isSupportedPlatform) return;
     await initialize();
     if (!_isInitialized) return;
-
-    final allowed = await areNotificationsEnabled();
-    if (!allowed) return;
 
     const androidDetails = AndroidNotificationDetails(
       socialNotificationChannelId,

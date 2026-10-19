@@ -26,6 +26,15 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user.displayName != null && user.displayName!.isNotEmpty) {
         prefs.setString('last_signed_in_user_name', user.displayName!);
       }
+      try {
+        final session = supa.Supabase.instance.client.auth.currentSession;
+        if (session != null) {
+          prefs.setString('cached_auth_access_token', session.accessToken);
+          if (session.refreshToken != null) {
+            prefs.setString('cached_auth_refresh_token', session.refreshToken!);
+          }
+        }
+      } catch (_) {}
     }).catchError((_) {});
   }
 
@@ -35,6 +44,8 @@ class SupabaseAuthRepository implements AuthRepository {
       prefs.remove('last_signed_in_user_id');
       prefs.remove('last_signed_in_user_email');
       prefs.remove('last_signed_in_user_name');
+      prefs.remove('cached_auth_access_token');
+      prefs.remove('cached_auth_refresh_token');
     }).catchError((_) {});
   }
 
