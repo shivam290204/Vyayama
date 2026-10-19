@@ -547,6 +547,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildIncomingRequestCard(FriendUser user) {
+    final rawName = user.name.trim();
+    final rawUname = user.username.trim();
+    final displayName = (rawName.isNotEmpty &&
+            rawName != 'Pending Friend' &&
+            rawName != 'Athlete')
+        ? rawName
+        : (rawUname.isNotEmpty ? rawUname : 'A friend');
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -561,7 +569,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     color: Color(0xFF14532D)),
                 const SizedBox(width: 8),
                 Text(
-                  '${user.name} sent you a friend request!',
+                  '$displayName sent you a friend request!',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,

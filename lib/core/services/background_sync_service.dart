@@ -121,11 +121,14 @@ void callbackDispatcher() {
                 notifiedIds.add(reqKey);
                 final rawName = (rMap['other_name'] as String?)?.trim();
                 final rawUname = (rMap['other_username'] as String?)?.trim();
-                final senderName = (rawName != null && rawName.isNotEmpty)
+                final senderName = (rawName != null &&
+                        rawName.isNotEmpty &&
+                        rawName != 'Pending Friend' &&
+                        rawName != 'Athlete')
                     ? rawName
                     : ((rawUname != null && rawUname.isNotEmpty)
                         ? rawUname
-                        : 'A friend');
+                        : (rawName != null && rawName.isNotEmpty ? rawName : 'A friend'));
                 await NotificationService.instance.showFriendRequestNotification(
                   senderName: senderName,
                   requestId: reqId,
@@ -153,18 +156,40 @@ void callbackDispatcher() {
               String senderName = 'A friend';
 
               try {
-                final pRes = await client
-                    .from('profiles')
-                    .select('name, username')
-                    .eq('id', requesterId)
-                    .maybeSingle();
-                if (pRes != null) {
-                  final name = (pRes['name'] as String?)?.trim();
-                  final uname = (pRes['username'] as String?)?.trim();
-                  if (name != null && name.isNotEmpty) {
+                // Try find_profile_by_identifier RPC first
+                final rpc = await client.rpc(
+                  'find_profile_by_identifier',
+                  params: {'p_query': requesterId},
+                );
+                if (rpc is List && rpc.isNotEmpty) {
+                  final row = Map<String, dynamic>.from(rpc.first as Map);
+                  final name = (row['name'] as String?)?.trim();
+                  final uname = (row['username'] as String?)?.trim();
+                  if (name != null &&
+                      name.isNotEmpty &&
+                      name != 'Athlete' &&
+                      name != 'Pending Friend') {
                     senderName = name;
                   } else if (uname != null && uname.isNotEmpty) {
                     senderName = uname;
+                  }
+                } else {
+                  final pRes = await client
+                      .from('profiles')
+                      .select('name, username')
+                      .eq('id', requesterId)
+                      .maybeSingle();
+                  if (pRes != null) {
+                    final name = (pRes['name'] as String?)?.trim();
+                    final uname = (pRes['username'] as String?)?.trim();
+                    if (name != null &&
+                        name.isNotEmpty &&
+                        name != 'Athlete' &&
+                        name != 'Pending Friend') {
+                      senderName = name;
+                    } else if (uname != null && uname.isNotEmpty) {
+                      senderName = uname;
+                    }
                   }
                 }
               } catch (_) {}

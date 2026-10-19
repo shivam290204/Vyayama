@@ -154,12 +154,17 @@ class _AppShellState extends ConsumerState<AppShell>
               <String>{};
           for (final req in incoming) {
             if (!prevIds.contains(req.friendship.id)) {
+              final rawName = req.user.name.trim();
+              final rawUname = req.user.username.trim();
+              final senderName = (rawName.isNotEmpty &&
+                      rawName != 'Pending Friend' &&
+                      rawName != 'Athlete')
+                  ? rawName
+                  : (rawUname.isNotEmpty
+                      ? rawUname
+                      : (rawName.isNotEmpty ? rawName : 'A friend'));
               NotificationService.instance.showFriendRequestNotification(
-                senderName: req.user.name.isNotEmpty
-                    ? req.user.name
-                    : (req.user.username.isNotEmpty
-                        ? req.user.username
-                        : 'A friend'),
+                senderName: senderName,
                 requestId: req.friendship.id,
               );
               BackgroundSyncService.instance

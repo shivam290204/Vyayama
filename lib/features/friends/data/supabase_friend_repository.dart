@@ -35,8 +35,8 @@ class SupabaseFriendRepository implements FriendRepository {
 
   @override
   Future<FriendUser?> getUser(String id) async {
+    // 1. Try friend_profiles view (covers accepted friends and self)
     try {
-      // 1. Try friend_profiles view (covers accepted friends and self)
       final res = await _client
           .from('friend_profiles')
           .select()
@@ -46,8 +46,34 @@ class SupabaseFriendRepository implements FriendRepository {
       if (res != null) {
         return FriendUser.fromJson(Map<String, dynamic>.from(res as Map));
       }
+    } catch (_) {}
 
-      // 2. Try secure RPC for users not yet friends
+    // 2. Direct profiles table query
+    try {
+      final direct = await _client
+          .from('profiles')
+          .select('id, username, name, avatar_url, timezone')
+          .eq('id', id)
+          .maybeSingle();
+      if (direct != null) {
+        return FriendUser.fromJson(Map<String, dynamic>.from(direct as Map));
+      }
+    } catch (_) {}
+
+    // 3. Try find_profile_by_identifier RPC (UUID match in SQL)
+    try {
+      final rpcRes = await _client.rpc(
+        'find_profile_by_identifier',
+        params: {'p_query': id},
+      );
+      if (rpcRes != null && (rpcRes as List).isNotEmpty) {
+        final row = Map<String, dynamic>.from(rpcRes.first as Map);
+        return FriendUser.fromJson(row);
+      }
+    } catch (_) {}
+
+    // 4. Try find_profile_by_user_id RPC
+    try {
       final rpcRes = await _client.rpc(
         'find_profile_by_user_id',
         params: {'p_user_id': id},
@@ -56,10 +82,9 @@ class SupabaseFriendRepository implements FriendRepository {
         final row = Map<String, dynamic>.from(rpcRes.first as Map);
         return FriendUser.fromJson(row);
       }
-      return null;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) {}
+
+    return null;
   }
 
   @override
@@ -221,10 +246,23 @@ class SupabaseFriendRepository implements FriendRepository {
         final list = <FriendRequest>[];
         for (final row in rpcRes) {
           final rMap = Map<String, dynamic>.from(row as Map);
+          final rawName = (rMap['other_name'] as String?)?.trim();
+          final rawUname = (rMap['other_username'] as String?)?.trim();
+
+          // Prefer real name if not generic, otherwise username (e.g. "shree")
+          final displayName = (rawName != null &&
+                  rawName.isNotEmpty &&
+                  rawName != 'Athlete' &&
+                  rawName != 'Pending Friend')
+              ? rawName
+              : ((rawUname != null && rawUname.isNotEmpty)
+                  ? rawUname
+                  : (rawName != null && rawName.isNotEmpty ? rawName : 'Friend'));
+
           final user = FriendUser(
             id: rMap['other_id'] as String,
-            username: (rMap['other_username'] as String?) ?? '',
-            name: (rMap['other_name'] as String?) ?? 'Athlete',
+            username: rawUname ?? '',
+            name: displayName,
             avatarUrl: rMap['other_avatar_url'] as String?,
             timezone: (rMap['other_timezone'] as String?) ?? 'UTC',
           );
@@ -244,33 +282,83 @@ class SupabaseFriendRepository implements FriendRepository {
       debugPrint('get_my_friend_requests RPC note: $e (using fallback query)');
     }
 
-    // 2. Resilient fallback: Query friendships table directly, then fetch user profiles
+    // 2. Resilient fallback: Query friendships table directly, joining profiles if possible
     try {
-      final res = await _client
-          .from('friendships')
-          .select()
-          .eq('status', 'pending');
+      List res;
+      try {
+        res = await _client
+            .from('friendships')
+            .select(
+                '*, requester:profiles!requester_id(id, username, name, avatar_url, timezone), addressee:profiles!addressee_id(id, username, name, avatar_url, timezone)')
+            .eq('status', 'pending');
+      } catch (_) {
+        res = await _client
+            .from('friendships')
+            .select()
+            .eq('status', 'pending');
+      }
 
       final list = <FriendRequest>[];
-      for (final row in res as List) {
+      for (final row in res) {
         final rMap = Map<String, dynamic>.from(row as Map);
         final incoming = rMap['addressee_id'] == _userId;
         final otherId =
             (incoming ? rMap['requester_id'] : rMap['addressee_id']) as String;
 
-        // Fetch user profile safely via getUser
         FriendUser? user;
-        try {
-          user = await getUser(otherId);
-        } catch (e) {
-          debugPrint('getUser failed for $otherId: $e');
+        final joinedProfile = incoming ? rMap['requester'] : rMap['addressee'];
+        if (joinedProfile != null && joinedProfile is Map) {
+          final pMap = Map<String, dynamic>.from(joinedProfile);
+          final rawName = (pMap['name'] as String?)?.trim();
+          final rawUname = (pMap['username'] as String?)?.trim();
+          final displayName = (rawName != null &&
+                  rawName.isNotEmpty &&
+                  rawName != 'Athlete' &&
+                  rawName != 'Pending Friend')
+              ? rawName
+              : ((rawUname != null && rawUname.isNotEmpty)
+                  ? rawUname
+                  : (rawName != null && rawName.isNotEmpty ? rawName : 'Friend'));
+          user = FriendUser(
+            id: otherId,
+            username: rawUname ?? '',
+            name: displayName,
+            avatarUrl: pMap['avatar_url'] as String?,
+            timezone: (pMap['timezone'] as String?) ?? 'UTC',
+          );
         }
 
-        // Resilient: NEVER drop a pending request even if profile lookup is restricted
+        // Fetch user profile safely via getUser if not in join or username empty
+        if (user == null || user.username.isEmpty) {
+          try {
+            final fetched = await getUser(otherId);
+            if (fetched != null) {
+              final rawName = fetched.name.trim();
+              final rawUname = fetched.username.trim();
+              final displayName = (rawName.isNotEmpty &&
+                      rawName != 'Athlete' &&
+                      rawName != 'Pending Friend')
+                  ? rawName
+                  : (rawUname.isNotEmpty
+                      ? rawUname
+                      : (rawName.isNotEmpty ? rawName : 'Friend'));
+              user = FriendUser(
+                id: fetched.id,
+                username: rawUname,
+                name: displayName,
+                avatarUrl: fetched.avatarUrl,
+                timezone: fetched.timezone,
+              );
+            }
+          } catch (e) {
+            debugPrint('getUser failed for $otherId: $e');
+          }
+        }
+
         user ??= FriendUser(
           id: otherId,
           username: '',
-          name: incoming ? 'Pending Friend' : 'Athlete',
+          name: 'Friend',
           avatarUrl: null,
           timezone: 'UTC',
         );

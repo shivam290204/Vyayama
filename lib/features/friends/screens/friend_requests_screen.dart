@@ -71,12 +71,21 @@ class FriendRequestsScreen extends ConsumerWidget {
                         child: const Text('Decline'),
                       ),
                       FilledButton(
-                        onPressed: () => _run(
-                          context,
-                          ref,
-                          () => repo.acceptRequest(r.friendship.id),
-                          'You and ${r.user.name} are friends 🔥',
-                        ),
+                        onPressed: () {
+                          final rawName = r.user.name.trim();
+                          final rawUname = r.user.username.trim();
+                          final name = (rawName.isNotEmpty &&
+                                  rawName != 'Pending Friend' &&
+                                  rawName != 'Athlete')
+                              ? rawName
+                              : (rawUname.isNotEmpty ? rawUname : 'Friend');
+                          _run(
+                            context,
+                            ref,
+                            () => repo.acceptRequest(r.friendship.id),
+                            'You and $name are friends 🔥',
+                          );
+                        },
                         child: const Text('Accept'),
                       ),
                     ],
@@ -122,6 +131,22 @@ class _RequestTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final rawName = request.user.name.trim();
+    final rawUname = request.user.username.trim();
+    final displayName = (rawName.isNotEmpty &&
+            rawName != 'Pending Friend' &&
+            rawName != 'Athlete')
+        ? rawName
+        : (rawUname.isNotEmpty
+            ? rawUname
+            : (rawName.isNotEmpty ? rawName : 'Friend'));
+
+    final subtitleText = request.incoming
+        ? (rawUname.isNotEmpty
+            ? '@$rawUname · sent you a request'
+            : 'sent you a friend request')
+        : (rawUname.isNotEmpty ? '@$rawUname' : 'Friend request pending');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -132,8 +157,11 @@ class _RequestTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(request.user.name, style: text.titleMedium),
-                Text('@${request.user.username}', style: text.bodySmall),
+                Text(
+                  displayName,
+                  style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                Text(subtitleText, style: text.bodySmall),
               ],
             ),
           ),

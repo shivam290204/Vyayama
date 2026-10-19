@@ -257,13 +257,21 @@ class _ResultCard extends StatelessWidget {
       FriendRelation.requestReceived => null,
       FriendRelation.none => null,
     };
+    final rawName = user.name.trim();
+    final rawUname = user.username.trim();
+    final displayName = (rawName.isNotEmpty &&
+            rawName != 'Pending Friend' &&
+            rawName != 'Athlete')
+        ? rawName
+        : (rawUname.isNotEmpty ? rawUname : 'Athlete');
+
     return Card(
       child: ListTile(
         onTap: () => context.push(AppRoutes.userProfilePath(user.id)),
         minVerticalPadding: 12,
         leading: FriendAvatar(user: user),
-        title: Text(user.name),
-        subtitle: Text(user.username.isNotEmpty ? '@${user.username}' : 'Athlete'),
+        title: Text(displayName),
+        subtitle: Text(rawUname.isNotEmpty ? '@$rawUname' : 'Athlete'),
         trailing: relation == FriendRelation.requestReceived
             ? OutlinedButton(
                 onPressed: () => context.push(AppRoutes.friendsRequests),
