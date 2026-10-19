@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +20,7 @@ class NotificationService {
   static const String mealsChannelId = 'vyayama_meals_v5';
   static const String sleepChannelId = 'vyayama_sleep_v5';
   static const String remindersChannelId = 'vyayama_reminders_v5';
+  static const String socialNotificationChannelId = 'vyayama_social_v1';
 
   static final Int64List _alarmVibrationPattern =
       Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
@@ -240,6 +242,22 @@ class NotificationService {
             playSound: true,
             enableVibration: true,
             audioAttributesUsage: AudioAttributesUsage.notification,
+          ),
+        );
+
+        // Social & Snaps channel with custom notification.mp3 sound
+        await android.createNotificationChannel(
+          const AndroidNotificationChannel(
+            socialNotificationChannelId,
+            'Social & Snaps',
+            description: 'Notifications for incoming friend requests and snaps',
+            importance: Importance.max,
+            playSound: true,
+            sound: RawResourceAndroidNotificationSound('notification'),
+            enableVibration: true,
+            audioAttributesUsage: AudioAttributesUsage.notification,
+            enableLights: true,
+            ledColor: Color.fromARGB(255, 46, 125, 50),
           ),
         );
       }
@@ -1135,6 +1153,129 @@ class NotificationService {
       await _plugin.cancelAll();
     } catch (e) {
       debugPrint('Error canceling all notifications: $e');
+    }
+  }
+
+  /// Displays an immediate high-priority notification with custom audio for a new friend request.
+  Future<void> showFriendRequestNotification({
+    required String senderName,
+    required String requestId,
+  }) async {
+    if (!isSupportedPlatform) return;
+    await initialize();
+    if (!_isInitialized) return;
+
+    final allowed = await areNotificationsEnabled();
+    if (!allowed) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      socialNotificationChannelId,
+      'Social & Snaps',
+      channelDescription: 'Notifications for incoming friend requests and snaps',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('notification'),
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.notification,
+      category: AndroidNotificationCategory.social,
+      ticker: 'New friend request',
+      color: Color(0xFF2E7D32),
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'notification.mp3',
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    final id = 800000 + (requestId.hashCode.abs() % 10000);
+    final payload = jsonEncode({
+      'type': 'friend_request',
+      'requestId': requestId,
+    });
+
+    try {
+      await _plugin.show(
+        id,
+        'Friend Request',
+        '$senderName sent you a friend request!',
+        details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing friend request notification: $e');
+    }
+  }
+
+  /// Displays an immediate high-priority notification with custom audio for a new direct snap.
+  Future<void> showSnapNotification({
+    required String senderName,
+    required String snapId,
+    String? activityType,
+  }) async {
+    if (!isSupportedPlatform) return;
+    await initialize();
+    if (!_isInitialized) return;
+
+    final allowed = await areNotificationsEnabled();
+    if (!allowed) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      socialNotificationChannelId,
+      'Social & Snaps',
+      channelDescription: 'Notifications for incoming friend requests and snaps',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('notification'),
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.notification,
+      category: AndroidNotificationCategory.social,
+      ticker: 'New snap received',
+      color: Color(0xFF2E7D32),
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'notification.mp3',
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    final id = 810000 + (snapId.hashCode.abs() % 10000);
+    final payload = jsonEncode({
+      'type': 'snap',
+      'snapId': snapId,
+    });
+
+    final activityLabel = (activityType != null && activityType.isNotEmpty)
+        ? ' ($activityType)'
+        : '';
+
+    try {
+      await _plugin.show(
+        id,
+        'New Snap',
+        '$senderName sent you a snap$activityLabel!',
+        details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing snap notification: $e');
     }
   }
 }

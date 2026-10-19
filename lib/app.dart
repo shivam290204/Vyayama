@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:fitbuddy/core/router/app_router.dart';
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/deep_link_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
@@ -63,6 +65,21 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
   void _handleNotificationPayload(String? payload) {
     if (payload == null) return;
     debugPrint('Notification clicked with payload: $payload');
+    try {
+      if (payload.startsWith('{') && payload.endsWith('}')) {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        final type = data['type'] as String?;
+        if (type == 'friend_request') {
+          ref.read(goRouterProvider).push(AppRoutes.friendsRequests);
+          return;
+        } else if (type == 'snap') {
+          ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error parsing notification payload: $e');
+    }
     if (payload.startsWith('medicine') ||
         payload.contains('Medicine') ||
         payload.contains('medicine')) {

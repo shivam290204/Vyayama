@@ -8,6 +8,8 @@ import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/router/app_bottom_bar.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/core/services/background_sync_service.dart';
+import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
@@ -90,6 +92,10 @@ class _AppShellState extends ConsumerState<AppShell>
     if (state == AppLifecycleState.resumed && mounted) {
       ref.invalidate(friendRequestsProvider);
       ref.invalidate(inboxProvider);
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      BackgroundSyncService.instance.scheduleOnAppClosed();
     }
   }
 
@@ -110,11 +116,12 @@ class _AppShellState extends ConsumerState<AppShell>
     final hideBar =
         AppShell._fullScreenPrefixes.any(widget.currentPath.startsWith);
 
-    // Reset known counts if user switches accounts
+    // Reset known counts and sync user id if user switches accounts
     ref.listen<String>(currentUserIdProvider, (previous, next) {
       if (previous != next) {
         _knownIncomingRequests = -1;
         _knownUnviewedSnaps = -1;
+        BackgroundSyncService.instance.syncCurrentUserId(next);
       }
     });
 
@@ -122,27 +129,74 @@ class _AppShellState extends ConsumerState<AppShell>
     ref.listen<AsyncValue<List<FriendRequest>>>(friendRequestsProvider,
         (previous, next) {
       if (next.hasValue) {
-        final currentIncoming =
-            next.value!.where((r) => r.incoming).length;
+        final incoming =
+            next.value!.where((r) => r.incoming).toList();
         if (_knownIncomingRequests >= 0 &&
-            currentIncoming > _knownIncomingRequests) {
+            incoming.length > _knownIncomingRequests) {
           // New friend request arrived for this user!
           AppSoundService.instance.playNotificationSound();
+          final prevIds = previous?.valueOrNull
+                  ?.where((r) => r.incoming)
+                  .map((r) => r.friendship.id)
+                  .toSet() ??
+              <String>{};
+          for (final req in incoming) {
+            if (!prevIds.contains(req.friendship.id)) {
+              NotificationService.instance.showFriendRequestNotification(
+                senderName: req.user.name.isNotEmpty
+                    ? req.user.name
+                    : (req.user.username.isNotEmpty
+                        ? req.user.username
+                        : 'A friend'),
+                requestId: req.friendship.id,
+              );
+              BackgroundSyncService.instance
+                  .markAsNotified('req_${req.friendship.id}');
+            }
+          }
+        } else {
+          for (final req in incoming) {
+            BackgroundSyncService.instance
+                .markAsNotified('req_${req.friendship.id}');
+          }
         }
-        _knownIncomingRequests = currentIncoming;
+        _knownIncomingRequests = incoming.length;
       }
     });
 
     // Play notification sound on receiver's device when a new incoming direct snap arrives
     ref.listen<AsyncValue<List<ReceivedSnap>>>(inboxProvider, (previous, next) {
       if (next.hasValue) {
-        final currentUnviewed =
-            next.value!.where((s) => s.isUnviewed).length;
-        if (_knownUnviewedSnaps >= 0 && currentUnviewed > _knownUnviewedSnaps) {
+        final unviewed =
+            next.value!.where((s) => s.isUnviewed).toList();
+        if (_knownUnviewedSnaps >= 0 && unviewed.length > _knownUnviewedSnaps) {
           // New snap arrived for this user!
           AppSoundService.instance.playNotificationSound();
+          final prevIds = previous?.valueOrNull
+                  ?.where((s) => s.isUnviewed)
+                  .map((s) => s.snap.id)
+                  .toSet() ??
+              <String>{};
+          for (final item in unviewed) {
+            if (!prevIds.contains(item.snap.id)) {
+              NotificationService.instance.showSnapNotification(
+                senderName: item.senderName.isNotEmpty
+                    ? item.senderName
+                    : 'A friend',
+                snapId: item.snap.id,
+                activityType: item.snap.activityType.label,
+              );
+              BackgroundSyncService.instance
+                  .markAsNotified('snap_${item.snap.id}');
+            }
+          }
+        } else {
+          for (final item in unviewed) {
+            BackgroundSyncService.instance
+                .markAsNotified('snap_${item.snap.id}');
+          }
         }
-        _knownUnviewedSnaps = currentUnviewed;
+        _knownUnviewedSnaps = unviewed.length;
       }
     });
 

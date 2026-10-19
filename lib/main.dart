@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:fitbuddy/app.dart';
 import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 
@@ -38,7 +39,16 @@ Future<void> main() async {
   // Initialize native local notification channels and timezones early
   await NotificationService.instance.initialize();
 
+  // Initialize background sync service for social notifications when app is closed
+  await BackgroundSyncService.instance.initialize();
+
   final prefs = await SharedPreferences.getInstance();
+
+  if (Env.isSupabaseConfigured) {
+    await BackgroundSyncService.instance.syncCurrentUserId(
+      Supabase.instance.client.auth.currentUser?.id,
+    );
+  }
 
   runApp(
     ProviderScope(
