@@ -10,6 +10,17 @@ class SupabaseFriendRepository implements FriendRepository {
       : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
+  static final Map<String, FriendUser> _memCache = {};
+
+  static void cacheProfile(FriendUser user) {
+    if (user.username.isNotEmpty ||
+        (user.name.isNotEmpty &&
+            user.name != 'Friend' &&
+            user.name != 'Athlete' &&
+            user.name != 'Pending Friend')) {
+      _memCache[user.id] = user;
+    }
+  }
 
   String get _userId {
     final user = _client.auth.currentUser;
@@ -25,9 +36,13 @@ class SupabaseFriendRepository implements FriendRepository {
           .select()
           .neq('id', _userId);
 
-      return (res as List)
+      final list = (res as List)
           .map((r) => FriendUser.fromJson(Map<String, dynamic>.from(r)))
           .toList();
+      for (final u in list) {
+        cacheProfile(u);
+      }
+      return list;
     } catch (_) {
       return [];
     }
@@ -35,6 +50,17 @@ class SupabaseFriendRepository implements FriendRepository {
 
   @override
   Future<FriendUser?> getUser(String id) async {
+    // 0. Check in-memory cache
+    final cached = _memCache[id];
+    if (cached != null &&
+        (cached.username.isNotEmpty ||
+            (cached.name.isNotEmpty &&
+                cached.name != 'Friend' &&
+                cached.name != 'Athlete' &&
+                cached.name != 'Pending Friend'))) {
+      return cached;
+    }
+
     // 1. Try friend_profiles view (covers accepted friends and self)
     try {
       final res = await _client
@@ -44,7 +70,9 @@ class SupabaseFriendRepository implements FriendRepository {
           .maybeSingle();
 
       if (res != null) {
-        return FriendUser.fromJson(Map<String, dynamic>.from(res as Map));
+        final u = FriendUser.fromJson(Map<String, dynamic>.from(res as Map));
+        cacheProfile(u);
+        return u;
       }
     } catch (_) {}
 
@@ -56,7 +84,9 @@ class SupabaseFriendRepository implements FriendRepository {
           .eq('id', id)
           .maybeSingle();
       if (direct != null) {
-        return FriendUser.fromJson(Map<String, dynamic>.from(direct as Map));
+        final u = FriendUser.fromJson(Map<String, dynamic>.from(direct as Map));
+        cacheProfile(u);
+        return u;
       }
     } catch (_) {}
 
@@ -68,7 +98,9 @@ class SupabaseFriendRepository implements FriendRepository {
       );
       if (rpcRes != null && (rpcRes as List).isNotEmpty) {
         final row = Map<String, dynamic>.from(rpcRes.first as Map);
-        return FriendUser.fromJson(row);
+        final u = FriendUser.fromJson(row);
+        cacheProfile(u);
+        return u;
       }
     } catch (_) {}
 
@@ -80,7 +112,9 @@ class SupabaseFriendRepository implements FriendRepository {
       );
       if (rpcRes != null && (rpcRes as List).isNotEmpty) {
         final row = Map<String, dynamic>.from(rpcRes.first as Map);
-        return FriendUser.fromJson(row);
+        final u = FriendUser.fromJson(row);
+        cacheProfile(u);
+        return u;
       }
     } catch (_) {}
 
@@ -253,7 +287,8 @@ class SupabaseFriendRepository implements FriendRepository {
           final displayName = (rawName != null &&
                   rawName.isNotEmpty &&
                   rawName != 'Athlete' &&
-                  rawName != 'Pending Friend')
+                  rawName != 'Pending Friend' &&
+                  rawName != 'Friend')
               ? rawName
               : ((rawUname != null && rawUname.isNotEmpty)
                   ? rawUname
@@ -266,6 +301,7 @@ class SupabaseFriendRepository implements FriendRepository {
             avatarUrl: rMap['other_avatar_url'] as String?,
             timezone: (rMap['other_timezone'] as String?) ?? 'UTC',
           );
+          cacheProfile(user);
           final friendship = Friendship.fromJson(rMap);
           final incoming = rMap['is_incoming'] == true ||
               rMap['addressee_id'] == _userId;
@@ -314,7 +350,8 @@ class SupabaseFriendRepository implements FriendRepository {
           final displayName = (rawName != null &&
                   rawName.isNotEmpty &&
                   rawName != 'Athlete' &&
-                  rawName != 'Pending Friend')
+                  rawName != 'Pending Friend' &&
+                  rawName != 'Friend')
               ? rawName
               : ((rawUname != null && rawUname.isNotEmpty)
                   ? rawUname
@@ -326,6 +363,7 @@ class SupabaseFriendRepository implements FriendRepository {
             avatarUrl: pMap['avatar_url'] as String?,
             timezone: (pMap['timezone'] as String?) ?? 'UTC',
           );
+          cacheProfile(user);
         }
 
         // Fetch user profile safely via getUser if not in join or username empty
@@ -337,7 +375,8 @@ class SupabaseFriendRepository implements FriendRepository {
               final rawUname = fetched.username.trim();
               final displayName = (rawName.isNotEmpty &&
                       rawName != 'Athlete' &&
-                      rawName != 'Pending Friend')
+                      rawName != 'Pending Friend' &&
+                      rawName != 'Friend')
                   ? rawName
                   : (rawUname.isNotEmpty
                       ? rawUname
@@ -349,12 +388,14 @@ class SupabaseFriendRepository implements FriendRepository {
                 avatarUrl: fetched.avatarUrl,
                 timezone: fetched.timezone,
               );
+              cacheProfile(user);
             }
           } catch (e) {
             debugPrint('getUser failed for $otherId: $e');
           }
         }
 
+        user ??= _memCache[otherId];
         user ??= FriendUser(
           id: otherId,
           username: '',

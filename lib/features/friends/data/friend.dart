@@ -29,7 +29,8 @@ class FriendUser {
     final name = (rawName != null &&
             rawName.isNotEmpty &&
             rawName != 'Athlete' &&
-            rawName != 'Pending Friend')
+            rawName != 'Pending Friend' &&
+            rawName != 'Friend')
         ? rawName
         : ((rawUname != null && rawUname.isNotEmpty)
             ? rawUname

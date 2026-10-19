@@ -122,26 +122,71 @@ class _Header extends StatelessWidget {
       );
 }
 
-class _RequestTile extends StatelessWidget {
+class _RequestTile extends ConsumerStatefulWidget {
   const _RequestTile({required this.request, required this.actions});
 
   final FriendRequest request;
   final List<Widget> actions;
 
   @override
+  ConsumerState<_RequestTile> createState() => _RequestTileState();
+}
+
+class _RequestTileState extends ConsumerState<_RequestTile> {
+  FriendUser? _resolvedUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedUser = widget.request.user;
+    _resolveUserIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RequestTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request.user.id != widget.request.user.id ||
+        oldWidget.request.user.name != widget.request.user.name) {
+      _resolvedUser = widget.request.user;
+      _resolveUserIfNeeded();
+    }
+  }
+
+  void _resolveUserIfNeeded() {
+    final cur = _resolvedUser ?? widget.request.user;
+    final isGeneric = cur.name == 'Friend' ||
+        cur.name == 'Athlete' ||
+        cur.name == 'Pending Friend' ||
+        cur.name.trim().isEmpty;
+    if (isGeneric && cur.username.isEmpty) {
+      ref.read(friendRepositoryProvider).getUser(cur.id).then((fetched) {
+        if (mounted &&
+            fetched != null &&
+            (fetched.username.isNotEmpty || fetched.name != 'Friend')) {
+          setState(() {
+            _resolvedUser = fetched;
+          });
+        }
+      }).catchError((_) {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final rawName = request.user.name.trim();
-    final rawUname = request.user.username.trim();
+    final user = _resolvedUser ?? widget.request.user;
+    final rawName = user.name.trim();
+    final rawUname = user.username.trim();
     final displayName = (rawName.isNotEmpty &&
             rawName != 'Pending Friend' &&
-            rawName != 'Athlete')
+            rawName != 'Athlete' &&
+            rawName != 'Friend')
         ? rawName
         : (rawUname.isNotEmpty
             ? rawUname
             : (rawName.isNotEmpty ? rawName : 'Friend'));
 
-    final subtitleText = request.incoming
+    final subtitleText = widget.request.incoming
         ? (rawUname.isNotEmpty
             ? '@$rawUname · sent you a request'
             : 'sent you a friend request')
@@ -151,7 +196,7 @@ class _RequestTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          FriendAvatar(user: request.user),
+          FriendAvatar(user: user),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -165,7 +210,7 @@ class _RequestTile extends StatelessWidget {
               ],
             ),
           ),
-          Wrap(spacing: 4, children: actions),
+          Wrap(spacing: 4, children: widget.actions),
         ],
       ),
     );
