@@ -59,6 +59,10 @@ void callbackDispatcher() {
         },
       );
 
+      if (accessToken != null && accessToken.isNotEmpty) {
+        client.rest.headers['Authorization'] = 'Bearer $accessToken';
+      }
+
       // Refresh / establish active authenticated session if we have a refresh token
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
@@ -66,8 +70,9 @@ void callbackDispatcher() {
           if (authRes.user != null) {
             userId = authRes.user!.id;
             if (authRes.session?.accessToken != null) {
-              await prefs.setString(
-                  'cached_auth_access_token', authRes.session!.accessToken);
+              final newTok = authRes.session!.accessToken;
+              client.rest.headers['Authorization'] = 'Bearer $newTok';
+              await prefs.setString('cached_auth_access_token', newTok);
             }
             if (authRes.session?.refreshToken != null) {
               await prefs.setString(
@@ -96,95 +101,164 @@ void callbackDispatcher() {
       final notifiedIds =
           prefs.getStringList('notified_social_ids')?.toSet() ?? <String>{};
 
-      // 1. Check for pending incoming friend requests
+      // 1. Check for pending incoming friend requests (try RPC first, fallback to table query)
       try {
-        final pendingRequests = await client
-            .from('friendships')
-            .select('id, requester_id, status')
-            .eq('addressee_id', userId)
-            .eq('status', 'pending');
+        bool handledByRpc = false;
+        try {
+          final rpcRes = await client.rpc('get_my_friend_requests');
+          if (rpcRes is List) {
+            handledByRpc = true;
+            for (final row in rpcRes) {
+              final rMap = Map<String, dynamic>.from(row as Map);
+              final incoming = rMap['is_incoming'] == true ||
+                  rMap['addressee_id'] == userId;
+              final status = rMap['status'] as String?;
+              if (!incoming || status != 'pending') continue;
 
-        for (final row in pendingRequests) {
-          final rMap = Map<String, dynamic>.from(row as Map);
-          final reqId = rMap['id'] as String;
-          final reqKey = 'req_$reqId';
-
-          if (!notifiedIds.contains(reqKey)) {
-            notifiedIds.add(reqKey);
-            final requesterId = rMap['requester_id'] as String;
-            String senderName = 'A friend';
-
-            try {
-              final pRes = await client
-                  .from('profiles')
-                  .select('name, username')
-                  .eq('id', requesterId)
-                  .maybeSingle();
-              if (pRes != null) {
-                final name = (pRes['name'] as String?)?.trim();
-                final uname = (pRes['username'] as String?)?.trim();
-                if (name != null && name.isNotEmpty) {
-                  senderName = name;
-                } else if (uname != null && uname.isNotEmpty) {
-                  senderName = uname;
-                }
+              final reqId = (rMap['id'] ?? rMap['friendship_id']) as String;
+              final reqKey = 'req_$reqId';
+              if (!notifiedIds.contains(reqKey)) {
+                notifiedIds.add(reqKey);
+                final rawName = (rMap['other_name'] as String?)?.trim();
+                final rawUname = (rMap['other_username'] as String?)?.trim();
+                final senderName = (rawName != null && rawName.isNotEmpty)
+                    ? rawName
+                    : ((rawUname != null && rawUname.isNotEmpty)
+                        ? rawUname
+                        : 'A friend');
+                await NotificationService.instance.showFriendRequestNotification(
+                  senderName: senderName,
+                  requestId: reqId,
+                );
               }
-            } catch (_) {}
+            }
+          }
+        } catch (_) {}
 
-            await NotificationService.instance.showFriendRequestNotification(
-              senderName: senderName,
-              requestId: reqId,
-            );
+        if (!handledByRpc) {
+          final pendingRequests = await client
+              .from('friendships')
+              .select('id, requester_id, status')
+              .eq('addressee_id', userId)
+              .eq('status', 'pending');
+
+          for (final row in pendingRequests) {
+            final rMap = Map<String, dynamic>.from(row as Map);
+            final reqId = rMap['id'] as String;
+            final reqKey = 'req_$reqId';
+
+            if (!notifiedIds.contains(reqKey)) {
+              notifiedIds.add(reqKey);
+              final requesterId = rMap['requester_id'] as String;
+              String senderName = 'A friend';
+
+              try {
+                final pRes = await client
+                    .from('profiles')
+                    .select('name, username')
+                    .eq('id', requesterId)
+                    .maybeSingle();
+                if (pRes != null) {
+                  final name = (pRes['name'] as String?)?.trim();
+                  final uname = (pRes['username'] as String?)?.trim();
+                  if (name != null && name.isNotEmpty) {
+                    senderName = name;
+                  } else if (uname != null && uname.isNotEmpty) {
+                    senderName = uname;
+                  }
+                }
+              } catch (_) {}
+
+              await NotificationService.instance.showFriendRequestNotification(
+                senderName: senderName,
+                requestId: reqId,
+              );
+            }
           }
         }
       } catch (e) {
         debugPrint('[BackgroundSync] Error checking friend requests: $e');
       }
 
-      // 2. Check for unviewed direct snaps
+      // 2. Check for unviewed direct snaps (try RPC first, fallback to table query)
       try {
-        final unviewedSnaps = await client
-            .from('snap_recipients')
-            .select(
-                'snap_id, viewed_at, snap:snaps!inner(id, sender_id, activity_type)')
-            .eq('recipient_id', userId);
+        bool handledByRpc = false;
+        try {
+          final rpcSnaps = await client.rpc('get_my_inbox_snaps');
+          if (rpcSnaps is List) {
+            handledByRpc = true;
+            for (final row in rpcSnaps) {
+              final rMap = Map<String, dynamic>.from(row as Map);
+              if (rMap['viewed_at'] != null) continue;
 
-        for (final row in unviewedSnaps) {
-          final rMap = Map<String, dynamic>.from(row as Map);
-          if (rMap['viewed_at'] != null) continue; // Already viewed
+              final snapId = (rMap['id'] ?? rMap['snap_id']) as String;
+              final snapKey = 'snap_$snapId';
 
-          final snapId = rMap['snap_id'] as String;
-          final snapKey = 'snap_$snapId';
+              if (!notifiedIds.contains(snapKey)) {
+                notifiedIds.add(snapKey);
+                final rawName = (rMap['sender_name'] as String?)?.trim();
+                final rawUname = (rMap['sender_username'] as String?)?.trim();
+                final senderName = (rawName != null && rawName.isNotEmpty)
+                    ? rawName
+                    : ((rawUname != null && rawUname.isNotEmpty)
+                        ? rawUname
+                        : 'A friend');
+                final actType = rMap['activity_type'] as String?;
 
-          if (!notifiedIds.contains(snapKey)) {
-            notifiedIds.add(snapKey);
-            final snapData = Map<String, dynamic>.from(rMap['snap'] as Map);
-            final senderId = snapData['sender_id'] as String;
-            final actType = snapData['activity_type'] as String?;
-            String senderName = 'A friend';
-
-            try {
-              final pRes = await client
-                  .from('profiles')
-                  .select('name, username')
-                  .eq('id', senderId)
-                  .maybeSingle();
-              if (pRes != null) {
-                final name = (pRes['name'] as String?)?.trim();
-                final uname = (pRes['username'] as String?)?.trim();
-                if (name != null && name.isNotEmpty) {
-                  senderName = name;
-                } else if (uname != null && uname.isNotEmpty) {
-                  senderName = uname;
-                }
+                await NotificationService.instance.showSnapNotification(
+                  senderName: senderName,
+                  snapId: snapId,
+                  activityType: actType,
+                );
               }
-            } catch (_) {}
+            }
+          }
+        } catch (_) {}
 
-            await NotificationService.instance.showSnapNotification(
-              senderName: senderName,
-              snapId: snapId,
-              activityType: actType,
-            );
+        if (!handledByRpc) {
+          final unviewedSnaps = await client
+              .from('snap_recipients')
+              .select(
+                  'snap_id, viewed_at, snap:snaps!inner(id, sender_id, activity_type)')
+              .eq('recipient_id', userId);
+
+          for (final row in unviewedSnaps) {
+            final rMap = Map<String, dynamic>.from(row as Map);
+            if (rMap['viewed_at'] != null) continue; // Already viewed
+
+            final snapId = rMap['snap_id'] as String;
+            final snapKey = 'snap_$snapId';
+
+            if (!notifiedIds.contains(snapKey)) {
+              notifiedIds.add(snapKey);
+              final snapData = Map<String, dynamic>.from(rMap['snap'] as Map);
+              final senderId = snapData['sender_id'] as String;
+              final actType = snapData['activity_type'] as String?;
+              String senderName = 'A friend';
+
+              try {
+                final pRes = await client
+                    .from('profiles')
+                    .select('name, username')
+                    .eq('id', senderId)
+                    .maybeSingle();
+                if (pRes != null) {
+                  final name = (pRes['name'] as String?)?.trim();
+                  final uname = (pRes['username'] as String?)?.trim();
+                  if (name != null && name.isNotEmpty) {
+                    senderName = name;
+                  } else if (uname != null && uname.isNotEmpty) {
+                    senderName = uname;
+                  }
+                }
+              } catch (_) {}
+
+              await NotificationService.instance.showSnapNotification(
+                senderName: senderName,
+                snapId: snapId,
+                activityType: actType,
+              );
+            }
           }
         }
       } catch (e) {
@@ -239,6 +313,10 @@ class BackgroundSyncService {
             if (session.refreshToken != null) {
               await prefs.setString('cached_auth_refresh_token', session.refreshToken!);
             }
+          }
+          final uid = session?.user.id ?? Supabase.instance.client.auth.currentUser?.id;
+          if (uid != null && uid.isNotEmpty && uid != 'u-me') {
+            await prefs.setString('last_signed_in_user_id', uid);
           }
         } catch (_) {}
       }
@@ -323,6 +401,10 @@ class BackgroundSyncService {
             if (session.refreshToken != null) {
               await prefs.setString('cached_auth_refresh_token', session.refreshToken!);
             }
+          }
+          final uid = session?.user.id ?? Supabase.instance.client.auth.currentUser?.id;
+          if (uid != null && uid.isNotEmpty && uid != 'u-me') {
+            await prefs.setString('last_signed_in_user_id', uid);
           }
         } catch (_) {}
       }

@@ -79,6 +79,17 @@ class SupabaseAuthRepository implements AuthRepository {
 
     // 2. Stream subsequent auth state changes from Supabase
     await for (final event in _client.onAuthStateChange) {
+      if (event.session != null) {
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.setString('cached_auth_access_token', event.session!.accessToken);
+          if (event.session!.refreshToken != null) {
+            prefs.setString('cached_auth_refresh_token', event.session!.refreshToken!);
+          }
+          if (event.session!.user.id.isNotEmpty) {
+            prefs.setString('last_signed_in_user_id', event.session!.user.id);
+          }
+        }).catchError((_) {});
+      }
       final user = event.session?.user;
       final mapped = user != null ? _mapUser(user) : null;
       if (event.event == supa.AuthChangeEvent.signedOut) {
