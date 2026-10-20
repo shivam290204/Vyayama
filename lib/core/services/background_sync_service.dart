@@ -63,26 +63,11 @@ void callbackDispatcher() {
         client.rest.headers['Authorization'] = 'Bearer $accessToken';
       }
 
-      // Refresh / establish active authenticated session if we have a refresh token
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        try {
-          final authRes = await client.auth.setSession(refreshToken);
-          if (authRes.user != null) {
-            userId = authRes.user!.id;
-            if (authRes.session?.accessToken != null) {
-              final newTok = authRes.session!.accessToken;
-              client.rest.headers['Authorization'] = 'Bearer $newTok';
-              await prefs.setString('cached_auth_access_token', newTok);
-            }
-            if (authRes.session?.refreshToken != null) {
-              await prefs.setString(
-                  'cached_auth_refresh_token', authRes.session!.refreshToken!);
-            }
-          }
-        } catch (e) {
-          debugPrint('[BackgroundSync] Session refresh notice: $e');
-        }
-      }
+      // CRITICAL: Do NOT call client.auth.setSession(refreshToken) in this background isolate!
+      // In Supabase, setSession rotates the refresh token. Calling it in a separate background
+      // isolate consumes the single-use token and invalidates the main app's session, which forces
+      // Supabase server to revoke the refresh token and automatically log the user out upon next open.
+      // Instead, we simply authenticate calls using the cached accessToken in the Authorization header.
 
       userId ??= client.auth.currentUser?.id;
 
@@ -368,30 +353,39 @@ class BackgroundSyncService {
   /// Sets the currently active user ID in SharedPreferences so the background worker knows who to monitor.
   Future<void> syncCurrentUserId(String? userId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       if (userId == null || userId.isEmpty) {
-        await prefs.remove('last_signed_in_user_id');
-        await prefs.remove('cached_auth_access_token');
-        await prefs.remove('cached_auth_refresh_token');
-      } else {
-        await prefs.setString('last_signed_in_user_id', userId);
-        if (Env.isSupabaseConfigured) {
-          await prefs.setString('cached_supabase_url', Env.supabaseUrl);
-          await prefs.setString('cached_supabase_anon_key', Env.supabaseAnonKey);
-          try {
-            final session = Supabase.instance.client.auth.currentSession;
-            if (session != null) {
-              await prefs.setString('cached_auth_access_token', session.accessToken);
-              if (session.refreshToken != null) {
-                await prefs.setString('cached_auth_refresh_token', session.refreshToken!);
-              }
+        // Do NOT wipe out stored user ID or tokens if called with null/empty during app startup!
+        // Only explicit sign-out via clearUser() should clear cached credentials.
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_signed_in_user_id', userId);
+      if (Env.isSupabaseConfigured) {
+        await prefs.setString('cached_supabase_url', Env.supabaseUrl);
+        await prefs.setString('cached_supabase_anon_key', Env.supabaseAnonKey);
+        try {
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null) {
+            await prefs.setString('cached_auth_access_token', session.accessToken);
+            if (session.refreshToken != null) {
+              await prefs.setString('cached_auth_refresh_token', session.refreshToken!);
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('[BackgroundSyncService] syncCurrentUserId error: $e');
     }
+  }
+
+  /// Explicitly clears credentials when user signs out.
+  Future<void> clearUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('last_signed_in_user_id');
+      await prefs.remove('cached_auth_access_token');
+      await prefs.remove('cached_auth_refresh_token');
+    } catch (_) {}
   }
 
   /// Records an already notified ID so background tasks won't produce duplicate alerts.

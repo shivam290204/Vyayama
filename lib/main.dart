@@ -62,9 +62,10 @@ Future<void> main() async {
 
   if (Env.isSupabaseConfigured) {
     try {
-      await BackgroundSyncService.instance.syncCurrentUserId(
-        Supabase.instance.client.auth.currentUser?.id,
-      );
+      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUid != null && currentUid.isNotEmpty) {
+        await BackgroundSyncService.instance.syncCurrentUserId(currentUid);
+      }
     } catch (e) {
       debugPrint('BackgroundSyncService.syncCurrentUserId error: $e');
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
@@ -40,6 +41,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
   static void _clearCachedUser() {
     _cachedUser = null;
+    BackgroundSyncService.instance.clearUser();
     SharedPreferences.getInstance().then((prefs) {
       prefs.remove('last_signed_in_user_id');
       prefs.remove('last_signed_in_user_email');
@@ -89,13 +91,33 @@ class SupabaseAuthRepository implements AuthRepository {
             prefs.setString('last_signed_in_user_id', event.session!.user.id);
           }
         }).catchError((_) {});
-      }
-      final user = event.session?.user;
-      final mapped = user != null ? _mapUser(user) : null;
-      if (event.event == supa.AuthChangeEvent.signedOut) {
+        final mapped = _mapUser(event.session!.user);
+        BackgroundSyncService.instance.syncCurrentUserId(mapped.id);
+        yield mapped;
+      } else if (event.event == supa.AuthChangeEvent.signedOut ||
+                 event.event == supa.AuthChangeEvent.userDeleted) {
         _clearCachedUser();
+        yield null;
+      } else {
+        // Offline or initial session loading with temporary null session:
+        // DO NOT log the user out! Keep cached session if available.
+        if (_cachedUser != null) {
+          yield _cachedUser;
+        } else {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final id = prefs.getString('last_signed_in_user_id');
+            if (id != null && id.isNotEmpty) {
+              final email = prefs.getString('last_signed_in_user_email') ?? '';
+              final name = prefs.getString('last_signed_in_user_name');
+              _cachedUser = AuthUser(id: id, email: email, displayName: name);
+              yield _cachedUser;
+              continue;
+            }
+          } catch (_) {}
+          yield null;
+        }
       }
-      yield mapped;
     }
   }
 
