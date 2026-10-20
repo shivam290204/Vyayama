@@ -27,7 +27,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last_signed_in_user_id'), equals('user-athlete-123'));
 
-      await service.syncCurrentUserId(null);
+      await service.clearUser();
       expect(prefs.getString('last_signed_in_user_id'), isNull);
     });
 
