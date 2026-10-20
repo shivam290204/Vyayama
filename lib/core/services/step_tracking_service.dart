@@ -11,14 +11,18 @@ import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Robust service for real-time hardware step counting, movement detection,
-/// calorie estimation, and active time tracking on the device.
+/// Robust offline-first service for real-time hardware step counting,
+/// movement detection, calorie estimation, and active time tracking on the device.
+///
+/// Uses the hardware sensor `TYPE_STEP_COUNTER` via [pedometer] plugin.
+/// Operates 100% offline without requiring internet connectivity.
 class StepTrackingService with WidgetsBindingObserver {
   StepTrackingService._();
   static final StepTrackingService instance = StepTrackingService._();
 
   StreamSubscription<StepCount>? _stepSubscription;
   StreamSubscription<PedestrianStatus>? _statusSubscription;
+  Timer? _retryTimer;
 
   final _statsController = StreamController<DailyStats>.broadcast();
   Stream<DailyStats> get statsStream => _statsController.stream;
@@ -29,10 +33,13 @@ class StepTrackingService with WidgetsBindingObserver {
 
   bool _isListening = false;
   bool _hasObserver = false;
+  bool _isReconnecting = false;
+
   int _todaySteps = 0;
   int get todaySteps => _todaySteps;
 
   int? _lastRawSensorSteps;
+  int? get lastRawSensorSteps => _lastRawSensorSteps;
 
   int get todayCalories => (_todaySteps * 0.04).round();
   int get todayActiveMinutes => (_todaySteps / 100).ceil();
@@ -51,8 +58,8 @@ class StepTrackingService with WidgetsBindingObserver {
     if (kIsWeb) return;
 
     // 3. Check and request ACTIVITY_RECOGNITION permission
-    await checkPermission();
-    if (!hasPermission.value) {
+    final granted = await checkPermission();
+    if (!granted) {
       await requestPermission();
     } else {
       await _initPedometerStream();
@@ -101,6 +108,7 @@ class StepTrackingService with WidgetsBindingObserver {
     }
   }
 
+  /// Initializes the hardware pedometer stream safely.
   Future<void> _initPedometerStream() async {
     if (kIsWeb) return;
     if (_stepSubscription != null) return;
@@ -109,14 +117,16 @@ class StepTrackingService with WidgetsBindingObserver {
       final isGranted = await checkPermission();
       if (!isGranted) {
         debugPrint('StepTrackingService: Cannot listen to pedometer without permission');
+        isSensorActive.value = false;
+        _isListening = false;
         return;
       }
 
       _stepSubscription = Pedometer.stepCountStream.listen(
         _onStepCount,
         onError: (error) {
-          debugPrint('Pedometer step count stream error: $error');
-          _pausePedometerStream();
+          debugPrint('StepTrackingService: Pedometer step count stream error: $error');
+          _onPedometerError(error);
         },
         cancelOnError: false,
       );
@@ -131,10 +141,9 @@ class StepTrackingService with WidgetsBindingObserver {
           } else {
             pedestrianStatus.value = status.status;
           }
-          debugPrint('Pedestrian status: ${pedestrianStatus.value}');
         },
         onError: (error) {
-          debugPrint('Pedometer status stream error: $error');
+          debugPrint('StepTrackingService: Pedestrian status stream error: $error');
           _statusSubscription?.cancel();
           _statusSubscription = null;
         },
@@ -145,37 +154,72 @@ class StepTrackingService with WidgetsBindingObserver {
       isSensorActive.value = true;
       debugPrint('StepTrackingService: Hardware pedometer stream active');
     } catch (e) {
-      debugPrint('Failed to initialize Pedometer stream: $e');
+      debugPrint('StepTrackingService: Failed to initialize Pedometer stream: $e');
       _isListening = false;
       isSensorActive.value = false;
     }
   }
 
-  /// Pauses the hardware sensor listener when app goes to background.
-  /// Prevents Android OS / vendor battery savers from forcefully killing the app process.
+  void _onPedometerError(dynamic error) {
+    _stepSubscription?.cancel();
+    _stepSubscription = null;
+    _isListening = false;
+    isSensorActive.value = false;
+
+    // Schedule gentle retry to reconnect if sensor was temporarily busy
+    _retryTimer?.cancel();
+    _retryTimer = Timer(const Duration(seconds: 5), () {
+      if (!_isListening) {
+        _initPedometerStream();
+      }
+    });
+  }
+
+  /// Reconnects the sensor stream when returning from background.
+  /// On Android, background sensor listeners can be stalled or detached by OS
+  /// battery optimization. Re-subscribing forces SensorManager to register afresh
+  /// and immediately flush accumulated hardware step events.
+  Future<void> _reconnectSensorStream() async {
+    if (kIsWeb || _isReconnecting) return;
+    _isReconnecting = true;
+    try {
+      await _stepSubscription?.cancel();
+      _stepSubscription = null;
+      await _statusSubscription?.cancel();
+      _statusSubscription = null;
+      _isListening = false;
+
+      await _initPedometerStream();
+    } catch (e) {
+      debugPrint('StepTrackingService: Error reconnecting sensor stream: $e');
+    } finally {
+      _isReconnecting = false;
+    }
+  }
+
+  /// Pauses the hardware sensor listener when needed.
   void _pausePedometerStream() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     _stepSubscription?.cancel();
     _stepSubscription = null;
     _statusSubscription?.cancel();
     _statusSubscription = null;
     _isListening = false;
     isSensorActive.value = false;
-    debugPrint('StepTrackingService: Hardware pedometer stream paused to prevent OS battery kill');
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint('StepTrackingService: App resumed, re-evaluating sensors and stats');
+      debugPrint('StepTrackingService: App resumed, reconnecting sensors and refreshing stats');
       checkPermission().then((granted) {
-        if (granted && !_isListening) {
-          _initPedometerStream();
+        if (granted) {
+          _reconnectSensorStream();
         }
       });
       refresh();
     }
-    // We intentionally do not pause the pedometer stream when minimized or screen locked.
-    // Keeping it active ensures walking with the phone in your pocket continues counting live!
   }
 
   /// Manually increments step count (e.g. treadmill workout or testing).
@@ -211,26 +255,34 @@ class StepTrackingService with WidgetsBindingObserver {
     _emitCurrentStats(forceSync: true);
   }
 
-  /// Pulls the latest step count from SharedPreferences cache, then broadcasts updated stats.
+  /// Pulls the latest step count from local cache, re-verifies sensor, and broadcasts updated stats.
   Future<DailyStats> refresh() async {
+    // 1. Try health service as optional local sensor sync if supported
+    await syncWithHealthService();
+
+    // 2. Load latest verified steps from local offline cache
     await _loadTodayCache();
+
+    // 3. Broadcast updated stats
     _emitCurrentStats(forceSync: true);
     return getTodayStats();
   }
 
-  /// Explicit sync with Health Connect or Apple Health.
+  /// Explicit sync with Health Connect or Apple Health if available.
   Future<DailyStats> syncWithHealthService() async {
     try {
-      final healthSteps = await HealthService.instance.getStepsToday();
-      if (healthSteps != null && healthSteps > _todaySteps) {
-        _todaySteps = healthSteps;
-        final prefs = await SharedPreferences.getInstance();
-        final todayKey = dayKey(DateTime.now());
-        await prefs.setInt('today_steps_$todayKey', _todaySteps);
-        _emitCurrentStats();
+      if (HealthService.instance.isSupported) {
+        final healthSteps = await HealthService.instance.getStepsToday();
+        if (healthSteps != null && healthSteps > _todaySteps) {
+          _todaySteps = healthSteps;
+          final prefs = await SharedPreferences.getInstance();
+          final todayKey = dayKey(DateTime.now());
+          await prefs.setInt('today_steps_$todayKey', _todaySteps);
+          _emitCurrentStats();
+        }
       }
     } catch (e) {
-      debugPrint('Failed to get health steps: $e');
+      debugPrint('StepTrackingService: Optional health sync note: $e');
     }
     return getTodayStats();
   }
@@ -255,73 +307,138 @@ class StepTrackingService with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  /// Real-time hardware step processing:
-  /// Accurately computes steps walked when app is open, minimized, or completely closed.
+  /// Event listener from [Pedometer.stepCountStream].
   Future<void> _onStepCount(StepCount event) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final now = DateTime.now();
-      final todayKey = dayKey(now);
+      await processStepReading(event.steps, eventTime: event.timeStamp);
+    } catch (e) {
+      debugPrint('StepTrackingService: Error in _onStepCount: $e');
+    }
+  }
 
-      final raw = event.steps;
-      final storedLastRaw = prefs.getInt('global_last_hardware_steps');
-      final storedLastDate = prefs.getString('global_last_hardware_date');
+  /// Core hardware step calculation engine.
+  ///
+  /// Pure offline calculation:
+  /// - Reads cumulative step values from the hardware sensor (`TYPE_STEP_COUNTER`).
+  /// - Calculates steps using the delta between latest and previous readings.
+  /// - Accurately counts steps accumulated while app was minimized, screen locked,
+  ///   or app process was closed.
+  /// - Handles phone restarts (counter resets to 0) without losing earlier steps.
+  /// - Automatically rolls over at midnight and archives yesterday's total.
+  /// - Filters out duplicate readings and corrupt glitches.
+  /// - Persists all data locally so tracking survives restarts without internet.
+  @visibleForTesting
+  Future<int> processStepReading(
+    int raw, {
+    DateTime? eventTime,
+    SharedPreferences? overridePrefs,
+  }) async {
+    if (raw < 0) return _todaySteps;
+    final prefs = overridePrefs ?? await SharedPreferences.getInstance();
+    final now = eventTime ?? DateTime.now();
+    final todayKeyStr = dayKey(now);
 
-      if (storedLastRaw == null) {
-        // First hardware reading established on this device
-        await prefs.setInt('global_last_hardware_steps', raw);
-        await prefs.setString('global_last_hardware_date', todayKey);
-        await prefs.setInt('today_steps_$todayKey', _todaySteps);
-        _lastRawSensorSteps = raw;
-        debugPrint('StepTrackingService: Hardware sensor baseline set at $raw steps');
-        _emitCurrentStats();
-        return;
+    final storedDate = prefs.getString('global_last_hardware_date');
+    final storedLastRaw = prefs.getInt('global_last_hardware_steps');
+    int currentDaySteps = prefs.getInt('today_steps_$todayKeyStr') ?? _todaySteps;
+
+    // Case 1: First hardware reading established on this device/install
+    if (storedLastRaw == null) {
+      _lastRawSensorSteps = raw;
+      _todaySteps = currentDaySteps; // Preserve any steps recorded today
+      await prefs.setInt('global_last_hardware_steps', raw);
+      await prefs.setString('global_last_hardware_date', todayKeyStr);
+      await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+      debugPrint('StepTrackingService: Initial hardware baseline set at $raw steps (today: $_todaySteps)');
+      isSensorActive.value = true;
+      _emitCurrentStats();
+      return _todaySteps;
+    }
+
+    // Case 2: Midnight rollover (Date changed)
+    if (storedDate != null && storedDate != todayKeyStr) {
+      debugPrint('StepTrackingService: Midnight rollover detected ($storedDate -> $todayKeyStr)');
+
+      // Archive yesterday's stats in local storage for history & weekly charts
+      try {
+        final yesterdaySteps = prefs.getInt('today_steps_$storedDate') ?? _todaySteps;
+        final yesterdayDate = DateTime.tryParse(storedDate) ??
+            DateTime(now.year, now.month, now.day - 1);
+        await LocalDailyStatsStorage.instance.save(
+          DailyStats(
+            date: yesterdayDate,
+            steps: yesterdaySteps,
+            calories: (yesterdaySteps * 0.04).round(),
+            activeMinutes: (yesterdaySteps / 100).ceil(),
+          ),
+          markPendingSync: true,
+        );
+      } catch (e) {
+        debugPrint('StepTrackingService: Error archiving yesterday stats: $e');
       }
 
+      // Compute steps accumulated overnight since yesterday's last reading
+      int overnightDelta = 0;
+      if (raw >= storedLastRaw) {
+        overnightDelta = raw - storedLastRaw;
+      } else {
+        // Device rebooted overnight
+        overnightDelta = raw;
+      }
+
+      // Sanitize delta against impossible hardware jumps
+      if (overnightDelta < 0 || overnightDelta > 100000) {
+        overnightDelta = 0;
+      }
+
+      // New day starts fresh: any existing steps for today (e.g. manual log) + overnight delta
+      final existingToday = prefs.getInt('today_steps_$todayKeyStr') ?? 0;
+      currentDaySteps = existingToday + overnightDelta;
+    } else {
+      // Case 3: Same day accumulation
       int delta = 0;
       if (raw < storedLastRaw) {
-        // Device was rebooted while app was open or closed: counter reset to 0
+        // Device was rebooted: hardware counter reset to 0
         debugPrint('StepTrackingService: Phone reboot detected ($raw < $storedLastRaw)');
         delta = raw;
       } else {
         delta = raw - storedLastRaw;
       }
 
-      if (storedLastDate != todayKey) {
-        // Day rolled over (e.g. overnight while app was closed or running)
-        debugPrint('StepTrackingService: New day detected ($storedLastDate -> $todayKey)');
-        _todaySteps += (delta > 0 ? delta : 0);
-      } else {
-        // Same day: add steps taken (including any while app was closed!)
-        if (delta > 0) {
-          _todaySteps += delta;
-        }
+      // Prevent duplicate event increments (delta == 0) and filter corrupt spikes
+      if (delta > 0 && delta <= 100000) {
+        currentDaySteps += delta;
+      } else if (delta > 100000) {
+        debugPrint('StepTrackingService: Anomalous delta $delta ignored (raw=$raw, last=$storedLastRaw)');
       }
-
-      _lastRawSensorSteps = raw;
-      await prefs.setInt('global_last_hardware_steps', raw);
-      await prefs.setString('global_last_hardware_date', todayKey);
-      await prefs.setInt('today_steps_$todayKey', _todaySteps);
-
-      debugPrint('StepTrackingService: Processed +$delta steps (raw: $raw). Today total: $_todaySteps');
-      _emitCurrentStats();
-    } catch (e) {
-      debugPrint('Error updating step count: $e');
     }
+
+    _todaySteps = currentDaySteps;
+    _lastRawSensorSteps = raw;
+    isSensorActive.value = true;
+
+    // Persist all tracking state locally (100% offline)
+    await prefs.setInt('global_last_hardware_steps', raw);
+    await prefs.setString('global_last_hardware_date', todayKeyStr);
+    await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+
+    debugPrint('StepTrackingService: Processed raw=$raw, todaySteps=$_todaySteps');
+    _emitCurrentStats(currentTime: now);
+    return _todaySteps;
   }
 
   DateTime? _lastNotificationUpdateTime;
   int _lastNotifiedSteps = -1;
 
-  void _emitCurrentStats({bool forceSync = false}) {
-    final now = DateTime.now();
+  void _emitCurrentStats({bool forceSync = false, DateTime? currentTime}) {
+    final now = currentTime ?? DateTime.now();
     final stats = DailyStats(
       date: now,
       steps: _todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
-    // Always broadcast live stats to UI subscribers immediately
+    // Broadcast live stats to all UI subscribers immediately
     _statsController.add(stats);
 
     final timeSinceLastNotif = _lastNotificationUpdateTime == null
@@ -363,5 +480,21 @@ class StepTrackingService with WidgetsBindingObserver {
     }
     _pausePedometerStream();
     pedestrianStatus.value = 'Stationary';
+  }
+
+  @visibleForTesting
+  void handlePedometerError(dynamic error) => _onPedometerError(error);
+
+  @visibleForTesting
+  void resetForTesting() {
+    _todaySteps = 0;
+    _lastRawSensorSteps = null;
+    _lastNotificationUpdateTime = null;
+    _lastNotifiedSteps = -1;
+    isSensorActive.value = false;
+    hasPermission.value = false;
+    pedestrianStatus.value = 'Stationary';
+    _isListening = false;
+    _isReconnecting = false;
   }
 }
