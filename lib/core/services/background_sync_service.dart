@@ -39,7 +39,6 @@ void callbackDispatcher() {
       }
 
       final accessToken = prefs.getString('cached_auth_access_token');
-      final refreshToken = prefs.getString('cached_auth_refresh_token');
 
       // Initialize Supabase in this background isolate if needed
       try {

@@ -115,5 +115,35 @@ void main() {
       const unknown = Profile(id: '3');
       expect(unknown.isMinor, false);
     });
+
+    test('updates weight and height to 50kg and 182cm accurately', () {
+      const initial = Profile(
+        id: 'user-xyz',
+        name: 'Shivam',
+        age: 22,
+        gender: 'male',
+        weightKg: 70.0,
+        heightCm: 175.0,
+        goal: 'maintain',
+        fitnessLevel: 'beginner',
+      );
+
+      final updated = initial.copyWith(
+        weightKg: 50.0,
+        heightCm: 182.0,
+        goal: 'lose',
+      );
+
+      expect(updated.weightKg, 50.0);
+      expect(updated.heightCm, 182.0);
+      expect(updated.goal, 'lose');
+      expect(updated.name, 'Shivam');
+      expect(updated.age, 22);
+
+      final json = updated.toJson();
+      expect(json['weight_kg'], 50.0);
+      expect(json['height_cm'], 182.0);
+      expect(json['goal'], 'lose');
+    });
   });
 }

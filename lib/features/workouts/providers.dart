@@ -6,6 +6,7 @@ import 'package:fitbuddy/features/workouts/data/repository_providers.dart';
 import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
 import 'package:fitbuddy/features/workouts/logic/default_plan_picker.dart';
 import 'package:fitbuddy/features/workouts/logic/plan_adapter.dart';
+import 'package:fitbuddy/features/workouts/logic/recommendation_engine.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -109,7 +110,7 @@ final weightKgProvider = FutureProvider<double>((ref) async {
   return 70.0;
 });
 
-/// The system plan recommended for the user's goal and level.
+/// The system plan recommended for the user's goal and level via AI engine.
 final defaultPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
   final plans = await ref.watch(systemPlansProvider.future);
   Profile? profile;
@@ -118,13 +119,63 @@ final defaultPlanProvider = FutureProvider<WorkoutPlan?>((ref) async {
   } catch (_) {
     profile = null;
   }
+  final library = await ref.watch(exerciseLibraryProvider.future);
+  final conditions = ref.watch(selectedConditionTagsProvider);
   final Object? rawAge = profile?.age;
+
+  final userContext = UserFitnessContext(
+    goal: profile?.goal ?? 'maintain',
+    level: profile?.fitnessLevel ?? 'beginner',
+    age: rawAge is int ? rawAge : null,
+    conditionTags: conditions.toList(),
+  );
+
+  final ranked = WorkoutRecommendationEngine.rankPlans(
+    plans: plans,
+    exerciseLibrary: library,
+    context: userContext,
+  );
+
+  if (ranked.isNotEmpty) {
+    return ranked.first.plan;
+  }
+
   return pickDefaultPlan(
     plans: plans,
     goal: profile?.goal,
     level: profile?.fitnessLevel,
     age: rawAge is int ? rawAge : null,
   );
+});
+
+/// Detailed AI/ML plan recommendation breakdown for the active user.
+final activeAiRecommendationProvider =
+    FutureProvider<PlanRecommendation?>((ref) async {
+  final plans = await ref.watch(systemPlansProvider.future);
+  Profile? profile;
+  try {
+    profile = await ref.watch(currentProfileProvider.future);
+  } catch (_) {
+    profile = null;
+  }
+  final library = await ref.watch(exerciseLibraryProvider.future);
+  final conditions = ref.watch(selectedConditionTagsProvider);
+  final Object? rawAge = profile?.age;
+
+  final userContext = UserFitnessContext(
+    goal: profile?.goal ?? 'maintain',
+    level: profile?.fitnessLevel ?? 'beginner',
+    age: rawAge is int ? rawAge : null,
+    conditionTags: conditions.toList(),
+  );
+
+  final ranked = WorkoutRecommendationEngine.rankPlans(
+    plans: plans,
+    exerciseLibrary: library,
+    context: userContext,
+  );
+
+  return ranked.isNotEmpty ? ranked.first : null;
 });
 
 /// Everything the guided session needs for one plan day.

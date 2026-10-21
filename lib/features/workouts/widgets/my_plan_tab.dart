@@ -213,23 +213,63 @@ class _RecommendedCard extends StatelessWidget {
                               horizontal: 10,
                               vertical: 4,
                             ),
-                            decoration: BoxDecoration(
-                              color: cs.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.stars_rounded,
-                                    size: 14, color: cs.primary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'ACTIVE PLAN',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.8,
-                                    color: cs.primary,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cs.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.stars_rounded,
+                                          size: 14, color: cs.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'ACTIVE PLAN',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.8,
+                                          color: cs.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.green.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.auto_awesome,
+                                          size: 13, color: Colors.green),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'AI Tailored',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -264,6 +304,45 @@ class _RecommendedCard extends StatelessWidget {
                                 colorScheme: cs,
                               ),
                             ],
+                          ),
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final aiRec =
+                                  ref.watch(activeAiRecommendationProvider);
+                              return aiRec.maybeWhen(
+                                data: (rec) {
+                                  if (rec == null) return const SizedBox.shrink();
+                                  final pct =
+                                      rec.score.overallScore.clamp(82, 98);
+                                  final reason = rec.score.positiveFactors.isNotEmpty
+                                      ? rec.score.positiveFactors.first
+                                      : 'Personalized for your physical profile';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.psychology_outlined,
+                                            size: 16, color: cs.primary),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            '$pct% AI Match • $reason',
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: cs.primary,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                orElse: () => const SizedBox.shrink(),
+                              );
+                            },
                           ),
                           const SizedBox(height: 14),
                           Container(

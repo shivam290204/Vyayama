@@ -56,5 +56,9 @@ key.properties
 *.keystore
 *.jks
 
+# Compiled binaries & artifacts
+*.apk
+*.aab
+
 # Widget Preview related
 .widget_preview/

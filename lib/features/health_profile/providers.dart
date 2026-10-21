@@ -16,16 +16,22 @@ import 'package:fitbuddy/features/health_profile/reminders/mock_reminder_schedul
 import 'package:fitbuddy/features/health_profile/reminders/reminder_builders.dart';
 import 'package:fitbuddy/features/health_profile/reminders/reminder_scheduler.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
+import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/features/health_profile/data/supabase_health_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Repository for conditions, medicines and meal reminder times.
-/// Uses persistent local SharedPreferences storage, with fallback to in-memory Mock.
+/// Uses SupabaseHealthRepository when configured, falling back to persistent local
+/// SharedPreferences storage or in-memory Mock.
 final healthRepositoryProvider = Provider<HealthRepository>(
   (ref) {
     try {
       final prefs = ref.watch(sharedPreferencesProvider);
+      if (Env.isSupabaseConfigured) {
+        return SupabaseHealthRepository(prefs: prefs);
+      }
       return SharedPrefsHealthRepository(prefs);
     } catch (_) {
       return MockHealthRepository();

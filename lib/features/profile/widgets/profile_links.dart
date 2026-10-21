@@ -8,6 +8,7 @@ class ProfileLinks extends StatelessWidget {
   const ProfileLinks({super.key});
 
   static const List<(IconData, String, String)> _links = [
+    (Icons.monitor_weight_outlined, 'Body Mass Index (BMI)', AppRoutes.bmi),
     (Icons.restaurant_menu_rounded, 'Nutrition', AppRoutes.nutrition),
     (Icons.favorite_border_rounded, 'Health', AppRoutes.health),
     (Icons.bedtime_outlined, 'Sleep', AppRoutes.sleep),

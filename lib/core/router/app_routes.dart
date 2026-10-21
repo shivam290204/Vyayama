@@ -48,6 +48,7 @@ abstract final class AppRoutes {
   static const String notificationDiagnostics = '/settings/diagnostics';
   static const String profile = '/profile';
   static const String profileEdit = '/profile/edit';
+  static const String bmi = '/profile/bmi';
 
   // Helpers for parameterized paths
   static String workoutPlanPath(String id) =>

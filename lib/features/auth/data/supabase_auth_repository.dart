@@ -94,8 +94,7 @@ class SupabaseAuthRepository implements AuthRepository {
         final mapped = _mapUser(event.session!.user);
         BackgroundSyncService.instance.syncCurrentUserId(mapped.id);
         yield mapped;
-      } else if (event.event == supa.AuthChangeEvent.signedOut ||
-                 event.event == supa.AuthChangeEvent.userDeleted) {
+      } else if (event.event == supa.AuthChangeEvent.signedOut) {
         _clearCachedUser();
         yield null;
       } else {

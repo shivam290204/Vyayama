@@ -117,18 +117,22 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
     setState(() => _saving = true);
     try {
       final rawUser = _username.text.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
+      final parsedAge = int.tryParse(_age.text.trim()) ?? widget.profile.age;
+      final parsedWeight = ProfileValidators.weightKg(_weight, unit) ?? widget.profile.weightKg;
+      final parsedHeight = ProfileValidators.heightCm(
+        unit: unit,
+        cm: _cm,
+        ft: _ft,
+        inch: _inch,
+      ) ?? widget.profile.heightCm;
+
       final updated = widget.profile.copyWith(
-        name: _name.text.trim(),
+        name: _name.text.trim().isEmpty ? widget.profile.name : _name.text.trim(),
         username: rawUser.isEmpty ? null : rawUser,
-        age: int.parse(_age.text.trim()),
+        age: parsedAge,
         gender: _gender,
-        weightKg: ProfileValidators.weightKg(_weight, unit),
-        heightCm: ProfileValidators.heightCm(
-          unit: unit,
-          cm: _cm,
-          ft: _ft,
-          inch: _inch,
-        ),
+        weightKg: parsedWeight,
+        heightCm: parsedHeight,
         goal: _goal,
         fitnessLevel: _level,
       );
@@ -140,7 +144,8 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
       } else {
         context.go(AppRoutes.profile);
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[EditProfileForm] Save failed: $e\n$st');
       _toast("We couldn't save your profile. Please try again.");
     } finally {
       if (mounted) setState(() => _saving = false);

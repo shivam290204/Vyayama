@@ -6,6 +6,7 @@ import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
+import 'package:fitbuddy/features/profile/widgets/bmi_card.dart';
 import 'package:fitbuddy/features/profile/widgets/profile_avatar.dart';
 import 'package:fitbuddy/features/profile/widgets/profile_links.dart';
 import 'package:fitbuddy/features/profile/widgets/profile_stats.dart';
@@ -105,6 +106,8 @@ class _ProfileBody extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
             ProfileStats(profile: profile),
+            const SizedBox(height: AppSpacing.xl),
+            BmiCard(profile: profile),
             const SizedBox(height: AppSpacing.xl),
             const ProfileLinks(),
           ],

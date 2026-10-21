@@ -14,6 +14,7 @@ import android.provider.Settings
 import android.util.Rational
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
@@ -21,8 +22,45 @@ class MainActivity : FlutterActivity() {
     private var methodChannel: MethodChannel? = null
     private var autoEnterPipOnUserLeave: Boolean = false
 
+    private val STEP_CHANNEL = "io.vyayama.fitbuddy/step_sensor"
+    private val STEP_EVENTS_CHANNEL = "io.vyayama.fitbuddy/step_events"
+    private var stepSensorManager: StepSensorManager? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        
+        // Initialize Native Step Sensor Manager
+        val stepMgr = StepSensorManager(this)
+        stepSensorManager = stepMgr
+        stepMgr.register()
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, STEP_EVENTS_CHANNEL).apply {
+            setStreamHandler(stepMgr)
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, STEP_CHANNEL).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getSensorDiagnostics" -> {
+                        result.success(stepSensorManager?.getDiagnostics() ?: emptyMap<String, Any>())
+                    }
+                    "flushSensor" -> {
+                        result.success(stepSensorManager?.flushSensor() ?: false)
+                    }
+                    "getDeviceBootTimeMs" -> {
+                        result.success(stepSensorManager?.getDeviceBootTimeMs() ?: 0L)
+                    }
+                    "hasActivityRecognitionPermission" -> {
+                        result.success(stepSensorManager?.hasPermission() ?: false)
+                    }
+                    "getLatestHardwareReading" -> {
+                        result.success(stepSensorManager?.getLatestHardwareReading() ?: emptyMap<String, Any>())
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
+
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -63,6 +101,16 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        stepSensorManager?.onResume()
+    }
+
+    override fun onDestroy() {
+        stepSensorManager?.unregister()
+        super.onDestroy()
     }
 
     private fun isPipSupported(): Boolean {

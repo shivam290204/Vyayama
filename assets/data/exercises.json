@@ -734,7 +734,7 @@
     },
     {
       "id": "ex_child_pose",
-      "name": "Child's Pose",
+      "name": "Balasana (Child's Pose)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
@@ -743,14 +743,14 @@
         "knee"
       ],
       "instructions": [
-        "Kneel on the mat with big toes touching and knees hip-width or wider.",
-        "Sit your hips back toward your heels.",
-        "Fold forward with arms extended or resting by your sides.",
-        "Breathe slowly. Place a cushion under your hips or knees if needed."
+        "Kneel on the mat with big toes touching and knees wide apart.",
+        "Sit your hips back toward your heels and fold forward.",
+        "Rest your forehead gently on the mat and extend arms forward or alongside your body.",
+        "Breathe deeply into your lower back and ribs."
       ],
       "common_mistakes": [
-        "Forcing the hips to the heels when the knees complain.",
-        "Tensing the shoulders."
+        "Forcing hips down when knees are painful.",
+        "Holding tension in the neck."
       ],
       "video_url": "https://www.youtube.com/watch?v=2MJGg-dUKh0"
     },
@@ -798,7 +798,7 @@
     },
     {
       "id": "ex_warrior_1",
-      "name": "Warrior I Pose (Virabhadrasana I)",
+      "name": "Virabhadrasana I (Warrior I)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
@@ -808,21 +808,20 @@
         "shoulder"
       ],
       "instructions": [
-        "Step one foot forward into a lunge with your front knee bent at 90 degrees.",
-        "Turn your back foot out slightly at a 45-degree angle, grounding through your heel.",
-        "Square your hips forward and sweep both arms straight overhead.",
-        "Draw your shoulders down away from your ears and gaze slightly upward.",
+        "Step one foot forward into a lunge with front knee bent at 90 degrees.",
+        "Turn back foot out 45 degrees, grounding firmly through heel.",
+        "Square hips forward and sweep both arms straight overhead.",
         "Hold for 5 deep breaths, then switch sides."
       ],
       "common_mistakes": [
-        "Letting the front knee collapse inward past the ankle.",
-        "Arching the lower back excessively instead of engaging the core."
+        "Letting front knee collapse inward.",
+        "Over-arching lower back."
       ],
       "video_url": "https://www.youtube.com/watch?v=kkGY3xBnaGc"
     },
     {
       "id": "ex_downward_dog",
-      "name": "Downward-Facing Dog (Adho Mukha Svanasana)",
+      "name": "Adho Mukha Svanasana (Downward-Facing Dog)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
@@ -832,21 +831,20 @@
         "shoulder"
       ],
       "instructions": [
-        "Start on all fours with your hands under shoulders and knees under hips.",
-        "Tuck your toes and press through your hands to lift your hips toward the ceiling.",
-        "Form an inverted V-shape, lengthening through your spine and tailbone.",
-        "Press your heels gently toward the mat and relax your neck between your upper arms.",
-        "Breathe steadily for 5 to 8 slow breaths."
+        "From hands and knees, tuck toes and lift hips toward ceiling in an inverted V.",
+        "Press evenly through all ten fingers, rotating upper arms outward.",
+        "Pedal heels gently or keep knees slightly bent to lengthen spine.",
+        "Hold for 5 smooth breaths."
       ],
       "common_mistakes": [
-        "Rounding the upper back instead of lengthening the spine.",
-        "Dumping all weight onto the wrists without pressing through fingers."
+        "Dumping weight onto wrists.",
+        "Rounding lower back to force heels to the floor."
       ],
       "video_url": "https://www.youtube.com/watch?v=WhbfS-GR32U"
     },
     {
       "id": "ex_cobra_pose",
-      "name": "Cobra Pose (Bhujangasana)",
+      "name": "Bhujangasana (Cobra Pose)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.3,
@@ -856,21 +854,21 @@
         "wrist"
       ],
       "instructions": [
-        "Lie face down on the mat with your legs extended and tops of feet flat.",
-        "Place your palms flat under your shoulders with elbows tucked close to your ribs.",
-        "Inhale and gently press into your hands to lift your chest off the floor.",
-        "Keep a slight bend in your elbows and gaze forward, opening your chest.",
-        "Hold for 15-30 seconds, then gently lower down on an exhale."
+        "Lie face down with legs extended and tops of feet flat.",
+        "Place palms flat under your shoulders with elbows tucked close to your ribs.",
+        "Inhale and gently lift your chest off the floor using your back muscles.",
+        "Keep a soft bend in elbows and open your heart forward.",
+        "Hold for 15-30 seconds, then release down on an exhale."
       ],
       "common_mistakes": [
-        "Crunching the lower back by pushing too high too fast.",
-        "Shrugging the shoulders up toward the ears."
+        "Pushing too high too quickly and pinching the lower back.",
+        "Shrugging shoulders into the ears."
       ],
       "video_url": "https://www.youtube.com/watch?v=fOdrW7nf9gw"
     },
     {
       "id": "ex_tree_pose",
-      "name": "Tree Pose (Vrikshasana)",
+      "name": "Vrikshasana (Tree Pose)",
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 2.0,
@@ -879,21 +877,21 @@
         "knee"
       ],
       "instructions": [
-        "Stand tall in mountain pose with your weight evenly distributed across both feet.",
-        "Shift weight onto your left foot and place the sole of your right foot against your left inner calf or inner thigh (never directly on the knee).",
-        "Bring your hands together at prayer position in front of your chest or reach them overhead.",
-        "Fix your gaze on a non-moving point in front of you for stability.",
-        "Hold for 30 seconds, breathe calmly, then switch sides."
+        "Stand tall in mountain pose with weight evenly distributed.",
+        "Shift weight to your standing leg and place the sole of the other foot against inner calf or thigh (never on the knee).",
+        "Bring hands together at prayer position in front of your chest or reach overhead.",
+        "Fix your gaze on an unmoving spot in front of you.",
+        "Hold for 30 seconds, breathe smoothly, then switch sides."
       ],
       "common_mistakes": [
-        "Placing the sole of the foot directly on the knee joint.",
+        "Placing the sole directly against the knee joint.",
         "Holding your breath while balancing."
       ],
       "video_url": "https://www.youtube.com/watch?v=wdln9qWYloU"
     },
     {
       "id": "ex_seated_forward_fold",
-      "name": "Seated Forward Fold (Paschimottanasana)",
+      "name": "Paschimottanasana (Seated Forward Bend)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
@@ -902,21 +900,20 @@
         "lower_back"
       ],
       "instructions": [
-        "Sit on your mat with legs extended straight in front of you and toes flexed back.",
-        "Inhale and lengthen your spine upward, reaching both arms overhead.",
-        "Exhale and hinge forward from the hips, leading with your chest toward your shins.",
-        "Grasp your shins, ankles, or feet without straining or forcing.",
-        "Breathe deeply into the stretch for 30 to 60 seconds."
+        "Sit with legs straight in front of you and toes flexed back.",
+        "Inhale arms overhead, then exhale and hinge forward from hips.",
+        "Hold shins, ankles, or feet with chest leading toward thighs.",
+        "Hold for 30 to 60 seconds with steady, deep breaths."
       ],
       "common_mistakes": [
-        "Rounding the upper back aggressively just to touch the toes.",
-        "Tensing the shoulders and neck."
+        "Rounding upper back aggressively.",
+        "Pulling hard with arms."
       ],
       "video_url": "https://www.youtube.com/watch?v=wVdOp3h1nog"
     },
     {
       "id": "ex_bridge_pose",
-      "name": "Bridge Pose (Setu Bandhasana)",
+      "name": "Setu Bandhasana (Bridge Pose)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
@@ -925,57 +922,54 @@
         "lower_back"
       ],
       "instructions": [
-        "Lie on your back with knees bent and feet flat on the mat, hip-distance apart.",
-        "Place your arms along your sides with palms facing down.",
-        "Press firmly through your feet and lift your hips and chest toward the ceiling.",
-        "Roll your shoulders underneath you and clasp your hands under your pelvis if comfortable.",
-        "Hold for 30 to 45 seconds, breathing smoothly, then release slowly down vertebra by vertebra."
+        "Lie on your back with knees bent and feet flat on mat hip-width apart.",
+        "Press feet into the floor and lift hips toward the ceiling.",
+        "Roll shoulders underneath you and lengthen tailbone toward backs of knees.",
+        "Hold for 30 seconds, breathing smoothly, then lower vertebra by vertebra."
       ],
       "common_mistakes": [
-        "Letting the knees splay out wide to the sides.",
-        "Over-arching the lumbar spine."
+        "Letting knees splay outward.",
+        "Over-compressing neck."
       ],
       "video_url": "https://www.youtube.com/watch?v=5QSVSePZgh8"
     },
     {
       "id": "ex_savasana",
-      "name": "Corpse Pose (Savasana)",
+      "name": "Shavasana (Corpse Pose)",
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
       "animation_asset": "assets/exercises/meditation.png",
       "contraindications": [],
       "instructions": [
-        "Lie flat on your back with your legs naturally falling open and arms resting beside your body, palms facing up.",
+        "Lie flat on your back with legs naturally apart and arms beside body, palms up.",
         "Close your eyes and release all muscular tension from head to toes.",
-        "Allow your breathing to become natural, slow, and effortless.",
-        "Stay still and quiet, allowing your mind and body to absorb the benefits of practice.",
-        "Rest in this pose for 3 to 5 minutes."
+        "Allow breath to become soft, natural, and effortless.",
+        "Rest quietly for 3 to 5 minutes."
       ],
       "common_mistakes": [
-        "Fidgeting or holding onto physical tension in the jaw or shoulders.",
-        "Rushing to stand up quickly at the end."
+        "Fidgeting or holding muscular tension in jaw and shoulders."
       ],
       "video_url": "https://www.youtube.com/watch?v=9ZsTLblha9o"
     },
     {
       "id": "ex_mountain_pose",
-      "name": "Mountain Pose (Tadasana)",
+      "name": "Tadasana (Mountain Pose)",
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 1.8,
       "animation_asset": "assets/exercises/standing_hero.png",
       "contraindications": [],
       "instructions": [
-        "Stand with feet together or hip-width apart, distributing weight evenly through both feet.",
-        "Ground through the four corners of your feet and engage your quadriceps lightly.",
-        "Draw your tailbone slightly down, lengthen your spine, and relax your shoulders back and down.",
-        "Let your arms hang naturally by your sides with palms facing forward.",
-        "Breathe steadily and hold for 30 to 60 seconds with relaxed focus."
+        "Stand tall with big toes touching and heels slightly apart, distributing weight evenly.",
+        "Ground through the four corners of your feet and engage quadriceps lightly.",
+        "Draw your tailbone slightly down, lengthen your spine, and relax shoulders back and down.",
+        "Let arms hang naturally by your sides with palms facing forward.",
+        "Breathe steadily and hold for 30 to 60 seconds."
       ],
       "common_mistakes": [
         "Locking knees backward into hyperextension.",
-        "Tensing the shoulders up around the neck."
+        "Tensing shoulders up around the neck."
       ],
       "video_url": "https://www.youtube.com/watch?v=5NxDs-ovJU8"
     },
@@ -1120,6 +1114,838 @@
         "Arching the lower back while pressing overhead."
       ],
       "video_url": "https://www.youtube.com/watch?v=nRiJVZDpdL0"
+    },
+    {
+      "id": "ex_warrior_2",
+      "name": "Virabhadrasana II (Warrior II)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/warrior_pose.png",
+      "contraindications": [
+        "knee",
+        "shoulder"
+      ],
+      "instructions": [
+        "Step feet wide apart. Turn front foot out 90 degrees and back foot in slightly.",
+        "Inhale arms parallel to floor; exhale and bend front knee to 90 degrees.",
+        "Keep torso centered and gaze over front fingertips.",
+        "Hold for 5 deep breaths, then switch sides."
+      ],
+      "common_mistakes": [
+        "Leaning torso forward over front knee.",
+        "Letting back arm droop."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=4PkSkY1h18Q"
+    },
+    {
+      "id": "ex_triangle_pose",
+      "name": "Trikonasana (Triangle Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.3,
+      "animation_asset": "assets/exercises/warrior_pose.png",
+      "contraindications": [
+        "lower_back",
+        "neck"
+      ],
+      "instructions": [
+        "Stand with wide legs. Turn front foot out 90 degrees, back foot in slightly.",
+        "Inhale arms parallel to floor, exhale and reach sideways over front leg.",
+        "Lower front hand to shin, ankle, or block, extending top arm toward sky.",
+        "Keep chest open and hold for 5 breaths."
+      ],
+      "common_mistakes": [
+        "Collapsing chest downward toward mat.",
+        "Locking front knee joint."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=upFYlxZHif0"
+    },
+    {
+      "id": "ex_marjaryasana",
+      "name": "Marjaryasana (Cat Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/cat_cow.png",
+      "contraindications": [
+        "wrist"
+      ],
+      "instructions": [
+        "Begin on all fours with wrists directly under shoulders and knees under hips.",
+        "Exhale and round your spine upward toward the ceiling, tucking your tailbone.",
+        "Gently release your head toward the floor without forcing your chin to chest.",
+        "Draw your navel in toward your spine to deeply stretch back muscles."
+      ],
+      "common_mistakes": [
+        "Collapsing weight into wrists.",
+        "Holding breath during flexion."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=W5KGhyTllv0"
+    },
+    {
+      "id": "ex_bitilasana",
+      "name": "Bitilasana (Cow Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/cat_cow.png",
+      "contraindications": [
+        "neck",
+        "lower_back"
+      ],
+      "instructions": [
+        "From tabletop on all fours, inhale and drop your belly toward the mat.",
+        "Lift your chest, collarbones, and tailbone toward the ceiling.",
+        "Gaze gently forward or slightly upward without compressing back of neck.",
+        "Open through the chest while keeping core lightly engaged."
+      ],
+      "common_mistakes": [
+        "Over-arching the neck backward.",
+        "Hyperextending elbows."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=W5KGhyTllv0"
+    },
+    {
+      "id": "ex_sukhasana",
+      "name": "Sukhasana (Easy Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 1.5,
+      "animation_asset": "assets/exercises/meditation.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Sit cross-legged comfortably on your mat, elevating hips on a folded blanket if needed.",
+        "Lengthen your spine upward from tailbone to crown of head.",
+        "Rest your hands palms-up or palms-down on your knees.",
+        "Relax your face and shoulders, breathing deeply and evenly."
+      ],
+      "common_mistakes": [
+        "Slouching or rounding the lower back.",
+        "Tensing hips and knees."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=1Fep4eKvh1U"
+    },
+    {
+      "id": "ex_vajrasana",
+      "name": "Vajrasana (Thunderbolt Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 1.8,
+      "animation_asset": "assets/exercises/child_pose.png",
+      "contraindications": [
+        "knee",
+        "ankle"
+      ],
+      "instructions": [
+        "Kneel on the floor with knees together and big toes touching.",
+        "Lower your buttocks onto the heels, resting palms flat on thighs.",
+        "Keep the spine erect and chest open.",
+        "Breathe slowly; this pose aids digestion after meals."
+      ],
+      "common_mistakes": [
+        "Allowing ankles to splay wide outward.",
+        "Forcing weight when knees ache."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=gT8j6w61m58"
+    },
+    {
+      "id": "ex_makarasana",
+      "name": "Makarasana (Crocodile Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 1.5,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [],
+      "instructions": [
+        "Lie prone on your stomach with legs comfortably apart, heels turned in or out.",
+        "Cross your arms in front of you, holding opposite elbows or stacking palms.",
+        "Rest your forehead or cheek on your folded forearms.",
+        "Close your eyes and breathe deeply into the belly, relaxing the entire spine."
+      ],
+      "common_mistakes": [
+        "Tensing shoulder blades.",
+        "Shallow breathing."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=0h3jOszvLzY"
+    },
+    {
+      "id": "ex_pavanamuktasana",
+      "name": "Pavanamuktasana (Wind-Relieving Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/dead_bug.png",
+      "contraindications": [
+        "lower_back",
+        "knee"
+      ],
+      "instructions": [
+        "Lie on your back and draw both knees gently in toward your chest.",
+        "Clasp your hands or forearms around your shins.",
+        "Keep your lower back and tailbone grounded onto the mat.",
+        "Gently rock side to side to massage your lumbar spine."
+      ],
+      "common_mistakes": [
+        "Lifting the head aggressively when neck is tight.",
+        "Squeezing knees beyond comfort."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=P7Gf13k8G3s"
+    },
+    {
+      "id": "ex_baddha_konasana",
+      "name": "Baddha Konasana (Butterfly Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "knee",
+        "hip"
+      ],
+      "instructions": [
+        "Sit tall with soles of your feet pressed together, drawing heels comfortably near groin.",
+        "Hold feet with hands and lengthen spine upwards.",
+        "Gently press knees down toward the floor without forcing or bouncing.",
+        "Breathe into inner thighs and hips for 30 to 60 seconds."
+      ],
+      "common_mistakes": [
+        "Forcefully pressing knees down with hands.",
+        "Rounding the spine into a hunch."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=i9Yy68kM_6A"
+    },
+    {
+      "id": "ex_ardha_matsyendrasana",
+      "name": "Ardha Matsyendrasana (Half Spinal Twist)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.2,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Sit with legs extended. Bend right knee and place right foot outside left thigh.",
+        "Inhale and reach left arm overhead, lengthening spine.",
+        "Exhale and twist torso right, hugging right knee with left arm or hooking elbow.",
+        "Place right fingertips on floor behind you for support. Breathe and switch sides."
+      ],
+      "common_mistakes": [
+        "Slumping through the lumbar spine while twisting.",
+        "Cranking neck excessively."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=D-Zp256f08I"
+    },
+    {
+      "id": "ex_virabhadrasana_3",
+      "name": "Virabhadrasana III (Warrior III)",
+      "muscle_group": "flexibility",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/standing_hero.png",
+      "contraindications": [
+        "knee",
+        "lower_back"
+      ],
+      "instructions": [
+        "From a high lunge, shift weight onto your front foot.",
+        "Hinge forward at the hips, lifting back leg parallel to floor.",
+        "Extend arms forward, sideways, or alongside body, forming a T-shape.",
+        "Keep hips level and standing knee slightly soft.",
+        "Hold for 3 to 5 breaths, then switch legs."
+      ],
+      "common_mistakes": [
+        "Opening the lifted hip toward the ceiling.",
+        "Arching lower back and collapsing chest."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=t_o7aXvB7Z0"
+    },
+    {
+      "id": "ex_utkatasana",
+      "name": "Utkatasana (Chair Pose)",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/squat.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand with feet together or hip-width apart.",
+        "Inhale and raise arms overhead, keeping shoulders relaxed.",
+        "Exhale and bend knees, sitting hips back as if into a chair.",
+        "Shift weight toward heels and keep chest lifted.",
+        "Hold for 5 breaths."
+      ],
+      "common_mistakes": [
+        "Knees passing far past toes.",
+        "Over-arching the lumbar spine."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=4xphwI_gG4s"
+    },
+    {
+      "id": "ex_natarajasana",
+      "name": "Natarajasana (Dancer Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/tree_pose.png",
+      "contraindications": [
+        "knee",
+        "lower_back"
+      ],
+      "instructions": [
+        "Shift weight onto right foot. Bend left knee and grasp inside of left foot.",
+        "Reach right arm forward and upward.",
+        "Kick left foot back into hand, opening chest and tilting slightly forward.",
+        "Maintain gaze on a fixed point. Hold for 3 to 5 breaths, then switch."
+      ],
+      "common_mistakes": [
+        "Flaring the lifted knee out wide.",
+        "Collapsing the chest forward without kicking back."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=rWjPj5d_fQI"
+    },
+    {
+      "id": "ex_garudasana",
+      "name": "Garudasana (Eagle Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "none",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/tree_pose.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Bend knees slightly and cross right thigh over left, hooking toes behind left calf if able.",
+        "Bring arms forward, cross left arm over right at elbows, and wrap forearms to touch palms.",
+        "Lift elbows to shoulder height and sit hips deeper.",
+        "Breathe steadily for 5 breaths, then unwind and switch sides."
+      ],
+      "common_mistakes": [
+        "Tipping torso forward instead of keeping spine vertical.",
+        "Holding breath."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=s5Fm0J3U8-Y"
+    },
+    {
+      "id": "ex_ardha_chandrasana",
+      "name": "Ardha Chandrasana (Half Moon Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/warrior_pose.png",
+      "contraindications": [
+        "knee",
+        "neck"
+      ],
+      "instructions": [
+        "From Triangle Pose, bend front knee and place fingertips 6-12 inches ahead on floor or block.",
+        "Lift back leg parallel to floor while straightening standing leg.",
+        "Stack hips and shoulders vertically, extending top arm toward ceiling.",
+        "Gaze sideways or upward. Hold for 5 breaths, then switch sides."
+      ],
+      "common_mistakes": [
+        "Allowing top hip to turn down toward floor.",
+        "Hyperextending standing knee."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=vV7w4jT5X-8"
+    },
+    {
+      "id": "ex_parsvakonasana",
+      "name": "Parsvakonasana (Extended Side Angle Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/warrior_pose.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "From Warrior II, rest front forearm on front thigh or place hand on floor/block outside foot.",
+        "Sweep top arm alongside ear, creating a straight diagonal line from back heel to fingertips.",
+        "Rotate chest open toward ceiling.",
+        "Hold for 5 breaths, then switch sides."
+      ],
+      "common_mistakes": [
+        "Collapsing weight into bottom shoulder.",
+        "Rounding chest down."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=7uKqI5gY6pE"
+    },
+    {
+      "id": "ex_prasarita_padottanasana",
+      "name": "Prasarita Padottanasana (Wide-Legged Forward Bend)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.3,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Stand with feet 3-4 feet apart, toes slightly turned in.",
+        "Place hands on hips, inhale and lengthen spine.",
+        "Exhale and hinge forward from hips, lowering palms flat to floor under shoulders.",
+        "Release crown of head toward floor, keeping legs active.",
+        "Hold for 5 to 8 breaths."
+      ],
+      "common_mistakes": [
+        "Rounding back instead of hinging at hips.",
+        "Locking knee joints."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=gT8v4H_6x3w"
+    },
+    {
+      "id": "ex_dhanurasana",
+      "name": "Dhanurasana (Bow Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [
+        "lower_back",
+        "shoulder"
+      ],
+      "instructions": [
+        "Lie on stomach, bend knees and reach back to grasp ankles.",
+        "Inhale and kick ankles back and up, lifting thighs and chest off mat.",
+        "Draw shoulder blades together and keep neck long.",
+        "Hold for 20-30 seconds, breathing smoothly, then release."
+      ],
+      "common_mistakes": [
+        "Flaring knees wider than hips.",
+        "Holding breath during hold."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=b4O5eG-X62w"
+    },
+    {
+      "id": "ex_ustrasana",
+      "name": "Ustrasana (Camel Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [
+        "lower_back",
+        "neck"
+      ],
+      "instructions": [
+        "Kneel with knees hip-width apart and hips stacked directly over knees.",
+        "Place hands on lower back with fingers pointing down.",
+        "Inhale, press hips gently forward and lift chest toward ceiling.",
+        "Optionally reach hands back to touch heels while keeping hips pushed forward.",
+        "Hold for 5 breaths, then carefully rise on an inhale."
+      ],
+      "common_mistakes": [
+        "Collapsing hips backward over heels.",
+        "Dropping head back aggressively."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=4j33xB4_g8Q"
+    },
+    {
+      "id": "ex_janu_sirsasana",
+      "name": "Janu Sirsasana (Head-to-Knee Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "knee",
+        "lower_back"
+      ],
+      "instructions": [
+        "Sit with right leg extended and left foot pressed against inner right thigh.",
+        "Inhale arms overhead, squaring chest toward right leg.",
+        "Exhale and fold forward over right thigh, holding foot or shin.",
+        "Keep spine long and breathe deeply for 5 breaths, then switch legs."
+      ],
+      "common_mistakes": [
+        "Forcing forehead to knee by rounding upper back.",
+        "Tensing shoulders."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=p6Q9g0xK5i8"
+    },
+    {
+      "id": "ex_gomukhasana",
+      "name": "Gomukhasana (Cow Face Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 2.2,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "shoulder",
+        "knee"
+      ],
+      "instructions": [
+        "Stack right knee directly over left knee with feet beside opposite hips.",
+        "Reach right arm overhead, bend elbow and place hand down middle of back.",
+        "Reach left arm behind back and up, clasping fingers or holding a strap.",
+        "Keep spine tall and breathe for 5 breaths, then switch sides."
+      ],
+      "common_mistakes": [
+        "Dropping chest forward to reach hands.",
+        "Forcing finger clasp."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=Yv5dE4g-g2U"
+    },
+    {
+      "id": "ex_bakasana",
+      "name": "Bakasana (Crow Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 3.8,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Squat on mat with feet together, hands shoulder-width flat on floor.",
+        "Place knees high against backs of upper arms or armpits.",
+        "Lean forward, shift weight into hands, and lift one foot then both off mat.",
+        "Engage core and round upper back slightly. Balance for 15-30 seconds."
+      ],
+      "common_mistakes": [
+        "Looking down between hands instead of slightly forward.",
+        "Jumping instead of shifting weight with control."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=hS_l0gE3A-U"
+    },
+    {
+      "id": "ex_sirsasana",
+      "name": "Sirsasana (Headstand)",
+      "muscle_group": "full_body",
+      "equipment": "mat",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/standing_hero.png",
+      "contraindications": [
+        "neck",
+        "hypertension",
+        "shoulder"
+      ],
+      "instructions": [
+        "Interlace fingers and place forearms on mat elbow-width apart.",
+        "Crown of head rests on mat cupped by interlaced hands.",
+        "Lift hips, walk feet close, engage core, and float legs up vertically.",
+        "Press actively through forearms to keep neck free of compression.",
+        "Hold for 5 to 10 controlled breaths with wall support if needed."
+      ],
+      "common_mistakes": [
+        "Dumping weight onto cervical spine.",
+        "Flaring elbows wide."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=gT8v_v_K8u8"
+    },
+    {
+      "id": "ex_pincha_mayurasana",
+      "name": "Pincha Mayurasana (Forearm Stand)",
+      "muscle_group": "shoulders",
+      "equipment": "mat",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Start on hands and knees, placing forearms parallel shoulder-width apart.",
+        "Lift hips into Dolphin Pose and walk feet toward elbows.",
+        "Gaze slightly forward between wrists, engage core, and kick or press legs up.",
+        "Draw ribs in and balance vertically over forearms for 5 breaths."
+      ],
+      "common_mistakes": [
+        "Elbows sliding out wider than shoulders.",
+        "Collapsing into shoulders (banana back)."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=J5v9o_4i7qA"
+    },
+    {
+      "id": "ex_adho_mukha_vrksasana",
+      "name": "Adho Mukha Vrksasana (Handstand)",
+      "muscle_group": "full_body",
+      "equipment": "mat",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/standing_hero.png",
+      "contraindications": [
+        "wrist",
+        "shoulder",
+        "hypertension"
+      ],
+      "instructions": [
+        "Place palms flat shoulder-width apart near a wall, spreading fingers wide.",
+        "Step one foot forward and kick back leg up into handstand.",
+        "Stack wrists, shoulders, hips, and ankles in a straight line.",
+        "Engage core and press floor actively away. Hold for 15-30 seconds."
+      ],
+      "common_mistakes": [
+        "Bending elbows upon landing.",
+        "Arching lower back excessively."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=O7o-eWqjF6g"
+    },
+    {
+      "id": "ex_mayurasana",
+      "name": "Mayurasana (Peacock Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "elbow",
+        "hypertension"
+      ],
+      "instructions": [
+        "Kneel with hands flat between knees, fingers pointing back toward feet.",
+        "Press elbows together into abdomen near navel.",
+        "Lean forward, extend legs straight back, and lift feet off floor parallel to mat.",
+        "Balance entirely on palms and wrists for 10-20 seconds."
+      ],
+      "common_mistakes": [
+        "Elbows sliding apart away from abdomen.",
+        "Not leaning far enough forward."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=N6x9a_eM5b8"
+    },
+    {
+      "id": "ex_eka_pada_rajakapotasana",
+      "name": "Eka Pada Rajakapotasana (King Pigeon Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 3.2,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [
+        "knee",
+        "lower_back",
+        "shoulder"
+      ],
+      "instructions": [
+        "From One-Legged Pigeon, bend back knee and point back foot toward ceiling.",
+        "Reach overhead with both hands to grasp back toes, flipping elbows forward.",
+        "Lift chest and curve spine in a deep backbend toward back foot.",
+        "Hold for 5 breaths, then carefully release and switch legs."
+      ],
+      "common_mistakes": [
+        "Forcing foot to head without hip opening.",
+        "Compressing lumbar spine."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=P6v9k_4H7uU"
+    },
+    {
+      "id": "ex_hanumanasana",
+      "name": "Hanumanasana (Monkey Pose / Splits)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "contraindications": [
+        "hamstring",
+        "knee"
+      ],
+      "instructions": [
+        "From a low lunge, slide front foot forward while sliding back leg straight back.",
+        "Keep hips squared forward, using blocks under hands for support.",
+        "Slowly lower pelvis toward mat until both legs are straight.",
+        "Bring hands to heart or raise arms overhead. Breathe and switch sides."
+      ],
+      "common_mistakes": [
+        "Opening the back hip wide to cheat depth.",
+        "Over-stretching tight hamstrings."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=h6v8m_v5e_E"
+    },
+    {
+      "id": "ex_urdhva_dhanurasana",
+      "name": "Urdhva Dhanurasana (Wheel Pose)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/glute_bridge.png",
+      "contraindications": [
+        "wrist",
+        "lower_back",
+        "shoulder"
+      ],
+      "instructions": [
+        "Lie on back with knees bent, feet flat and hands beside ears with fingers pointing toward shoulders.",
+        "Press into feet and hands simultaneously to lift body up into a full arch.",
+        "Roll shoulders open, press chest toward wall behind you, and relax neck.",
+        "Hold for 5 deep breaths, then tuck chin and lower down slowly."
+      ],
+      "common_mistakes": [
+        "Flaring feet and knees wide apart.",
+        "Dumping weight into lower back instead of opening chest."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=e_0oXjF7r6Q"
+    },
+    {
+      "id": "ex_eka_pada_koundinyasana",
+      "name": "Eka Pada Koundinyasana (Flying Splits Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 4.2,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "From a lunge, hook front thigh over back of front upper arm.",
+        "Plant both palms firmly on floor shoulder-width apart.",
+        "Shift chest forward into Chaturanga arms, lift back leg and extend front leg straight.",
+        "Hover both legs split in air for 10-20 seconds, then switch sides."
+      ],
+      "common_mistakes": [
+        "Dropping chest too low to floor.",
+        "Not engaging core and adductors."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=uK8o9_3fD6A"
+    },
+    {
+      "id": "ex_astavakrasana",
+      "name": "Astavakrasana (Eight-Angle Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Sit with legs out. Hook right leg high over right upper arm.",
+        "Plant hands on floor, cross left ankle over right ankle.",
+        "Press into hands to lift hips off floor, bend elbows to 90 degrees.",
+        "Extend both legs straight out to the right side, chest parallel to floor.",
+        "Hold for 5 breaths, then repeat on opposite side."
+      ],
+      "common_mistakes": [
+        "Failing to squeeze upper arm with legs.",
+        "Dropping shoulder below elbow height."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=vV9j6_eK4tQ"
+    },
+    {
+      "id": "ex_tittibhasana",
+      "name": "Tittibhasana (Firefly Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 4.2,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "hamstring"
+      ],
+      "instructions": [
+        "Squat with feet slightly wider than mat. Work shoulders underneath thighs.",
+        "Plant palms flat on floor behind heels.",
+        "Shift weight back onto hands, lift feet off mat, and straighten legs out to sides.",
+        "Press firmly through hands, engage inner thighs, and lift chest for 5 breaths."
+      ],
+      "common_mistakes": [
+        "Slumping weight backward onto hips.",
+        "Letting feet drop toward floor."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=v6O8o_4E9qU"
+    },
+    {
+      "id": "ex_vrschikasana",
+      "name": "Vrschikasana (Scorpion Pose)",
+      "muscle_group": "shoulders",
+      "equipment": "mat",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "shoulder",
+        "lower_back",
+        "neck"
+      ],
+      "instructions": [
+        "Begin in a stable Forearm Stand (Pincha Mayurasana).",
+        "Bend knees and begin arching spine, dropping feet toward crown of head.",
+        "Lift chest and head forward, gazing toward hands.",
+        "Hold for 3 to 5 controlled breaths, then return to forearm stand and lower."
+      ],
+      "common_mistakes": [
+        "Attempting before mastering forearm stand.",
+        "Collapsing into shoulders."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=a7b8e_6E8_M"
+    },
+    {
+      "id": "ex_parsva_bakasana",
+      "name": "Parsva Bakasana (Side Crow Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 3.8,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "lower_back"
+      ],
+      "instructions": [
+        "Squat and twist torso deeply to the right, placing both hands flat on floor outside right thigh.",
+        "Rest outer right thigh across back of left upper arm.",
+        "Shift chest forward, bend elbows to 90 degrees, and float feet off floor.",
+        "Hold for 15-20 seconds, then switch sides."
+      ],
+      "common_mistakes": [
+        "Not twisting deep enough before placing hands.",
+        "Dropping head to floor."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=4rP7k_6f9wE"
+    },
+    {
+      "id": "ex_kapotasana",
+      "name": "Kapotasana (Pigeon Pose / Full Backbend)",
+      "muscle_group": "flexibility",
+      "equipment": "mat",
+      "met": 3.8,
+      "animation_asset": "assets/exercises/cobra_pose.png",
+      "contraindications": [
+        "lower_back",
+        "knee",
+        "neck"
+      ],
+      "instructions": [
+        "Kneel upright with knees hip-width apart.",
+        "Inhale and reach arms overhead; exhale and arch backward into a deep backbend.",
+        "Lower forearms to floor and walk hands to grasp heels or ankles.",
+        "Drop head gently back, press thighs forward, and hold for 5 breaths."
+      ],
+      "common_mistakes": [
+        "Pinching lower back without thoracic expansion.",
+        "Restricting breath."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=d_8kP_3o9uE"
+    },
+    {
+      "id": "ex_kukkutasana",
+      "name": "Kukkutasana (Rooster Pose)",
+      "muscle_group": "core",
+      "equipment": "mat",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/plank.png",
+      "contraindications": [
+        "wrist",
+        "knee"
+      ],
+      "instructions": [
+        "Sit in full Lotus Pose (Padmasana).",
+        "Slide arms down through the space between thighs and calves until palms reach floor.",
+        "Spread fingers wide and press firmly into mat.",
+        "Engage core and lift entire body and lotus legs off floor, balancing on palms.",
+        "Hold for 10-20 seconds, breathing steadily."
+      ],
+      "common_mistakes": [
+        "Attempting without comfortable Padmasana.",
+        "Collapsing chest downward."
+      ],
+      "video_url": "https://www.youtube.com/watch?v=vV9o_7k6P4E"
     }
   ]
 }

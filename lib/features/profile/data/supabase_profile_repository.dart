@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/data/profile_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,36 +71,121 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<Profile> upsertProfile(Profile profile) async {
-    final data = profile.toJson();
+    final effectiveId = _client.auth.currentUser?.id ?? profile.id;
+    final sanitizedProfile = effectiveId == profile.id
+        ? profile
+        : Profile(
+            id: effectiveId,
+            name: profile.name,
+            age: profile.age,
+            gender: profile.gender,
+            weightKg: profile.weightKg,
+            heightCm: profile.heightCm,
+            goal: profile.goal,
+            fitnessLevel: profile.fitnessLevel,
+            wakeTime: profile.wakeTime,
+            sleepTime: profile.sleepTime,
+            workStart: profile.workStart,
+            workEnd: profile.workEnd,
+            username: profile.username,
+            avatarUrl: profile.avatarUrl,
+            timezone: profile.timezone,
+            onboardingCompleted: profile.onboardingCompleted,
+          );
 
-    // Sanitize fields against Postgres table check constraints
-    final username = profile.username?.trim();
+    // 1. Always persist to local cache FIRST (<1ms) so offline changes
+    // are immediately stored and never lost due to connection drops.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'cached_profile_$effectiveId',
+        jsonEncode(sanitizedProfile.toJson()),
+      );
+      if (sanitizedProfile.onboardingCompleted) {
+        await prefs.setBool('onboarding_completed_$effectiveId', true);
+      }
+    } catch (e) {
+      debugPrint('[SupabaseProfileRepository] Local cache save error: $e');
+    }
+
+    // 2. Prepare payload and strictly sanitize fields to prevent database constraint failures
+    final data = sanitizedProfile.toJson();
+    data['id'] = effectiveId;
+
+    // Sanitize username (alphanumeric + underscore, 3 to 20 chars)
+    final username = sanitizedProfile.username?.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
     if (username == null || username.isEmpty) {
       data['username'] = null;
     } else {
-      data['username'] = username.toLowerCase();
+      final validRegex = RegExp(r'^[a-z0-9_]{3,20}$');
+      if (validRegex.hasMatch(username)) {
+        data['username'] = username;
+      } else {
+        final stripped = username.replaceAll(RegExp(r'[^a-z0-9_]'), '');
+        data['username'] = (stripped.length >= 3 && stripped.length <= 20) ? stripped : null;
+      }
     }
 
-    if (profile.gender != null &&
-        !ProfileOptions.genders.contains(profile.gender)) {
+    // Sanitize gender
+    if (sanitizedProfile.gender != null &&
+        !ProfileOptions.genders.contains(sanitizedProfile.gender)) {
       data['gender'] = null;
     }
 
-    if (profile.goal != null && !ProfileOptions.goals.contains(profile.goal)) {
+    // Sanitize goal
+    if (sanitizedProfile.goal != null &&
+        !ProfileOptions.goals.contains(sanitizedProfile.goal)) {
       data['goal'] = null;
     }
 
-    final res = await _client
-        .from('profiles')
-        .upsert(data, onConflict: 'id')
-        .select()
-        .single();
+    // Sanitize age (between 13 and 100)
+    if (sanitizedProfile.age != null &&
+        (sanitizedProfile.age! < 13 || sanitizedProfile.age! > 100)) {
+      data['age'] = null;
+    }
 
-    final saved = Profile.fromJson(Map<String, dynamic>.from(res));
+    // Sanitize weight & height
+    if (sanitizedProfile.weightKg != null &&
+        (sanitizedProfile.weightKg! <= 0 || sanitizedProfile.weightKg! > 500)) {
+      data['weight_kg'] = null;
+    }
+    if (sanitizedProfile.heightCm != null &&
+        (sanitizedProfile.heightCm! <= 0 || sanitizedProfile.heightCm! > 300)) {
+      data['height_cm'] = null;
+    }
+
+    // 3. Attempt remote upsert to Supabase
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_profile_${saved.id}', jsonEncode(saved.toJson()));
-    } catch (_) {}
-    return saved;
+      // If auth session is missing, attempt to recover it from cached refresh token
+      if (_client.auth.currentSession == null) {
+        final prefs = await SharedPreferences.getInstance();
+        final refreshToken = prefs.getString('cached_auth_refresh_token');
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _client.auth.recoverSession(refreshToken);
+        }
+      }
+
+      final res = await _client
+          .from('profiles')
+          .upsert(data, onConflict: 'id')
+          .select()
+          .single()
+          .timeout(const Duration(seconds: 4));
+
+      final saved = Profile.fromJson(Map<String, dynamic>.from(res));
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_profile_${saved.id}',
+          jsonEncode(saved.toJson()),
+        );
+      } catch (_) {}
+      return saved;
+    } catch (e) {
+      debugPrint('[SupabaseProfileRepository] Remote upsert failed (profile saved locally): $e');
+      // In offline-first architecture, return the locally saved profile so the user
+      // can continue editing and using their profile without interruption.
+      return sanitizedProfile;
+    }
   }
 }

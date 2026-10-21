@@ -1,7 +1,9 @@
+import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/data/profile_snapshot.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/nutrition/data/diet_tip.dart';
+import 'package:fitbuddy/features/nutrition/data/local_nutrition_repository.dart';
 import 'package:fitbuddy/features/nutrition/data/meal.dart';
 import 'package:fitbuddy/features/nutrition/data/mock_nutrition_repository.dart';
 import 'package:fitbuddy/features/nutrition/data/nutrition_repository.dart';
@@ -10,10 +12,16 @@ import 'package:fitbuddy/features/nutrition/domain/nutrition_calculator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Repository for tips, meals and the water log.
-/// Antigravity: override with a persistent implementation if needed.
-final nutritionRepositoryProvider = Provider<NutritionRepository>(
-  (ref) => MockNutritionRepository(),
-);
+/// Uses [LocalNutritionRepository] when SharedPreferences is available,
+/// falling back safely to [MockNutritionRepository].
+final nutritionRepositoryProvider = Provider<NutritionRepository>((ref) {
+  try {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    return LocalNutritionRepository(prefs: prefs);
+  } catch (_) {
+    return MockNutritionRepository();
+  }
+});
 
 /// All diet tips from `assets/data/diet_tips.json`.
 final dietTipsProvider = FutureProvider<List<DietTip>>(
@@ -144,10 +152,27 @@ final waterProvider = AsyncNotifierProvider<WaterNotifier, int>(
 /// Holds the activity level choice.
 class ActivityLevelNotifier extends Notifier<ActivityLevel> {
   @override
-  ActivityLevel build() => ActivityLevel.light;
+  ActivityLevel build() {
+    final repo = ref.watch(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      final saved = repo.getSavedActivityLevel();
+      if (saved != null) {
+        for (final level in ActivityLevel.values) {
+          if (level.name == saved) return level;
+        }
+      }
+    }
+    return ActivityLevel.light;
+  }
 
   /// Selects [level].
-  void select(ActivityLevel level) => state = level;
+  void select(ActivityLevel level) {
+    state = level;
+    final repo = ref.read(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      repo.saveActivityLevel(level.name);
+    }
+  }
 }
 
 /// Holds the optional goal override.
@@ -162,19 +187,49 @@ class GoalOverrideNotifier extends Notifier<NutritionGoal?> {
 /// Holds the diet type choice.
 class DietTypeNotifier extends Notifier<DietType> {
   @override
-  DietType build() => DietType.veg;
+  DietType build() {
+    final repo = ref.watch(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      final saved = repo.getSavedDietType();
+      if (saved != null) {
+        for (final t in DietType.values) {
+          if (t.name == saved) return t;
+        }
+      }
+    }
+    return DietType.veg;
+  }
 
   /// Selects [type].
-  void select(DietType type) => state = type;
+  void select(DietType type) {
+    state = type;
+    final repo = ref.read(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      repo.saveDietType(type.name);
+    }
+  }
 }
 
 /// Holds the "suited to my conditions" switch.
 class ConditionFriendlyOnlyNotifier extends Notifier<bool> {
   @override
-  bool build() => true;
+  bool build() {
+    final repo = ref.watch(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      final saved = repo.getSavedConditionFriendly();
+      if (saved != null) return saved;
+    }
+    return true;
+  }
 
   /// Turns the filter on or off.
-  void set(bool value) => state = value;
+  void set(bool value) {
+    state = value;
+    final repo = ref.read(nutritionRepositoryProvider);
+    if (repo is LocalNutritionRepository) {
+      repo.saveConditionFriendly(value);
+    }
+  }
 }
 
 /// Tracks today's water glasses and persists changes.
