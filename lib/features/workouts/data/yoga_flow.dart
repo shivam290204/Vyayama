@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
 
-/// The 7 structured yoga categories.
+/// The 3 structured yoga categories.
 enum YogaCategory {
-  beginner('Beginner Yoga', 'Gentle foundation & 15 basic asanas', Icons.spa_outlined),
-  intermediate('Intermediate Yoga', 'Flow, strength & 15 intermediate asanas', Icons.fitness_center_outlined),
-  advanced('Advanced Yoga', 'Inversions, arm balances & 15 peak asanas', Icons.whatshot_outlined),
-  morning('Morning Flow', 'Wake-up energy & spine awakening', Icons.wb_sunny_outlined),
-  relaxation('Relaxation & Sleep', 'Evening wind-down & nervous system calm', Icons.bedtime_outlined),
-  flexibility('Flexibility & Mobility', 'Deep hip & hamstring opening', Icons.self_improvement_outlined),
-  balance('Balance & Stability', 'Core control & joint stability', Icons.accessibility_new_outlined);
+  beginner('Basic Yoga (Beginner)', 'Foundational asanas & alignment', Icons.spa_outlined),
+  intermediate('Intermediate Yoga', 'Flow, strength & balance', Icons.fitness_center_outlined),
+  advanced('Advanced Yoga', 'Inversions & arm balance mastery', Icons.whatshot_outlined);
 
   const YogaCategory(this.label, this.subtitle, this.icon);
 
@@ -77,27 +73,27 @@ class YogaFlow {
   }
 }
 
-/// Curated library of yoga flows covering Beginner (15), Intermediate (15), Advanced (15) and specialized flows.
+/// Curated library of yoga flows covering Beginner (15), Intermediate (15), and Advanced (15) asanas.
 abstract final class YogaCatalog {
   static const List<YogaFlow> flows = [
-    // 1. Beginner Yoga (15 Poses)
+    // 1. Basic Yoga (Beginner) – 15 Poses
     YogaFlow(
       id: 'yoga_beginner_15',
-      title: 'Beginner Yoga Foundation (15 Asanas)',
+      title: 'Beginner Yoga Foundation',
       category: YogaCategory.beginner,
       durationMinutes: 15,
       difficulty: 'Beginner',
       description:
-          '15 foundational postures: Tadasana, Vrikshasana, Balasana, Bhujangasana, Marjaryasana, Bitilasana, Sukhasana, Vajrasana, Setu Bandhasana, Makarasana, Pavanamuktasana, Shavasana, Baddha Konasana, Downward Dog, and Half Spinal Twist.',
+          '15 foundational postures for grounding, joint mobility, spinal health, and breath connection.',
       breathingGuidance:
           'Slow, conscious diaphragmatic breathing. Expand ribs on inhalation, soften belly on exhalation.',
       cautions: [
-        'Move slowly between floor and standing poses.',
-        'Never force knees into deep flexion.',
+        'Move mindfully between floor and standing postures.',
+        'Never force knees or hips into sharp discomfort.',
       ],
       modifications: [
-        'Place a folded blanket under hips in Sukhasana or under knees in tabletop.',
-        'Keep knees bent in Downward Dog if hamstrings are tight.',
+        'Use a yoga block or folded blanket under hips in seated poses.',
+        'Keep knees gently bent in Downward Dog to protect hamstrings.',
       ],
       exerciseIds: [
         'ex_mountain_pose',
@@ -111,32 +107,32 @@ abstract final class YogaCatalog {
         'ex_bridge_pose',
         'ex_makarasana',
         'ex_pavanamuktasana',
+        'ex_savasana',
         'ex_baddha_konasana',
         'ex_downward_dog',
         'ex_ardha_matsyendrasana',
-        'ex_savasana',
       ],
       videoUrl: 'https://www.youtube.com/watch?v=v7AYKMP6rOE',
     ),
 
-    // 2. Intermediate Yoga (15 Poses)
+    // 2. Intermediate Yoga – 15 Poses
     YogaFlow(
       id: 'yoga_intermediate_15',
-      title: 'Intermediate Flow & Power (15 Asanas)',
+      title: 'Intermediate Yoga Flow',
       category: YogaCategory.intermediate,
       durationMinutes: 20,
       difficulty: 'Intermediate',
       description:
-          '15 dynamic strengthening postures: Virabhadrasana I, II, III, Trikonasana, Utkatasana, Natarajasana, Garudasana, Ardha Chandrasana, Parsvakonasana, Wide Fold, Dhanurasana, Ustrasana, Janu Sirsasana, Gomukhasana, and Paschimottanasana.',
+          'Dynamic standing flow and strengthening postures to cultivate balance, endurance, and deep hip mobility.',
       breathingGuidance:
           'Rhythmic Ujjayi breath. Keep throat softly constricted with ocean-sounding respirations.',
       cautions: [
-        'Keep core engaged to protect lumbar spine during Camel and Bow poses.',
-        'Step gently back without hyperextending knees.',
+        'Engage core to protect lumbar spine during backbends like Camel and Bow poses.',
+        'Step softly into lunges and balances without locking knee joints.',
       ],
       modifications: [
         'Use yoga blocks under hands in Triangle and Half Moon poses.',
-        'Use a strap between hands in Cow Face Pose if shoulders are tight.',
+        'Use a strap between hands in Cow Face Pose if shoulder mobility is limited.',
       ],
       exerciseIds: [
         'ex_warrior_1',
@@ -158,24 +154,28 @@ abstract final class YogaCatalog {
       videoUrl: 'https://www.youtube.com/watch?v=b1H3xO3x_Js',
     ),
 
-    // 3. Advanced Yoga (15 Poses)
+    // 3. Advanced Yoga – 15 Poses
     YogaFlow(
       id: 'yoga_advanced_15',
-      title: 'Advanced Asana Mastery (15 Asanas)',
+      title: 'Advanced Asana Mastery',
       category: YogaCategory.advanced,
       durationMinutes: 25,
       difficulty: 'Advanced',
       description:
-          '15 master-level inversions and arm balances: Bakasana, Sirsasana, Pincha Mayurasana, Handstand, Mayurasana, King Pigeon, Hanumanasana, Wheel, Flying Splits, Astavakrasana, Firefly, Scorpion, Side Crow, Kapotasana, and Kukkutasana.',
+          'Master-level inversions, arm balances, and intense hip openers for dedicated yogis seeking pinnacle practice.',
       breathingGuidance:
-          'Steady, centered breath. Never hold breath during intense arm balances or inversions.',
+          'Steady, centered breath. Never hold your breath during intense arm balances or inversions.',
       cautions: [
-        'Practice with wall support or spotter for headstand, handstand, and forearm balances.',
-        'Warm up wrists thoroughly before arm balances.',
+        'Safety Warning: Practice inversions (Headstand, Handstand, Forearm Stand) against a wall or with a spotter.',
+        'Avoid inversions if you have unmanaged hypertension, glaucoma, neck conditions, or vertigo.',
+        'Thoroughly warm up wrists, forearms, and shoulders before arm balances.',
+        'Exit the pose immediately if you feel sharp pain in wrists, shoulders, or cervical spine.',
       ],
       modifications: [
-        'Start with one foot grounded on a block in Crow Pose.',
-        'Use blocks under hands in Hanumanasana (splits) to reduce hamstring strain.',
+        'In Crow Pose and Side Crow, rest one toe on a block or mat to build balance confidence.',
+        'In Headstand (Sirsasana), keep 80% weight on forearms, eliminating pressure on the cervical spine.',
+        'In Hanumanasana (Monkey Pose), place yoga blocks beneath your hands and a bolster under the pelvic floor.',
+        'In Wheel Pose (Urdhva Dhanurasana), keep feet parallel and place angled blocks under hands for wrist comfort.',
       ],
       exerciseIds: [
         'ex_bakasana',
@@ -195,118 +195,6 @@ abstract final class YogaCatalog {
         'ex_kukkutasana',
       ],
       videoUrl: 'https://www.youtube.com/watch?v=J5v9o_4i7qA',
-    ),
-
-    // 4. Morning Energy Flow
-    YogaFlow(
-      id: 'yoga_morning_wakeup',
-      title: 'Morning Sun Energy Flow',
-      category: YogaCategory.morning,
-      durationMinutes: 8,
-      difficulty: 'Beginner',
-      description:
-          'Gently awakens the nervous system, shakes off sleep stiffness, and boosts circulation.',
-      breathingGuidance:
-          'Deep, energizing inhalations to greet the morning. Exhale any lingering tiredness.',
-      cautions: [
-        'Move gently through early morning backbends before muscles are warm.',
-      ],
-      modifications: [
-        'Keep knees generously bent in Downward Dog to ease morning lower back stiffness.',
-      ],
-      exerciseIds: [
-        'ex_mountain_pose',
-        'ex_marjaryasana',
-        'ex_bitilasana',
-        'ex_downward_dog',
-        'ex_child_pose',
-      ],
-      videoUrl: 'https://www.youtube.com/watch?v=4pKly2JojMw',
-    ),
-
-    // 5. Evening Relaxation & Sleep
-    YogaFlow(
-      id: 'yoga_evening_relaxation',
-      title: 'Evening Calm & Restful Sleep',
-      category: YogaCategory.relaxation,
-      durationMinutes: 12,
-      difficulty: 'Beginner',
-      description:
-          'Downregulates the sympathetic nervous system and releases shoulder and lower back tension.',
-      breathingGuidance:
-          'Extended 4-second inhale with prolonged 6-second exhale to trigger parasympathetic calm.',
-      cautions: [
-        'Keep lighting soft and temperature comfortable.',
-        'Release all muscular effort in final resting posture.',
-      ],
-      modifications: [
-        'Rest knees on pillows or bolster in Savasana to relieve lower back pressure.',
-        'Widen knees in Child Pose to make space for the abdomen.',
-      ],
-      exerciseIds: [
-        'ex_child_pose',
-        'ex_pavanamuktasana',
-        'ex_seated_forward_fold',
-        'ex_bridge_pose',
-        'ex_savasana',
-      ],
-      videoUrl: 'https://www.youtube.com/watch?v=BiWDsfZ3zbo',
-    ),
-
-    // 6. Deep Flexibility & Mobility
-    YogaFlow(
-      id: 'yoga_flexibility_mobility',
-      title: 'Deep Hip & Spine Mobility',
-      category: YogaCategory.flexibility,
-      durationMinutes: 15,
-      difficulty: 'All Levels',
-      description:
-          'Targeted holds to release hip flexor tension, tight hamstrings, and thoracic stiffness.',
-      breathingGuidance:
-          'Direct breath into tight areas. On each exhale, allow muscles to soften without bouncing.',
-      cautions: [
-        'Never force a joint into sharp pain. Stay in the gentle tension zone.',
-      ],
-      modifications: [
-        'Use a strap or towel around feet in Seated Forward Fold.',
-        'Keep hands elevated on yoga blocks during lunges.',
-      ],
-      exerciseIds: [
-        'ex_baddha_konasana',
-        'ex_downward_dog',
-        'ex_triangle_pose',
-        'ex_ardha_matsyendrasana',
-        'ex_child_pose',
-      ],
-      videoUrl: 'https://www.youtube.com/watch?v=g_tea8ZNk5A',
-    ),
-
-    // 7. Balance & Stability
-    YogaFlow(
-      id: 'yoga_balance_stability',
-      title: 'Balance & Core Centering',
-      category: YogaCategory.balance,
-      durationMinutes: 10,
-      difficulty: 'Intermediate',
-      description:
-          'Cultivates single-leg stability, proprioception, and rotational core engagement.',
-      breathingGuidance:
-          'Smooth, unhurried breathing. Fixing gaze (Drishti) on an unmoving spot stabilizes balance.',
-      cautions: [
-        'Practice near a wall if you experience vertigo or balance instability.',
-      ],
-      modifications: [
-        'Keep toes of lifted foot lightly touching floor as a kickstand.',
-        'Place one hand on a wall during Tree Pose.',
-      ],
-      exerciseIds: [
-        'ex_mountain_pose',
-        'ex_tree_pose',
-        'ex_warrior_2',
-        'ex_virabhadrasana_3',
-        'ex_child_pose',
-      ],
-      videoUrl: 'https://www.youtube.com/watch?v=fK_hI53_q6E',
     ),
   ];
 }

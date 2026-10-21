@@ -939,7 +939,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
-      "animation_asset": "assets/exercises/meditation.png",
+      "animation_asset": "assets/exercises/savasana.png",
       "contraindications": [],
       "instructions": [
         "Lie flat on your back with legs naturally apart and arms beside body, palms up.",
@@ -1121,7 +1121,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/warrior_pose.png",
+      "animation_asset": "assets/exercises/warrior_2.png",
       "contraindications": [
         "knee",
         "shoulder"
@@ -1144,7 +1144,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.3,
-      "animation_asset": "assets/exercises/warrior_pose.png",
+      "animation_asset": "assets/exercises/triangle_pose.png",
       "contraindications": [
         "lower_back",
         "neck"
@@ -1234,7 +1234,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.8,
-      "animation_asset": "assets/exercises/child_pose.png",
+      "animation_asset": "assets/exercises/vajrasana.png",
       "contraindications": [
         "knee",
         "ankle"
@@ -1257,7 +1257,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/makarasana.png",
       "contraindications": [],
       "instructions": [
         "Lie prone on your stomach with legs comfortably apart, heels turned in or out.",
@@ -1277,7 +1277,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/dead_bug.png",
+      "animation_asset": "assets/exercises/pavanamuktasana.png",
       "contraindications": [
         "lower_back",
         "knee"
@@ -1300,7 +1300,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/baddha_konasana.png",
       "contraindications": [
         "knee",
         "hip"
@@ -1323,7 +1323,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.2,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/ardha_matsyendrasana.png",
       "contraindications": [
         "lower_back"
       ],
@@ -1345,7 +1345,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/warrior_3.png",
       "contraindications": [
         "knee",
         "lower_back"
@@ -1369,7 +1369,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.5,
-      "animation_asset": "assets/exercises/squat.png",
+      "animation_asset": "assets/exercises/chair_pose.png",
       "contraindications": [
         "knee"
       ],
@@ -1392,7 +1392,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/tree_pose.png",
+      "animation_asset": "assets/exercises/natarajasana.png",
       "contraindications": [
         "knee",
         "lower_back"
@@ -1437,7 +1437,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/warrior_pose.png",
+      "animation_asset": "assets/exercises/triangle_pose.png",
       "contraindications": [
         "knee",
         "neck"
@@ -1460,7 +1460,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/warrior_pose.png",
+      "animation_asset": "assets/exercises/warrior_2.png",
       "contraindications": [
         "knee"
       ],
@@ -1528,7 +1528,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/vajrasana.png",
       "contraindications": [
         "lower_back",
         "neck"
@@ -1598,7 +1598,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/crow_pose.png",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1788,7 +1788,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.2,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/crow_pose.png",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1811,7 +1811,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/crow_pose.png",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1835,7 +1835,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.2,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/crow_pose.png",
       "contraindications": [
         "wrist",
         "hamstring"
@@ -1882,7 +1882,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/crow_pose.png",
       "contraindications": [
         "wrist",
         "lower_back"
@@ -1929,7 +1929,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/meditation.png",
       "contraindications": [
         "wrist",
         "knee"

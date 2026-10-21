@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
 import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
 import 'package:fitbuddy/features/workouts/data/workout_repository.dart';
+import 'package:fitbuddy/features/workouts/data/yoga_flow.dart';
 
 /// Supabase implementation of [WorkoutRepository] backed by `workout_plans`,
 /// `plan_days`, `plan_exercises`, and `exercises`. Falls back gracefully
@@ -184,6 +185,11 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     for (final p in fallback) {
       if (p.id == id) return p;
     }
+
+    // Check YogaCatalog fallback
+    for (final flow in YogaCatalog.flows) {
+      if (flow.id == id) return flow.toWorkoutPlan();
+    }
     return null;
   }
 
@@ -213,6 +219,12 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     final fallback = await _loadAssetPlans();
     for (final p in fallback) {
       if (p.days.any((d) => d.id == dayId)) return p;
+    }
+
+    // Check YogaCatalog fallback
+    for (final flow in YogaCatalog.flows) {
+      final plan = flow.toWorkoutPlan();
+      if (plan.days.any((d) => d.id == dayId)) return plan;
     }
     return null;
   }
