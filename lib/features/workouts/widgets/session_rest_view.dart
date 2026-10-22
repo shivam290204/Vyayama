@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:flutter/material.dart';
@@ -9,11 +10,13 @@ class SessionRestView extends StatelessWidget {
     required this.state,
     required this.onSkip,
     required this.onAddTime,
+    this.planDayId,
   });
 
   final SessionState state;
   final VoidCallback onSkip;
   final VoidCallback onAddTime;
+  final String? planDayId;
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +75,55 @@ class SessionRestView extends StatelessWidget {
                 style: theme.textTheme.titleMedium?.copyWith(color: cs.tertiary)),
           ],
           const SizedBox(height: 24),
-          Text('Up next', style: theme.textTheme.labelLarge),
+          Builder(
+            builder: (context) {
+              final contextInfo = BodyweightWorkoutCatalog.findContext(
+                planDayId: planDayId,
+                exerciseId: upcoming.exercise.id,
+                index: state.nextIndex,
+              );
+              if (contextInfo != null) {
+                final (phaseColor, phaseIcon) = switch (contextInfo.phase) {
+                  WorkoutSectionType.warmup => (
+                      const Color(0xFFFF9800),
+                      Icons.wb_sunny_rounded,
+                    ),
+                  WorkoutSectionType.main => (
+                      const Color(0xFF00C853),
+                      Icons.fitness_center_rounded,
+                    ),
+                  WorkoutSectionType.cooldown => (
+                      const Color(0xFF00B4D8),
+                      Icons.self_improvement_rounded,
+                    ),
+                };
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: phaseColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(phaseIcon, size: 13, color: phaseColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Up next: ${contextInfo.phase.label}',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: phaseColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return Text('Up next', style: theme.textTheme.labelLarge);
+            },
+          ),
           Text(
             upcoming.exercise.name,
             textAlign: TextAlign.center,

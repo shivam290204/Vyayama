@@ -194,7 +194,7 @@ abstract final class YogaCatalog {
         'ex_kapotasana',
         'ex_kukkutasana',
       ],
-      videoUrl: 'https://www.youtube.com/watch?v=J5v9o_4i7qA',
+      videoUrl: 'https://www.youtube.com/watch?v=s-1vMbAgYWU',
     ),
   ];
 }

@@ -29,7 +29,7 @@ class WorkoutsHomeScreen extends StatelessWidget {
             tabAlignment: TabAlignment.start,
             tabs: [
               Tab(text: 'My Plan'),
-              Tab(text: 'Browse Plans'),
+              Tab(text: 'Workouts'),
               Tab(text: 'Yoga'),
               Tab(text: 'Exercises'),
             ],

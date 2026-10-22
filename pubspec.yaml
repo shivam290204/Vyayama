@@ -1,7 +1,7 @@
 name: fitbuddy
 description: Vyayama - Every effort counts. A companion that celebrates your consistency.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.1.0+2
 
 environment:
   sdk: ">=3.6.0 <4.0.0"

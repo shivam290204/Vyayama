@@ -72,7 +72,11 @@ class ExerciseMistakes extends StatelessWidget {
 }
 
 /// Bottom sheet with the steps and mistakes, used during a session.
-Future<void> showExerciseHowTo(BuildContext context, Exercise exercise) {
+Future<void> showExerciseHowTo(
+  BuildContext context,
+  Exercise exercise, {
+  String? easierModification,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -80,6 +84,7 @@ Future<void> showExerciseHowTo(BuildContext context, Exercise exercise) {
     showDragHandle: true,
     builder: (context) {
       final theme = Theme.of(context);
+      final cs = theme.colorScheme;
       return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         child: Column(
@@ -94,7 +99,48 @@ Future<void> showExerciseHowTo(BuildContext context, Exercise exercise) {
               const SizedBox(height: 8),
               ExerciseMistakes(mistakes: exercise.commonMistakes),
             ],
-            const SizedBox(height: 8),
+            if (easierModification != null && easierModification.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: cs.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.tips_and_updates_outlined,
+                        size: 20, color: cs.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Easier modification',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            easierModification,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
             Text(
               'Stop if you feel sharp pain, dizziness or chest discomfort.',
               style: theme.textTheme.bodySmall

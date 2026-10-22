@@ -93,10 +93,11 @@ class SessionSummaryView extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          FilledButton(
+          FilledButton.icon(
             onPressed: onDone,
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-            child: const Text('Done'),
+            icon: const Icon(Icons.fitness_center_rounded),
+            label: const Text('Return to Workouts'),
           ),
         ],
       ),

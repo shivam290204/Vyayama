@@ -64,10 +64,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    // Verify title and tabs
-    expect(find.text('Workouts'), findsOneWidget);
+    // Verify title and tabs ('Workouts' appears as title and as the tab label)
+    expect(find.text('Workouts'), findsNWidgets(2));
     expect(find.text('My Plan'), findsOneWidget);
-    expect(find.text('Browse Plans'), findsOneWidget);
     expect(find.text('Exercises'), findsOneWidget);
 
     // Verify FloatingActionButton is NOT present

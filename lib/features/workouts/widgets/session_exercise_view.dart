@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
@@ -15,28 +16,45 @@ class SessionExerciseView extends ConsumerWidget {
     super.key,
     required this.state,
     required this.onDoneSet,
+    this.planDayId,
   });
 
   final SessionState state;
   final VoidCallback onDoneSet;
+  final String? planDayId;
 
-  Future<void> _launchYouTube(BuildContext context, String? url) async {
-    if (url == null || url.trim().isEmpty) return;
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) return;
+  Future<void> _launchYouTube(
+      BuildContext context, String? url, String fallbackSearchTerm) async {
+    Uri? uri;
+    if (url != null && url.trim().isNotEmpty) {
+      uri = Uri.tryParse(url.trim());
+    }
+
+    final isYoga = (planDayId != null && planDayId!.toLowerCase().contains('yoga')) ||
+        fallbackSearchTerm.toLowerCase().contains('asana') ||
+        fallbackSearchTerm.toLowerCase().contains('yoga');
+    final querySuffix = isYoga ? 'yoga tutorial' : 'exercise tutorial';
+
+    uri ??= Uri.parse(
+        'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$fallbackSearchTerm $querySuffix')}');
+
     try {
       final launched =
           await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open YouTube')),
-        );
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open video: $e')),
-        );
+    } catch (_) {
+      try {
+        final fallbackUri = Uri.parse(
+            'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$fallbackSearchTerm $querySuffix')}');
+        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open video: $e')),
+          );
+        }
       }
     }
   }
@@ -140,20 +158,83 @@ class SessionExerciseView extends ConsumerWidget {
         ? formatClock(state.secondsLeft)
         : (reps == null ? 'Go at your pace' : '$reps reps');
 
+    final contextInfo = BodyweightWorkoutCatalog.findContext(
+      planDayId: planDayId,
+      exerciseId: ex.id,
+      index: state.index,
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (contextInfo != null) ...[
+            Center(
+              child: Builder(
+                builder: (context) {
+                  final (phaseColor, phaseIcon) = switch (contextInfo.phase) {
+                    WorkoutSectionType.warmup => (
+                        const Color(0xFFFF9800),
+                        Icons.wb_sunny_rounded,
+                      ),
+                    WorkoutSectionType.main => (
+                        const Color(0xFF00C853),
+                        Icons.fitness_center_rounded,
+                      ),
+                    WorkoutSectionType.cooldown => (
+                        const Color(0xFF00B4D8),
+                        Icons.self_improvement_rounded,
+                      ),
+                  };
+
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: phaseColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: phaseColor.withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(phaseIcon, size: 15, color: phaseColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${contextInfo.phase.label.toUpperCase()}  •  ${contextInfo.phaseIndex}/${contextInfo.phaseTotal}',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: phaseColor,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           Text(
             'Exercise ${state.index + 1} of ${state.items.length}',
             textAlign: TextAlign.center,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: cs.onSurfaceVariant),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 4),
-          Text(ex.name,
-              textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
+          Text(
+            ex.name,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           // 3D Character Exercise Pose
           ExerciseAnimation(
@@ -174,7 +255,7 @@ class SessionExerciseView extends ConsumerWidget {
                   child: InkWell(
                     onTap: () {
                       if (videoUrl != null && videoUrl.isNotEmpty) {
-                        _launchYouTube(context, videoUrl);
+                        _launchYouTube(context, videoUrl, ex.name);
                       } else {
                         _showEditVideoSheet(context, ref, ex, '');
                       }
@@ -228,11 +309,13 @@ class SessionExerciseView extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 12),
+          // Elapsed time & Rest duration pills
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
@@ -253,6 +336,32 @@ class SessionExerciseView extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (item.restSec > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_outlined, size: 14, color: cs.secondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Rest: ${item.restSec}s',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -287,11 +396,55 @@ class SessionExerciseView extends ConsumerWidget {
               borderRadius: BorderRadius.circular(4),
             ),
           ],
+          if (contextInfo?.item.easierModification != null &&
+              contextInfo!.item.easierModification!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: cs.primary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.tips_and_updates_outlined,
+                      size: 20, color: cs.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Easier Modification',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: cs.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          contextInfo.item.easierModification!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (state.paused) ...[
             const SizedBox(height: 8),
             Text('Paused',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(color: cs.tertiary)),
+                style:
+                    theme.textTheme.titleMedium?.copyWith(color: cs.tertiary)),
           ],
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -302,7 +455,11 @@ class SessionExerciseView extends ConsumerWidget {
             label: Text(item.timed ? 'Done early' : 'Done set'),
           ),
           TextButton.icon(
-            onPressed: () => showExerciseHowTo(context, ex),
+            onPressed: () => showExerciseHowTo(
+              context,
+              ex,
+              easierModification: contextInfo?.item.easierModification,
+            ),
             icon: const Icon(Icons.help_outline),
             label: const Text('How to do it'),
           ),

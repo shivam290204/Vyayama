@@ -5,6 +5,7 @@ import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
 import 'package:fitbuddy/features/workouts/data/workout_repository.dart';
 import 'package:flutter/services.dart';
 
+import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 import 'package:fitbuddy/features/workouts/data/yoga_flow.dart';
 
 /// In-memory repository that reads the bundled JSON assets.
@@ -60,6 +61,9 @@ class MockWorkoutRepository implements WorkoutRepository {
     for (final p in await _all()) {
       if (p.id == id) return p;
     }
+    for (final flow in BodyweightWorkoutCatalog.workouts) {
+      if (flow.id == id) return flow.toWorkoutPlan();
+    }
     for (final flow in YogaCatalog.flows) {
       if (flow.id == id) return flow.toWorkoutPlan();
     }
@@ -70,6 +74,10 @@ class MockWorkoutRepository implements WorkoutRepository {
   Future<WorkoutPlan?> getPlanByDayId(String dayId) async {
     for (final p in await _all()) {
       if (p.days.any((d) => d.id == dayId)) return p;
+    }
+    for (final flow in BodyweightWorkoutCatalog.workouts) {
+      final plan = flow.toWorkoutPlan();
+      if (plan.days.any((d) => d.id == dayId)) return plan;
     }
     for (final flow in YogaCatalog.flows) {
       final plan = flow.toWorkoutPlan();

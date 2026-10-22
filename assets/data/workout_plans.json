@@ -1281,6 +1281,555 @@
           ]
         }
       ]
+    },
+    {
+      "id": "workout_warmup_mobility",
+      "name": "Warm-up & Mobility",
+      "goal": "maintain",
+      "level": "all levels",
+      "is_system": true,
+      "days": [
+        {
+          "id": "workout_warmup_mobility_session",
+          "day_number": 1,
+          "name": "Warm-up & Mobility",
+          "exercises": [
+            {
+              "exercise_id": "ex_march_in_place",
+              "sort_order": 0,
+              "sets": 1,
+              "duration_sec": 60,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_jumping_jacks",
+              "sort_order": 1,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_arm_circles",
+              "sort_order": 2,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_shoulder_rolls",
+              "sort_order": 3,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_arm_swings",
+              "sort_order": 4,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_neck_rotations",
+              "sort_order": 5,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_hip_circles",
+              "sort_order": 6,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_hip_rotations",
+              "sort_order": 7,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_ankle_rotations",
+              "sort_order": 8,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_leg_swings",
+              "sort_order": 9,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 10
+            },
+            {
+              "exercise_id": "ex_high_knees",
+              "sort_order": 10,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_dynamic_lunges",
+              "sort_order": 11,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_inchworm",
+              "sort_order": 12,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_bodyweight_squat",
+              "sort_order": 13,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bodyweight_beginner",
+      "name": "Beginner Bodyweight Workout",
+      "goal": "maintain",
+      "level": "beginner",
+      "is_system": true,
+      "days": [
+        {
+          "id": "bodyweight_beginner_session",
+          "day_number": 1,
+          "name": "Beginner Bodyweight Workout",
+          "exercises": [
+            {
+              "exercise_id": "ex_wall_pushups",
+              "sort_order": 0,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_knee_pushups",
+              "sort_order": 1,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_incline_pushup",
+              "sort_order": 2,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_bodyweight_squat",
+              "sort_order": 3,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_chair_squats",
+              "sort_order": 4,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_reverse_lunge",
+              "sort_order": 5,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_glute_bridge",
+              "sort_order": 6,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_calf_raise",
+              "sort_order": 7,
+              "sets": 1,
+              "reps": 15,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_bird_dog",
+              "sort_order": 8,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_knee_plank",
+              "sort_order": 9,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_dead_bug",
+              "sort_order": 10,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_standing_crunches",
+              "sort_order": 11,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bodyweight_intermediate",
+      "name": "Intermediate Bodyweight Workout",
+      "goal": "maintain",
+      "level": "intermediate",
+      "is_system": true,
+      "days": [
+        {
+          "id": "bodyweight_intermediate_session",
+          "day_number": 1,
+          "name": "Intermediate Bodyweight Workout",
+          "exercises": [
+            {
+              "exercise_id": "ex_pushup",
+              "sort_order": 0,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_wide_pushups",
+              "sort_order": 1,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_diamond_pushups",
+              "sort_order": 2,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_decline_pushups",
+              "sort_order": 3,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_bodyweight_squat",
+              "sort_order": 4,
+              "sets": 1,
+              "reps": 15,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_sumo_squats",
+              "sort_order": 5,
+              "sets": 1,
+              "reps": 15,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_jump_squats",
+              "sort_order": 6,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 40
+            },
+            {
+              "exercise_id": "ex_lunge",
+              "sort_order": 7,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_walking_lunges",
+              "sort_order": 8,
+              "sets": 1,
+              "reps": 14,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_bulgarian_split_squat",
+              "sort_order": 9,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 40
+            },
+            {
+              "exercise_id": "ex_plank",
+              "sort_order": 10,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_side_plank",
+              "sort_order": 11,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_bicycle_crunch",
+              "sort_order": 12,
+              "sets": 1,
+              "reps": 16,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_mountain_climbers",
+              "sort_order": 13,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 30
+            },
+            {
+              "exercise_id": "ex_straight_leg_raise",
+              "sort_order": 14,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bodyweight_advanced",
+      "name": "Advanced Bodyweight Workout",
+      "goal": "maintain",
+      "level": "advanced",
+      "is_system": true,
+      "days": [
+        {
+          "id": "bodyweight_advanced_session",
+          "day_number": 1,
+          "name": "Advanced Bodyweight Workout",
+          "exercises": [
+            {
+              "exercise_id": "ex_archer_pushups",
+              "sort_order": 0,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_explosive_pushups",
+              "sort_order": 1,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_pike_pushups",
+              "sort_order": 2,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_pseudo_planche_pushups",
+              "sort_order": 3,
+              "sets": 1,
+              "reps": 8,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_assisted_pistol_squats",
+              "sort_order": 4,
+              "sets": 1,
+              "reps": 6,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_jump_lunges",
+              "sort_order": 5,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_single_leg_squats",
+              "sort_order": 6,
+              "sets": 1,
+              "reps": 6,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_single_leg_glute_bridge",
+              "sort_order": 7,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_burpee",
+              "sort_order": 8,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_plank_to_pushup",
+              "sort_order": 9,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_v_ups",
+              "sort_order": 10,
+              "sets": 1,
+              "reps": 12,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_hanging_leg_raises",
+              "sort_order": 11,
+              "sets": 1,
+              "reps": 10,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_lsit_hold",
+              "sort_order": 12,
+              "sets": 1,
+              "duration_sec": 20,
+              "rest_sec": 45
+            },
+            {
+              "exercise_id": "ex_handstand_pushups",
+              "sort_order": 13,
+              "sets": 1,
+              "reps": 6,
+              "rest_sec": 60
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workout_cooldown_recovery",
+      "name": "Cool-down & Recovery",
+      "goal": "maintain",
+      "level": "all levels",
+      "is_system": true,
+      "days": [
+        {
+          "id": "workout_cooldown_recovery_session",
+          "day_number": 1,
+          "name": "Cool-down & Recovery",
+          "exercises": [
+            {
+              "exercise_id": "ex_child_pose",
+              "sort_order": 0,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_cobra_pose",
+              "sort_order": 1,
+              "sets": 1,
+              "duration_sec": 35,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_downward_dog",
+              "sort_order": 2,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_quad_stretch",
+              "sort_order": 3,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_hamstring_stretch",
+              "sort_order": 4,
+              "sets": 1,
+              "duration_sec": 35,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_hip_flexor_stretch",
+              "sort_order": 5,
+              "sets": 1,
+              "duration_sec": 35,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_baddha_konasana",
+              "sort_order": 6,
+              "sets": 1,
+              "duration_sec": 40,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_chest_stretch",
+              "sort_order": 7,
+              "sets": 1,
+              "duration_sec": 35,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_shoulder_stretch",
+              "sort_order": 8,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_overhead_triceps_stretch",
+              "sort_order": 9,
+              "sets": 1,
+              "duration_sec": 30,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_seated_forward_fold",
+              "sort_order": 10,
+              "sets": 1,
+              "duration_sec": 45,
+              "rest_sec": 15
+            },
+            {
+              "exercise_id": "ex_deep_breathing",
+              "sort_order": 11,
+              "sets": 1,
+              "duration_sec": 60,
+              "rest_sec": 0
+            }
+          ]
+        }
+      ]
     }
   ]
 }

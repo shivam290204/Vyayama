@@ -840,7 +840,7 @@
         "Dumping weight onto wrists.",
         "Rounding lower back to force heels to the floor."
       ],
-      "video_url": "https://www.youtube.com/watch?v=WhbfS-GR32U"
+      "video_url": "https://www.youtube.com/watch?v=j97SSGsnCAQ"
     },
     {
       "id": "ex_cobra_pose",
@@ -950,7 +950,7 @@
       "common_mistakes": [
         "Fidgeting or holding muscular tension in jaw and shoulders."
       ],
-      "video_url": "https://www.youtube.com/watch?v=9ZsTLblha9o"
+      "video_url": "https://www.youtube.com/watch?v=1ZYbU82GVz4"
     },
     {
       "id": "ex_mountain_pose",
@@ -1074,7 +1074,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 4.0,
-      "animation_asset": "assets/exercises/lunge.png",
+      "animation_asset": "assets/exercises/reverse_lunge.png",
       "contraindications": [
         "knee"
       ],
@@ -1136,7 +1136,7 @@
         "Leaning torso forward over front knee.",
         "Letting back arm droop."
       ],
-      "video_url": "https://www.youtube.com/watch?v=4PkSkY1h18Q"
+      "video_url": "https://www.youtube.com/watch?v=4Ejz7IgODlU"
     },
     {
       "id": "ex_triangle_pose",
@@ -1181,7 +1181,7 @@
         "Collapsing weight into wrists.",
         "Holding breath during flexion."
       ],
-      "video_url": "https://www.youtube.com/watch?v=W5KGhyTllv0"
+      "video_url": "https://www.youtube.com/watch?v=y39PrKY_4JM"
     },
     {
       "id": "ex_bitilasana",
@@ -1204,7 +1204,7 @@
         "Over-arching the neck backward.",
         "Hyperextending elbows."
       ],
-      "video_url": "https://www.youtube.com/watch?v=W5KGhyTllv0"
+      "video_url": "https://www.youtube.com/watch?v=y39PrKY_4JM"
     },
     {
       "id": "ex_sukhasana",
@@ -1226,7 +1226,7 @@
         "Slouching or rounding the lower back.",
         "Tensing hips and knees."
       ],
-      "video_url": "https://www.youtube.com/watch?v=1Fep4eKvh1U"
+      "video_url": "https://www.youtube.com/watch?v=zLvJD7iKVhw"
     },
     {
       "id": "ex_vajrasana",
@@ -1249,7 +1249,7 @@
         "Allowing ankles to splay wide outward.",
         "Forcing weight when knees ache."
       ],
-      "video_url": "https://www.youtube.com/watch?v=gT8j6w61m58"
+      "video_url": "https://www.youtube.com/watch?v=B34UoKK23zM"
     },
     {
       "id": "ex_makarasana",
@@ -1269,7 +1269,7 @@
         "Tensing shoulder blades.",
         "Shallow breathing."
       ],
-      "video_url": "https://www.youtube.com/watch?v=0h3jOszvLzY"
+      "video_url": "https://www.youtube.com/watch?v=u52ZAwM1Byo"
     },
     {
       "id": "ex_pavanamuktasana",
@@ -1292,7 +1292,7 @@
         "Lifting the head aggressively when neck is tight.",
         "Squeezing knees beyond comfort."
       ],
-      "video_url": "https://www.youtube.com/watch?v=P7Gf13k8G3s"
+      "video_url": "https://www.youtube.com/watch?v=p6M6bHmFLEM"
     },
     {
       "id": "ex_baddha_konasana",
@@ -1315,7 +1315,7 @@
         "Forcefully pressing knees down with hands.",
         "Rounding the spine into a hunch."
       ],
-      "video_url": "https://www.youtube.com/watch?v=i9Yy68kM_6A"
+      "video_url": "https://www.youtube.com/watch?v=YXOeBUjmERI"
     },
     {
       "id": "ex_ardha_matsyendrasana",
@@ -1337,7 +1337,7 @@
         "Slumping through the lumbar spine while twisting.",
         "Cranking neck excessively."
       ],
-      "video_url": "https://www.youtube.com/watch?v=D-Zp256f08I"
+      "video_url": "https://www.youtube.com/watch?v=yYy6w8_hLTE"
     },
     {
       "id": "ex_virabhadrasana_3",
@@ -1361,7 +1361,7 @@
         "Opening the lifted hip toward the ceiling.",
         "Arching lower back and collapsing chest."
       ],
-      "video_url": "https://www.youtube.com/watch?v=t_o7aXvB7Z0"
+      "video_url": "https://www.youtube.com/watch?v=j423eDJ5mQg"
     },
     {
       "id": "ex_utkatasana",
@@ -1384,7 +1384,7 @@
         "Knees passing far past toes.",
         "Over-arching the lumbar spine."
       ],
-      "video_url": "https://www.youtube.com/watch?v=4xphwI_gG4s"
+      "video_url": "https://www.youtube.com/watch?v=ySafTekJ3Ls"
     },
     {
       "id": "ex_natarajasana",
@@ -1407,7 +1407,7 @@
         "Flaring the lifted knee out wide.",
         "Collapsing the chest forward without kicking back."
       ],
-      "video_url": "https://www.youtube.com/watch?v=rWjPj5d_fQI"
+      "video_url": "https://www.youtube.com/watch?v=jOcPrsDrn-s"
     },
     {
       "id": "ex_garudasana",
@@ -1429,7 +1429,7 @@
         "Tipping torso forward instead of keeping spine vertical.",
         "Holding breath."
       ],
-      "video_url": "https://www.youtube.com/watch?v=s5Fm0J3U8-Y"
+      "video_url": "https://www.youtube.com/watch?v=bp77kgtvQ7M"
     },
     {
       "id": "ex_ardha_chandrasana",
@@ -1452,7 +1452,7 @@
         "Allowing top hip to turn down toward floor.",
         "Hyperextending standing knee."
       ],
-      "video_url": "https://www.youtube.com/watch?v=vV7w4jT5X-8"
+      "video_url": "https://www.youtube.com/watch?v=EriPRTk1ly0"
     },
     {
       "id": "ex_parsvakonasana",
@@ -1474,7 +1474,7 @@
         "Collapsing weight into bottom shoulder.",
         "Rounding chest down."
       ],
-      "video_url": "https://www.youtube.com/watch?v=7uKqI5gY6pE"
+      "video_url": "https://www.youtube.com/watch?v=0lfzG9jH6cM"
     },
     {
       "id": "ex_prasarita_padottanasana",
@@ -1497,7 +1497,7 @@
         "Rounding back instead of hinging at hips.",
         "Locking knee joints."
       ],
-      "video_url": "https://www.youtube.com/watch?v=gT8v4H_6x3w"
+      "video_url": "https://www.youtube.com/watch?v=W4viztjiZvM"
     },
     {
       "id": "ex_dhanurasana",
@@ -1520,7 +1520,7 @@
         "Flaring knees wider than hips.",
         "Holding breath during hold."
       ],
-      "video_url": "https://www.youtube.com/watch?v=b4O5eG-X62w"
+      "video_url": "https://www.youtube.com/watch?v=EGI2-TWHIhI"
     },
     {
       "id": "ex_ustrasana",
@@ -1544,7 +1544,7 @@
         "Collapsing hips backward over heels.",
         "Dropping head back aggressively."
       ],
-      "video_url": "https://www.youtube.com/watch?v=4j33xB4_g8Q"
+      "video_url": "https://www.youtube.com/watch?v=yjEq4AmNZgw"
     },
     {
       "id": "ex_janu_sirsasana",
@@ -1567,7 +1567,7 @@
         "Forcing forehead to knee by rounding upper back.",
         "Tensing shoulders."
       ],
-      "video_url": "https://www.youtube.com/watch?v=p6Q9g0xK5i8"
+      "video_url": "https://www.youtube.com/watch?v=dOywaKDtr5U"
     },
     {
       "id": "ex_gomukhasana",
@@ -1590,7 +1590,7 @@
         "Dropping chest forward to reach hands.",
         "Forcing finger clasp."
       ],
-      "video_url": "https://www.youtube.com/watch?v=Yv5dE4g-g2U"
+      "video_url": "https://www.youtube.com/watch?v=_kpTGT3O41Q"
     },
     {
       "id": "ex_bakasana",
@@ -1613,7 +1613,7 @@
         "Looking down between hands instead of slightly forward.",
         "Jumping instead of shifting weight with control."
       ],
-      "video_url": "https://www.youtube.com/watch?v=hS_l0gE3A-U"
+      "video_url": "https://www.youtube.com/watch?v=xcK_rQGk-mw"
     },
     {
       "id": "ex_sirsasana",
@@ -1638,7 +1638,7 @@
         "Dumping weight onto cervical spine.",
         "Flaring elbows wide."
       ],
-      "video_url": "https://www.youtube.com/watch?v=gT8v_v_K8u8"
+      "video_url": "https://www.youtube.com/watch?v=PpHYrgAdGHA"
     },
     {
       "id": "ex_pincha_mayurasana",
@@ -1661,7 +1661,7 @@
         "Elbows sliding out wider than shoulders.",
         "Collapsing into shoulders (banana back)."
       ],
-      "video_url": "https://www.youtube.com/watch?v=J5v9o_4i7qA"
+      "video_url": "https://www.youtube.com/watch?v=-DpYwZ9FWis"
     },
     {
       "id": "ex_adho_mukha_vrksasana",
@@ -1685,7 +1685,7 @@
         "Bending elbows upon landing.",
         "Arching lower back excessively."
       ],
-      "video_url": "https://www.youtube.com/watch?v=O7o-eWqjF6g"
+      "video_url": "https://www.youtube.com/watch?v=_QxEuUQyVAI"
     },
     {
       "id": "ex_mayurasana",
@@ -1709,7 +1709,7 @@
         "Elbows sliding apart away from abdomen.",
         "Not leaning far enough forward."
       ],
-      "video_url": "https://www.youtube.com/watch?v=N6x9a_eM5b8"
+      "video_url": "https://www.youtube.com/watch?v=qGh6J-xDh7s"
     },
     {
       "id": "ex_eka_pada_rajakapotasana",
@@ -1733,7 +1733,7 @@
         "Forcing foot to head without hip opening.",
         "Compressing lumbar spine."
       ],
-      "video_url": "https://www.youtube.com/watch?v=P6v9k_4H7uU"
+      "video_url": "https://www.youtube.com/watch?v=D8WW2jGewq0"
     },
     {
       "id": "ex_hanumanasana",
@@ -1756,7 +1756,7 @@
         "Opening the back hip wide to cheat depth.",
         "Over-stretching tight hamstrings."
       ],
-      "video_url": "https://www.youtube.com/watch?v=h6v8m_v5e_E"
+      "video_url": "https://www.youtube.com/watch?v=Kt-ixlWZa0w"
     },
     {
       "id": "ex_urdhva_dhanurasana",
@@ -1780,7 +1780,7 @@
         "Flaring feet and knees wide apart.",
         "Dumping weight into lower back instead of opening chest."
       ],
-      "video_url": "https://www.youtube.com/watch?v=e_0oXjF7r6Q"
+      "video_url": "https://www.youtube.com/watch?v=XHrjbrYBcUQ"
     },
     {
       "id": "ex_eka_pada_koundinyasana",
@@ -1803,7 +1803,7 @@
         "Dropping chest too low to floor.",
         "Not engaging core and adductors."
       ],
-      "video_url": "https://www.youtube.com/watch?v=uK8o9_3fD6A"
+      "video_url": "https://www.youtube.com/watch?v=D8e6mLJDJ10"
     },
     {
       "id": "ex_astavakrasana",
@@ -1827,7 +1827,7 @@
         "Failing to squeeze upper arm with legs.",
         "Dropping shoulder below elbow height."
       ],
-      "video_url": "https://www.youtube.com/watch?v=vV9j6_eK4tQ"
+      "video_url": "https://www.youtube.com/watch?v=Dw7MNPRNkYs"
     },
     {
       "id": "ex_tittibhasana",
@@ -1850,7 +1850,7 @@
         "Slumping weight backward onto hips.",
         "Letting feet drop toward floor."
       ],
-      "video_url": "https://www.youtube.com/watch?v=v6O8o_4E9qU"
+      "video_url": "https://www.youtube.com/watch?v=xatM_sabgvI"
     },
     {
       "id": "ex_vrschikasana",
@@ -1874,7 +1874,7 @@
         "Attempting before mastering forearm stand.",
         "Collapsing into shoulders."
       ],
-      "video_url": "https://www.youtube.com/watch?v=a7b8e_6E8_M"
+      "video_url": "https://www.youtube.com/watch?v=2G0ExAYZHgI"
     },
     {
       "id": "ex_parsva_bakasana",
@@ -1897,7 +1897,7 @@
         "Not twisting deep enough before placing hands.",
         "Dropping head to floor."
       ],
-      "video_url": "https://www.youtube.com/watch?v=4rP7k_6f9wE"
+      "video_url": "https://www.youtube.com/watch?v=WprrgTU01As"
     },
     {
       "id": "ex_kapotasana",
@@ -1921,7 +1921,7 @@
         "Pinching lower back without thoracic expansion.",
         "Restricting breath."
       ],
-      "video_url": "https://www.youtube.com/watch?v=d_8kP_3o9uE"
+      "video_url": "https://www.youtube.com/watch?v=SAgFzYEzP8g"
     },
     {
       "id": "ex_kukkutasana",
@@ -1945,7 +1945,1123 @@
         "Attempting without comfortable Padmasana.",
         "Collapsing chest downward."
       ],
-      "video_url": "https://www.youtube.com/watch?v=vV9o_7k6P4E"
+      "video_url": "https://www.youtube.com/watch?v=OSKXO-vvdqo"
+    },
+    {
+      "id": "ex_arm_circles",
+      "name": "Arm Circles",
+      "muscle_group": "arms",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/arm_circles.png",
+      "contraindications": [
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand tall with feet hip-width apart and extend your arms straight out to the sides at shoulder height.",
+        "Make small, controlled circular motions forward with both arms.",
+        "Gradually increase circle diameter to mobilize shoulder capsules and rotator cuffs.",
+        "Reverse direction halfway through to work opposing muscle groups."
+      ],
+      "common_mistakes": [
+        "Dropping arms below shoulder height.",
+        "Shrugging shoulders up to ears.",
+        "Arching lower back aggressively."
+      ],
+      "form_checklist": [
+        "Keep shoulders relaxed away from ears",
+        "Maintain controlled circular speed"
+      ],
+      "semantic_description": "Controlled arm circles with arms extended at shoulder height to warm up shoulder joints.",
+      "video_url": "https://www.youtube.com/watch?v=Jf40owVcXmM"
+    },
+    {
+      "id": "ex_shoulder_rolls",
+      "name": "Shoulder Rolls",
+      "muscle_group": "arms",
+      "equipment": "none",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/shoulder_rolls.png",
+      "contraindications": [],
+      "instructions": [
+        "Stand tall with arms relaxed naturally at your sides.",
+        "Lift shoulders up toward your ears, roll them backward, squeeze shoulder blades together, then lower down.",
+        "Perform smooth, fluid circular motions to release upper neck and shoulder tension.",
+        "Switch to rolling forward halfway through."
+      ],
+      "common_mistakes": [
+        "Jerkiness or rushing through the motion.",
+        "Holding your breath.",
+        "Leaning neck forward."
+      ],
+      "form_checklist": [
+        "Full circular range of motion",
+        "Keep spine upright and neck relaxed"
+      ],
+      "semantic_description": "Smooth forward and backward shoulder rolls to release tension and mobilize shoulder joints.",
+      "video_url": "https://www.youtube.com/watch?v=LgPCO6RIH3Q"
+    },
+    {
+      "id": "ex_hip_circles",
+      "name": "Hip Circles",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 2.8,
+      "animation_asset": "assets/exercises/hip_circles.png",
+      "contraindications": [
+        "hip"
+      ],
+      "instructions": [
+        "Stand with feet slightly wider than shoulder-width, placing hands firmly on your hips.",
+        "Rotate your hips in wide, smooth clockwise circles.",
+        "Engage core gently while opening up pelvic girdle, hip flexors, and lower back.",
+        "Reverse direction and complete equal rotations counter-clockwise."
+      ],
+      "common_mistakes": [
+        "Moving only the upper torso instead of hips.",
+        "Locking knees stiffly.",
+        "Rushing the circular movement."
+      ],
+      "form_checklist": [
+        "Keep knees soft and unlocked",
+        "Make full, fluid circles"
+      ],
+      "semantic_description": "Controlled hip circles with hands on hips to mobilize pelvis and lower lumbar spine.",
+      "video_url": "https://www.youtube.com/watch?v=OqR7Tl6SPLQ"
+    },
+    {
+      "id": "ex_ankle_rotations",
+      "name": "Ankle Rotations",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/ankle_rotations.png",
+      "contraindications": [
+        "ankle"
+      ],
+      "instructions": [
+        "Stand tall or sit comfortably with one foot lifted slightly off the floor.",
+        "Rotate foot and ankle in slow, complete circles in a clockwise direction.",
+        "Complete desired reps, then rotate counter-clockwise.",
+        "Switch feet and repeat to prepare calves and ankles for impact."
+      ],
+      "common_mistakes": [
+        "Moving entire leg instead of just ankle joint.",
+        "Rushing through the range of motion."
+      ],
+      "form_checklist": [
+        "Isolate movement to ankle joint",
+        "Maintain balance or hold wall if needed"
+      ],
+      "semantic_description": "Slow ankle circles clockwise and counter-clockwise to lubricate joint and improve mobility.",
+      "video_url": "https://www.youtube.com/watch?v=mzTQGYGI0Ng"
+    },
+    {
+      "id": "ex_hip_rotations",
+      "name": "Hip Rotations",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/hip_rotations.png",
+      "contraindications": [
+        "hip"
+      ],
+      "instructions": [
+        "Stand on one leg while lifting the opposite knee up to hip level.",
+        "Open the knee out to the side in a smooth arc, then lower back to starting position.",
+        "Alternate legs or complete sets on one side before switching.",
+        "Hold onto a sturdy wall or surface if you need balance support."
+      ],
+      "common_mistakes": [
+        "Twisting upper body to compensate for limited hip range.",
+        "Losing balance or rushing reps."
+      ],
+      "form_checklist": [
+        "Keep torso square facing front",
+        "Move knee through controlled circular arc"
+      ],
+      "semantic_description": "Standing hip open-the-gate rotations lifting and circling knee to warm up hip joints.",
+      "video_url": "https://www.youtube.com/watch?v=C4MDREc9ERg"
+    },
+    {
+      "id": "ex_leg_swings",
+      "name": "Leg Swings",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 3.5,
+      "animation_asset": "assets/exercises/leg_swings.png",
+      "contraindications": [
+        "hip"
+      ],
+      "instructions": [
+        "Stand beside a wall or sturdy support, holding it lightly with one hand.",
+        "Swing the outer leg forward and backward smoothly in a pendulum motion.",
+        "Allow hamstring and hip flexor to dynamically stretch without forcing end range.",
+        "Switch sides and repeat with other leg."
+      ],
+      "common_mistakes": [
+        "Excessive arching of lower back during backswing.",
+        "Forcing height instead of maintaining relaxed momentum."
+      ],
+      "form_checklist": [
+        "Maintain tall, upright posture",
+        "Swing leg from hip joint with relaxed control"
+      ],
+      "semantic_description": "Dynamic forward and backward leg swings holding support to warm up hips and hamstrings.",
+      "video_url": "https://www.youtube.com/watch?v=3l31E2cMGMk"
+    },
+    {
+      "id": "ex_inchworm",
+      "name": "Inchworms",
+      "muscle_group": "full_body",
+      "equipment": "none",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/inchworm.png",
+      "contraindications": [
+        "wrist",
+        "lower_back"
+      ],
+      "instructions": [
+        "Stand tall with feet hip-width apart.",
+        "Hinge forward at hips and place hands on the floor (bend knees slightly if hamstrings are tight).",
+        "Walk hands forward one by one until you reach a straight-arm plank position.",
+        "Hold for a brief moment, then walk hands back toward feet and stand up tall."
+      ],
+      "common_mistakes": [
+        "Sagging hips in plank position.",
+        "Rushing hand steps without core stability."
+      ],
+      "form_checklist": [
+        "Brace core tightly at plank top",
+        "Feel gentle stretch through hamstrings on hinge"
+      ],
+      "semantic_description": "Standing hinge walking hands out to high plank and back to stretch hamstrings and warm up core.",
+      "video_url": "https://www.youtube.com/watch?v=7jeW4v_oaes"
+    },
+    {
+      "id": "ex_arm_swings",
+      "name": "Arm Swings",
+      "muscle_group": "arms",
+      "equipment": "none",
+      "met": 3.2,
+      "animation_asset": "assets/exercises/arm_swings.png",
+      "contraindications": [
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand tall with feet hip-width apart and knees slightly bent.",
+        "Swing both arms across the front of your chest, alternating which arm crosses on top.",
+        "Open arms wide horizontally to stretch chest and shoulders dynamically.",
+        "Maintain a steady, rhythmic breathing pattern throughout."
+      ],
+      "common_mistakes": [
+        "Flailing arms with uncontrolled hyper-extension.",
+        "Slouching shoulders forward."
+      ],
+      "form_checklist": [
+        "Alternate crossing arm on each repetition",
+        "Feel dynamic stretch across chest and upper back"
+      ],
+      "semantic_description": "Dynamic horizontal arm swings across chest to open pectorals and warm up shoulder girdle.",
+      "video_url": "https://www.youtube.com/watch?v=XTbPqeswd-Y"
+    },
+    {
+      "id": "ex_dynamic_lunges",
+      "name": "Dynamic Lunges",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/dynamic_lunges.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand tall with feet together and hands on hips.",
+        "Step forward smoothly into a controlled lunge, lowering hips until front thigh is parallel to ground.",
+        "Push off front foot in one fluid motion to return to starting stance.",
+        "Immediately step forward with opposite leg and alternate continuously."
+      ],
+      "common_mistakes": [
+        "Front knee shooting past toes.",
+        "Torso collapsing forward.",
+        "Slamming back knee into floor."
+      ],
+      "form_checklist": [
+        "Chest lifted and shoulders back",
+        "Knee tracks in line with second toe"
+      ],
+      "semantic_description": "Rhythmic alternating lunges to dynamically elevate heart rate and lubricate knee and hip joints.",
+      "video_url": "https://www.youtube.com/watch?v=wrwwXE_x-pQ"
+    },
+    {
+      "id": "ex_wall_pushups",
+      "name": "Wall Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/wall_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand arm-length away from a sturdy wall with feet hip-width apart.",
+        "Place palms flat against wall at shoulder height and shoulder-width apart.",
+        "Keeping body straight from head to heels, bend elbows to lower chest toward wall.",
+        "Press through palms to push back to straight arms."
+      ],
+      "common_mistakes": [
+        "Sagging hips or piking buttocks back.",
+        "Shrugging shoulders into neck."
+      ],
+      "form_checklist": [
+        "Body stays in straight rigid line",
+        "Elbows track back at roughly 45 degrees"
+      ],
+      "semantic_description": "Beginner bodyweight pushup variation standing against a wall to develop pushing mechanics.",
+      "video_url": "https://www.youtube.com/watch?v=EOf3cGIQpA4"
+    },
+    {
+      "id": "ex_knee_pushups",
+      "name": "Knee Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 3.8,
+      "animation_asset": "assets/exercises/knee_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Start on all fours, then walk hands forward and lower hips so body forms a straight line from knees to head.",
+        "Place hands slightly wider than shoulder-width.",
+        "Lower chest toward the floor until elbows bend to 90 degrees.",
+        "Press through palms firmly to return to the starting plank position on knees."
+      ],
+      "common_mistakes": [
+        "Leaving hips raised in the air (piking).",
+        "Flaring elbows straight out to the sides.",
+        "Letting head drop forward."
+      ],
+      "form_checklist": [
+        "Core braced with straight line from knees to head",
+        "Smooth, controlled descent"
+      ],
+      "semantic_description": "Modified pushup performed on knees to build upper body pressing strength with reduced load.",
+      "video_url": "https://www.youtube.com/watch?v=rrVwNeIpy-k"
+    },
+    {
+      "id": "ex_chair_squats",
+      "name": "Chair Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 4.0,
+      "animation_asset": "assets/exercises/chair_squat.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand a few inches in front of a sturdy chair with feet shoulder-width apart.",
+        "Push hips back and bend knees, lowering slowly until glutes lightly touch the seat.",
+        "Do not collapse your weight onto the chair; pause for a half-second.",
+        "Drive through your heels and stand up tall, squeezing glutes at the top."
+      ],
+      "common_mistakes": [
+        "Dropping heavily onto chair without control.",
+        "Knees caving inward on ascent.",
+        "Heels peeling off the ground."
+      ],
+      "form_checklist": [
+        "Light touch on the seat",
+        "Keep chest upright and weight centered over midfoot"
+      ],
+      "semantic_description": "Beginner squat variation using a chair as a depth guide and safety reassurance.",
+      "video_url": "https://www.youtube.com/watch?v=OViE2ghEop0"
+    },
+    {
+      "id": "ex_knee_plank",
+      "name": "Knee Plank",
+      "muscle_group": "core",
+      "equipment": "none",
+      "met": 3.0,
+      "animation_asset": "assets/exercises/knee_plank.png",
+      "contraindications": [
+        "wrist",
+        "lower_back"
+      ],
+      "instructions": [
+        "Rest on your forearms and knees, with elbows directly under shoulders.",
+        "Walk knees back slightly so your body forms a straight line from knees to head.",
+        "Engage your abdominal wall and glutes, keeping your spine neutral.",
+        "Breathe steadily and hold for the target duration."
+      ],
+      "common_mistakes": [
+        "Arching lower back and letting belly sag.",
+        "Piking hips up toward the ceiling.",
+        "Holding breath."
+      ],
+      "form_checklist": [
+        "Keep elbows directly stacked under shoulders",
+        "Tuck pelvis slightly to engage lower abs"
+      ],
+      "semantic_description": "Modified forearm plank on knees building foundational isometric core strength.",
+      "video_url": "https://www.youtube.com/watch?v=6LqqeBtFn9M"
+    },
+    {
+      "id": "ex_wide_pushups",
+      "name": "Wide-Grip Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 4.2,
+      "animation_asset": "assets/exercises/wide_pushup.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Set up in a high plank position with hands placed about 1.5 times shoulder-width apart.",
+        "Keep your body straight from heels to head with core braced.",
+        "Lower chest toward floor by bending elbows outwards at roughly 45 to 60 degrees.",
+        "Push through palms to return to full lockout."
+      ],
+      "common_mistakes": [
+        "Flaring elbows out at 90 degrees which overloads shoulder joints.",
+        "Sagging midsection."
+      ],
+      "form_checklist": [
+        "Engage chest muscles actively at lockout",
+        "Do not allow head to crane forward"
+      ],
+      "semantic_description": "Wide hand placement pushup targeting chest pectoral fibers and shoulder stabilizers.",
+      "video_url": "https://www.youtube.com/watch?v=rr6eFNNDQdU"
+    },
+    {
+      "id": "ex_diamond_pushups",
+      "name": "Diamond Push-ups",
+      "muscle_group": "arms",
+      "equipment": "none",
+      "met": 4.8,
+      "animation_asset": "assets/exercises/diamond_pushup.png",
+      "contraindications": [
+        "wrist",
+        "elbow"
+      ],
+      "instructions": [
+        "Start in a high plank with hands directly under chest, thumbs and index fingers touching to form a diamond or triangle shape.",
+        "Maintain a rigid plank alignment from head to heels.",
+        "Lower chest toward your hands while keeping elbows tucked close to your ribcage.",
+        "Drive powerfully through palms and triceps to push back to top position."
+      ],
+      "common_mistakes": [
+        "Flaring elbows wide.",
+        "Letting hips drop or piking backwards."
+      ],
+      "form_checklist": [
+        "Keep elbows tracking tight to ribs",
+        "Squeeze triceps at top of repetition"
+      ],
+      "semantic_description": "Close-grip pushup with hands forming a diamond under chest for intense triceps and chest activation.",
+      "video_url": "https://www.youtube.com/watch?v=J0DnG1_S92I"
+    },
+    {
+      "id": "ex_sumo_squats",
+      "name": "Sumo Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 5.0,
+      "animation_asset": "assets/exercises/sumo_squat.png",
+      "contraindications": [
+        "groin",
+        "knee"
+      ],
+      "instructions": [
+        "Stand with feet considerably wider than shoulder-width, toes turned outward at 45 degrees.",
+        "Keep chest upright and hands clasped in front of your chest.",
+        "Bend knees and push hips back, tracking knees directly over your flared toes.",
+        "Descend until thighs are parallel to ground, then drive through heels to stand tall."
+      ],
+      "common_mistakes": [
+        "Knees collapsing inward past toes.",
+        "Leaning torso excessively forward."
+      ],
+      "form_checklist": [
+        "Keep knees tracking wide over toes",
+        "Squeeze inner thighs and glutes at peak"
+      ],
+      "semantic_description": "Wide-stance squat variation targeting adductors (inner thighs) and gluteus medius.",
+      "video_url": "https://www.youtube.com/watch?v=mlAi4_EvNnY"
+    },
+    {
+      "id": "ex_jump_squats",
+      "name": "Jump Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 8.0,
+      "animation_asset": "assets/exercises/jump_squat.png",
+      "contraindications": [
+        "knee",
+        "ankle",
+        "lower_back"
+      ],
+      "instructions": [
+        "Stand with feet shoulder-width apart, arms at your sides.",
+        "Hinge and bend knees into a quarter-to-half squat, swinging arms back.",
+        "Explosively extend hips, knees, and ankles, driving arms up and jumping into the air.",
+        "Land softly on balls of feet and absorb impact by sinking immediately into the next squat."
+      ],
+      "common_mistakes": [
+        "Landing with stiff, locked knees (jarring joints).",
+        "Letting knees cave inward upon impact."
+      ],
+      "form_checklist": [
+        "Land quietly and smoothly absorb shock",
+        "Drive with maximum vertical power"
+      ],
+      "semantic_description": "Plyometric explosive squat jump developing lower body power, speed, and cardiovascular conditioning.",
+      "video_url": "https://www.youtube.com/watch?v=h5TmdMMtIT4"
+    },
+    {
+      "id": "ex_walking_lunges",
+      "name": "Walking Lunges",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 5.2,
+      "animation_asset": "assets/exercises/walking_lunge.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand tall with feet together and hands on hips or at your sides.",
+        "Take a large step forward with your right leg, lowering hips until front thigh is parallel to floor.",
+        "Drive through right heel and step your left leg forward directly into the next lunge.",
+        "Continue walking forward in a smooth, continuous alternating cadence."
+      ],
+      "common_mistakes": [
+        "Taking too short strides which strains front patella.",
+        "Letting torso sway side-to-side."
+      ],
+      "form_checklist": [
+        "Keep torso upright and proud",
+        "Hover back knee just an inch above floor"
+      ],
+      "semantic_description": "Forward moving lunges creating dynamic unilateral lower body strength and balance.",
+      "video_url": "https://www.youtube.com/watch?v=L8fvypPrzzs"
+    },
+    {
+      "id": "ex_bulgarian_split_squat",
+      "name": "Bulgarian Split Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 5.5,
+      "animation_asset": "assets/exercises/bulgarian_split_squat.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand about two feet in front of a bench or chair, facing away.",
+        "Reach one foot back and rest the top of your foot on the elevated surface.",
+        "Lower your hips straight down until your front thigh is roughly parallel to floor.",
+        "Drive through your front heel to stand back up, keeping rear leg relaxed."
+      ],
+      "common_mistakes": [
+        "Placing front foot too close to bench, crowding front knee.",
+        "Pushing off the rear elevated foot."
+      ],
+      "form_checklist": [
+        "80% of weight supported by front leg",
+        "Keep torso tall with slight forward hinge"
+      ],
+      "semantic_description": "Unilateral rear-foot elevated split squat for intense quad, hamstring, and glute development.",
+      "video_url": "https://www.youtube.com/watch?v=2C-uNgKwPLE"
+    },
+    {
+      "id": "ex_decline_pushups",
+      "name": "Decline Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 5.0,
+      "animation_asset": "assets/exercises/decline_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Kneel facing away from a sturdy bench, chair, or bed.",
+        "Place hands flat on floor slightly wider than shoulder-width, then place toes on the elevated surface.",
+        "Brace core to form a rigid line from toes to head.",
+        "Lower chest toward floor until elbows bend to 90 degrees, then press back up forcefully."
+      ],
+      "common_mistakes": [
+        "Sagging hips or hyperextending neck.",
+        "Flaring elbows straight out."
+      ],
+      "form_checklist": [
+        "Shift focus to upper chest and anterior deltoids",
+        "Keep neck aligned with spine"
+      ],
+      "semantic_description": "Elevated-feet pushup shifting center of gravity to intensify upper pectoral and shoulder demand.",
+      "video_url": "https://www.youtube.com/watch?v=SKPab2YC8BE"
+    },
+    {
+      "id": "ex_archer_pushups",
+      "name": "Archer Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 6.0,
+      "animation_asset": "assets/exercises/archer_pushup.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Set up in a pushup position with hands placed significantly wider than normal.",
+        "Lower your body toward one side, bending that arm fully while extending the other arm straight out.",
+        "Press back up to the center using the bent working arm.",
+        "Repeat on the opposite side, alternating smoothly like an archer drawing a bow."
+      ],
+      "common_mistakes": [
+        "Bending both arms equally instead of isolating one side.",
+        "Twisting hips away from horizontal alignment."
+      ],
+      "form_checklist": [
+        "Keep extended arm straight with palm on floor",
+        "Maintain tight plank posture throughout"
+      ],
+      "semantic_description": "Advanced bodyweight pushup progression shifting majority of weight onto one arm horizontally.",
+      "video_url": "https://www.youtube.com/watch?v=vwMIA4BVvYc"
+    },
+    {
+      "id": "ex_explosive_pushups",
+      "name": "Explosive Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 7.5,
+      "animation_asset": "assets/exercises/explosive_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder",
+        "elbow"
+      ],
+      "instructions": [
+        "Start in a standard pushup position with core tightly braced.",
+        "Lower chest down under control until an inch above the floor.",
+        "Explosively push through your hands with maximum speed so hands leave the ground momentarily.",
+        "Land with soft, unlocked elbows and immediately descend into the next repetition."
+      ],
+      "common_mistakes": [
+        "Landing with stiff, locked elbows.",
+        "Losing core tension and flopping hips."
+      ],
+      "form_checklist": [
+        "Explosive upward drive",
+        "Soft, controlled landing absorption"
+      ],
+      "semantic_description": "Plyometric pushup developing explosive upper body pressing power and fast-twitch muscle fibers.",
+      "video_url": "https://www.youtube.com/watch?v=xiSBrm-Rgms"
+    },
+    {
+      "id": "ex_pike_pushups",
+      "name": "Pike Push-ups",
+      "muscle_group": "shoulders",
+      "equipment": "none",
+      "met": 5.0,
+      "animation_asset": "assets/exercises/pike_pushup.png",
+      "contraindications": [
+        "shoulder",
+        "wrist"
+      ],
+      "instructions": [
+        "Begin in a downward-dog or inverted V position with hands shoulder-width and hips pushed high.",
+        "Shift your weight forward so shoulders are stacked directly over wrists.",
+        "Bend elbows and lower crown of head forward and down in a diagonal arc between hands.",
+        "Press through shoulders and palms to push back up into the high pike."
+      ],
+      "common_mistakes": [
+        "Flaring elbows out instead of tucking back at 45 degrees.",
+        "Letting hips drop into a standard pushup."
+      ],
+      "form_checklist": [
+        "Crown of head touches floor ahead of hands (forming a triangle)",
+        "Keep hips high throughout"
+      ],
+      "semantic_description": "Inverted pike pressing exercise targeting deltoids and upper trapezius as handstand prep.",
+      "video_url": "https://www.youtube.com/watch?v=eG20L9cl81w"
+    },
+    {
+      "id": "ex_assisted_pistol_squats",
+      "name": "Assisted Pistol Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 6.5,
+      "animation_asset": "assets/exercises/pistol_squat.png",
+      "contraindications": [
+        "knee",
+        "ankle"
+      ],
+      "instructions": [
+        "Stand tall on one leg with a wall, doorframe, or sturdy post at your side for balance.",
+        "Extend the non-working leg straight out in front of you.",
+        "Lower down on your standing leg into a deep, full single-leg squat, using hand support as needed.",
+        "Press through heel and midfoot to stand back up without relying purely on hand assistance."
+      ],
+      "common_mistakes": [
+        "Heel lifting off the floor.",
+        "Collapsing knee inward.",
+        "Pulling too hard with arm instead of driving with leg."
+      ],
+      "form_checklist": [
+        "Keep foot completely flat on the floor",
+        "Use hand support only for balance and minimal assistance"
+      ],
+      "semantic_description": "Single-leg deep squat with light hand support to master balance, mobility, and leg strength.",
+      "video_url": "https://www.youtube.com/watch?v=bH3mRwnAN88"
+    },
+    {
+      "id": "ex_single_leg_glute_bridge",
+      "name": "Single-Leg Glute Bridges",
+      "muscle_group": "glutes",
+      "equipment": "none",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/single_leg_glute_bridge.png",
+      "contraindications": [
+        "lower_back"
+      ],
+      "instructions": [
+        "Lie on your back with knees bent, feet flat on the floor, and arms at your sides.",
+        "Lift one leg off the ground, extending it straight or holding knee toward chest.",
+        "Drive through the heel of the planted foot, raising hips until thighs and torso align.",
+        "Squeeze the working glute hard at top, lower slowly, and repeat before switching sides."
+      ],
+      "common_mistakes": [
+        "Hyperextending lower back at top.",
+        "Dropping or rotating hips unevenly."
+      ],
+      "form_checklist": [
+        "Keep pelvis level and square throughout",
+        "Drive through planted heel"
+      ],
+      "semantic_description": "Unilateral glute bridge isolating gluteus maximus and hamstrings while balancing pelvis.",
+      "video_url": "https://www.youtube.com/watch?v=n1IZ168x2Bw"
+    },
+    {
+      "id": "ex_plank_to_pushup",
+      "name": "Plank to Push-up",
+      "muscle_group": "full_body",
+      "equipment": "none",
+      "met": 5.5,
+      "animation_asset": "assets/exercises/plank_to_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Start in a forearm plank with elbows directly under shoulders.",
+        "Place right hand flat under right shoulder and push up, immediately followed by left hand to reach high plank.",
+        "Lower right elbow back down, then left elbow back to forearm plank.",
+        "Alternate the leading arm on each rep to balance triceps and shoulder effort."
+      ],
+      "common_mistakes": [
+        "Excessive rocking or swaying of hips side-to-side.",
+        "Placing hands too far forward of shoulders."
+      ],
+      "form_checklist": [
+        "Lock core and glutes to minimize hip sway",
+        "Place palms directly where elbows were"
+      ],
+      "semantic_description": "Dynamic transition between forearm plank and high plank building shoulder stability and core control.",
+      "video_url": "https://www.youtube.com/watch?v=9PMGJqQnrGc"
+    },
+    {
+      "id": "ex_v_ups",
+      "name": "V-ups",
+      "muscle_group": "core",
+      "equipment": "none",
+      "met": 6.0,
+      "animation_asset": "assets/exercises/v_ups.png",
+      "contraindications": [
+        "lower_back",
+        "neck"
+      ],
+      "instructions": [
+        "Lie flat on your back with legs straight together and arms extended overhead.",
+        "Engage your core to simultaneously lift your straight legs and upper torso off the floor.",
+        "Reach hands toward toes, forming a crisp V-shape balancing on your glutes.",
+        "Lower under control back to starting position without letting lower back arch."
+      ],
+      "common_mistakes": [
+        "Bending knees excessively.",
+        "Using momentum or throwing arms rather than contracting abs.",
+        "Slamming back down onto floor."
+      ],
+      "form_checklist": [
+        "Exhale on contraction as you fold into V",
+        "Control descent smoothly"
+      ],
+      "semantic_description": "Advanced core exercise simultaneously folding torso and legs into a V-shape.",
+      "video_url": "https://www.youtube.com/watch?v=7UVgs18Y1P4"
+    },
+    {
+      "id": "ex_hip_flexor_stretch",
+      "name": "Hip Flexor Stretch",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/hip_flexor_stretch.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Kneel on your back knee with the front foot planted flat at 90 degrees.",
+        "Tuck your pelvis slightly underneath you to engage glutes.",
+        "Shift your weight gently forward until you feel a deep stretch in the front of your back hip.",
+        "Hold with tall spine and relaxed breathing, then switch sides."
+      ],
+      "common_mistakes": [
+        "Arching lower back rather than tucking pelvis.",
+        "Leaning torso forward."
+      ],
+      "form_checklist": [
+        "Keep torso upright and proud",
+        "Maintain slight posterior pelvic tilt"
+      ],
+      "semantic_description": "Half-kneeling stretch opening up the iliopsoas and anterior hip capsule.",
+      "video_url": "https://www.youtube.com/watch?v=ktgtEWGhFd8"
+    },
+    {
+      "id": "ex_chest_stretch",
+      "name": "Chest Stretch",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 2.0,
+      "animation_asset": "assets/exercises/chest_stretch.png",
+      "contraindications": [
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand next to a wall or doorway, placing one forearm and elbow flat at shoulder height.",
+        "Step forward with the inside leg and gently turn your body away.",
+        "Feel a broad opening stretch across your chest and anterior shoulder.",
+        "Breathe deeply for the duration, then switch sides."
+      ],
+      "common_mistakes": [
+        "Shrugging shoulder up toward ear.",
+        "Forcing or jerking into the stretch."
+      ],
+      "form_checklist": [
+        "Elbow bent 90 degrees against wall",
+        "Breathe deeply to allow muscles to relax"
+      ],
+      "semantic_description": "Doorway/wall pectoral stretch opening chest and counteracting rounded shoulders.",
+      "video_url": "https://www.youtube.com/watch?v=PWGuI3rTRx0"
+    },
+    {
+      "id": "ex_pigeon_stretch",
+      "name": "Pigeon Stretch",
+      "muscle_group": "glutes",
+      "equipment": "none",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/pigeon_stretch.png",
+      "contraindications": [
+        "knee",
+        "hip"
+      ],
+      "instructions": [
+        "From all fours, slide right knee forward behind right wrist, angling right foot toward left hip.",
+        "Slide left leg straight back along the floor, pointing toes.",
+        "Lower hips square toward the floor, keeping hands on ground for support or resting on forearms.",
+        "Hold and breathe into the deep outer hip and glute stretch before switching sides."
+      ],
+      "common_mistakes": [
+        "Collapsing all weight onto one side of hip.",
+        "Torquing front knee sharply."
+      ],
+      "form_checklist": [
+        "Keep pelvis level and square to ground",
+        "Place folded towel under hip if tight"
+      ],
+      "semantic_description": "Deep restorative hip and piriformis stretch opening glutes and relieving lower back tightness.",
+      "video_url": "https://www.youtube.com/watch?v=AI5A1PRYX7E"
+    },
+    {
+      "id": "ex_deep_breathing",
+      "name": "Deep Breathing",
+      "muscle_group": "full_body",
+      "equipment": "none",
+      "met": 1.5,
+      "animation_asset": "assets/exercises/meditation.png",
+      "contraindications": [],
+      "instructions": [
+        "Sit comfortably or lie on your back with hands resting softly on your belly.",
+        "Inhale slowly and deeply through your nose for 4 seconds, feeling your belly expand.",
+        "Hold gently for 2 seconds.",
+        "Exhale slowly and completely through your mouth for 6 seconds, letting your body fully relax."
+      ],
+      "common_mistakes": [
+        "Shallow chest breathing.",
+        "Tensing neck and shoulders."
+      ],
+      "form_checklist": [
+        "Diaphragmatic expansion on inhale",
+        "Long, smooth, calming exhalation"
+      ],
+      "semantic_description": "Calming diaphragmatic breathing cool-down to activate parasympathetic recovery.",
+      "video_url": "https://www.youtube.com/watch?v=inpok4MKVLM"
+    },
+    {
+      "id": "ex_neck_rotations",
+      "name": "Neck Rotations (Gentle)",
+      "muscle_group": "shoulders",
+      "equipment": "none",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/shoulder_rolls.png",
+      "contraindications": [
+        "neck"
+      ],
+      "instructions": [
+        "Stand or sit tall with shoulders relaxed down and away from your ears.",
+        "Slowly and gently roll your head in a smooth circle, moving right, back, left, and forward.",
+        "Avoid forcing the range of motion; maintain slow, relaxed breathing.",
+        "Reverse directions smoothly after completing the desired repetitions."
+      ],
+      "common_mistakes": [
+        "Jerking or moving too quickly.",
+        "Forcing the head backward into a pinch.",
+        "Tensing the shoulders upward."
+      ],
+      "form_checklist": [
+        "Keep shoulders relaxed and still",
+        "Slow and controlled circular motion"
+      ],
+      "poses": [],
+      "semantic_description": "Gentle cervical neck rolls to relieve tension and warm up the neck.",
+      "video_url": "https://www.youtube.com/watch?v=ErB655NUEMA"
+    },
+    {
+      "id": "ex_standing_crunches",
+      "name": "Standing Crunches",
+      "muscle_group": "abs",
+      "equipment": "none",
+      "met": 4.5,
+      "animation_asset": "assets/exercises/high_knees.png",
+      "contraindications": [],
+      "instructions": [
+        "Stand tall with feet shoulder-width apart, fingertips lightly resting behind your ears.",
+        "Shift weight to your left leg, brace your core, and lift your right knee diagonally across your torso.",
+        "Crunch your left elbow toward your right knee to contract your obliques and abs.",
+        "Lower your foot with control and alternate sides with each rep."
+      ],
+      "common_mistakes": [
+        "Pulling on the neck with hands.",
+        "Dropping the chest without engaging the abdominal wall."
+      ],
+      "form_checklist": [
+        "Fingertips light on ears",
+        "Focus on driving knee up and crunching abs"
+      ],
+      "poses": [],
+      "semantic_description": "A standing core crunch targeting the rectus abdominis and obliques.",
+      "video_url": "https://www.youtube.com/watch?v=iEDwsKopMzc"
+    },
+    {
+      "id": "ex_pseudo_planche_pushups",
+      "name": "Pseudo Planche Push-ups",
+      "muscle_group": "chest",
+      "equipment": "none",
+      "met": 6.5,
+      "animation_asset": "assets/exercises/pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Set up in a standard push-up position with fingers pointed slightly outward.",
+        "Walk your hands down toward your waist and lean your shoulders well in front of your wrists.",
+        "Maintain protraction (hollow body) and lower yourself until your chest nears the floor.",
+        "Press through your palms to return to the top while sustaining the forward shoulder lean."
+      ],
+      "common_mistakes": [
+        "Sagging hips or arched lower back.",
+        "Losing the forward lean during the press."
+      ],
+      "form_checklist": [
+        "Shoulders stay well ahead of wrists",
+        "Core stays braced in a hollow body position"
+      ],
+      "poses": [],
+      "semantic_description": "An advanced calisthenics push-up variation emphasizing the anterior deltoids and chest.",
+      "video_url": "https://www.youtube.com/watch?v=HkGcKQ36Mfo"
+    },
+    {
+      "id": "ex_jump_lunges",
+      "name": "Jump Lunges",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 8.0,
+      "animation_asset": "assets/exercises/dynamic_lunges.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Begin in a lunge stance with both knees bent at roughly 90 degrees.",
+        "Explode vertically upward, swinging your arms for balance and momentum.",
+        "Switch your leg positions in mid-air and land softly into the opposite lunge.",
+        "Immediately sink into the lunge to absorb the landing and transition smoothly into the next jump."
+      ],
+      "common_mistakes": [
+        "Landing heavily on the back knee.",
+        "Front knee collapsing inward upon impact."
+      ],
+      "form_checklist": [
+        "Land softly on the balls of your feet",
+        "Chest upright and core braced"
+      ],
+      "poses": [],
+      "semantic_description": "An explosive plyometric lunge movement that builds leg power and cardiovascular stamina.",
+      "video_url": "https://www.youtube.com/watch?v=acLvV5Gwi7o"
+    },
+    {
+      "id": "ex_single_leg_squats",
+      "name": "Single-Leg Squats",
+      "muscle_group": "legs",
+      "equipment": "none",
+      "met": 7.0,
+      "animation_asset": "assets/exercises/pistol_squat.png",
+      "contraindications": [
+        "knee"
+      ],
+      "instructions": [
+        "Stand on one leg with the other leg elevated in front or bent behind you.",
+        "Reach your arms forward for balance, push your hips back, and bend your working knee.",
+        "Lower yourself down into a deep squat while keeping your heel grounded.",
+        "Drive firmly through your heel and midfoot to return to full standing lockout."
+      ],
+      "common_mistakes": [
+        "Heel lifting off the floor.",
+        "Excessive rounding of the spine."
+      ],
+      "form_checklist": [
+        "Keep working heel flat",
+        "Knee tracks directly over second toe"
+      ],
+      "poses": [],
+      "semantic_description": "A high-level unilateral bodyweight leg exercise developing balance, quadriceps, and glute strength.",
+      "video_url": "https://www.youtube.com/watch?v=bH3mRwnAN88"
+    },
+    {
+      "id": "ex_hanging_leg_raises",
+      "name": "Hanging Leg Raises",
+      "muscle_group": "abs",
+      "equipment": "pull_up_bar",
+      "met": 6.0,
+      "animation_asset": "assets/exercises/straight_leg_raise.png",
+      "contraindications": [
+        "shoulder",
+        "lower_back"
+      ],
+      "instructions": [
+        "Hang from a pull-up bar with an overhand grip and your body fully extended.",
+        "Engage your lats to prevent body swing and brace your core.",
+        "Raise your straight legs smoothly until they reach hip height (or higher).",
+        "Pause briefly, then lower your legs with strict eccentric control."
+      ],
+      "common_mistakes": [
+        "Using swinging momentum to propel legs up.",
+        "Arching lower back on the way down."
+      ],
+      "form_checklist": [
+        "Zero swinging momentum",
+        "Controlled lift using abdominal power"
+      ],
+      "poses": [],
+      "semantic_description": "An elite hanging core movement targeting the lower abdominals and hip flexors.",
+      "video_url": "https://www.youtube.com/watch?v=Pr1ieGZ5atk"
+    },
+    {
+      "id": "ex_lsit_hold",
+      "name": "L-sit Hold",
+      "muscle_group": "abs",
+      "equipment": "none",
+      "met": 6.5,
+      "animation_asset": "assets/exercises/v_ups.png",
+      "contraindications": [
+        "wrist",
+        "shoulder"
+      ],
+      "instructions": [
+        "Sit with legs straight out on the floor or parallettes, palms planted beside your hips.",
+        "Depress your scapulae firmly by pushing into the floor to elevate your torso.",
+        "Contract your hip flexors, quads, and abs to lift your straight legs parallel to the floor.",
+        "Lock your knees, point your toes, and breathe steadily for the prescribed duration."
+      ],
+      "common_mistakes": [
+        "Bent knees and drooping legs.",
+        "Shrugging shoulders up toward ears."
+      ],
+      "form_checklist": [
+        "Shoulders depressed and locked",
+        "Legs fully straight and parallel"
+      ],
+      "poses": [],
+      "semantic_description": "A gymnastic isometric hold demanding exceptional abdominal compression and shoulder depression.",
+      "video_url": "https://www.youtube.com/watch?v=IUZJoSP66HI"
+    },
+    {
+      "id": "ex_handstand_pushups",
+      "name": "Handstand Push-up Progression",
+      "muscle_group": "shoulders",
+      "equipment": "none",
+      "met": 8.0,
+      "animation_asset": "assets/exercises/pike_pushup.png",
+      "contraindications": [
+        "wrist",
+        "shoulder",
+        "neck"
+      ],
+      "instructions": [
+        "Kick up into a wall-supported handstand (or assume an elevated pike handstand stance).",
+        "Maintain a tight hollow core with arms fully extended and shoulders shrugged up.",
+        "Slowly lower yourself by bending your elbows slightly forward, creating a tripod shape with your head and hands.",
+        "Press firmly through your palms and deltoids back to the locked-out handstand position."
+      ],
+      "common_mistakes": [
+        "Elbows flaring excessively out to the sides.",
+        "Over-arching the lower back like a banana."
+      ],
+      "form_checklist": [
+        "Tripod head-and-hand positioning",
+        "Full lock-out at the top"
+      ],
+      "poses": [],
+      "semantic_description": "An advanced overhead bodyweight pressing movement for building colossal shoulder strength.",
+      "video_url": "https://www.youtube.com/watch?v=eG20L9cl81w"
+    },
+    {
+      "id": "ex_overhead_triceps_stretch",
+      "name": "Overhead Triceps Stretch",
+      "muscle_group": "arms",
+      "equipment": "none",
+      "met": 2.5,
+      "animation_asset": "assets/exercises/overhead_triceps_ext.png",
+      "contraindications": [
+        "shoulder"
+      ],
+      "instructions": [
+        "Stand or sit tall, reach one arm straight overhead, and bend the elbow so your hand drops behind your neck.",
+        "Use your other hand to gently guide the elbow backward and down until you feel a comfortable stretch along the back of the arm.",
+        "Keep your neck relaxed, spine upright, and hold while breathing deeply.",
+        "Switch arms and repeat on the opposite side."
+      ],
+      "common_mistakes": [
+        "Pushing the head forward with the arm.",
+        "Over-arching the lower back."
+      ],
+      "form_checklist": [
+        "Keep torso upright and neck neutral",
+        "Gentle, steady stretch without forcing"
+      ],
+      "poses": [],
+      "semantic_description": "A classic upper arm flexibility stretch targeting the triceps brachii.",
+      "video_url": "https://www.youtube.com/watch?v=_IOHtPSYGbk"
     }
   ]
 }

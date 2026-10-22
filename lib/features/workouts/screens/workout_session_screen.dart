@@ -254,10 +254,12 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 child: switch (s.phase) {
                   SessionPhase.work => SessionExerciseView(
                       state: s,
+                      planDayId: widget.dayId,
                       onDoneSet: notifier.completeSet,
                     ),
                   SessionPhase.rest => SessionRestView(
                       state: s,
+                      planDayId: widget.dayId,
                       onSkip: notifier.skipRest,
                       onAddTime: notifier.addRestTime,
                     ),

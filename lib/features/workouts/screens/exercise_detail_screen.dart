@@ -51,28 +51,38 @@ class _Body extends ConsumerWidget {
   final Exercise exercise;
   final List<String> userTags;
 
-  Future<void> _launchYouTube(BuildContext context, String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid video link')),
-        );
-      }
-      return;
+  Future<void> _launchYouTube(
+      BuildContext context, String? url, String fallbackSearchTerm) async {
+    Uri? uri;
+    if (url != null && url.trim().isNotEmpty) {
+      uri = Uri.tryParse(url.trim());
     }
+    final isYoga = exercise.muscleGroup.toLowerCase() == 'yoga' ||
+        exercise.id.toLowerCase().contains('yoga') ||
+        exercise.name.toLowerCase().contains('pose') ||
+        exercise.name.toLowerCase().contains('asana');
+    final querySuffix = isYoga ? 'yoga tutorial' : 'exercise tutorial';
+
+    uri ??= Uri.parse(
+        'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$fallbackSearchTerm $querySuffix')}');
+
     try {
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open YouTube')),
-        );
+      final launched =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
       }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open video: $e')),
-        );
+    } catch (_) {
+      try {
+        final fallbackUri = Uri.parse(
+            'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$fallbackSearchTerm $querySuffix')}');
+        await launchUrl(fallbackUri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not open video: $e')),
+          );
+        }
       }
     }
   }
@@ -306,11 +316,7 @@ class _Body extends ConsumerWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
             onTap: () {
-              if (exercise.videoUrl != null && exercise.videoUrl!.isNotEmpty) {
-                _launchYouTube(context, exercise.videoUrl!);
-              } else {
-                _showEditVideoSheet(context, ref);
-              }
+              _launchYouTube(context, exercise.videoUrl, exercise.name);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

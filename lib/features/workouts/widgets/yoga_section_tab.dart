@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
@@ -25,24 +24,12 @@ class YogaSectionTab extends ConsumerWidget {
         // Section Header
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md, top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Yoga Sanctuary',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Three progressive levels of traditional asana practice.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+          child: Text(
+            'Yoga Sanctuary',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
+            ),
           ),
         ),
 
@@ -58,19 +45,6 @@ class _YogaRoutineCard extends StatelessWidget {
   const _YogaRoutineCard({required this.flow});
 
   final YogaFlow flow;
-
-  Future<void> _launchVideo(BuildContext context, String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open instructional video.')),
-        );
-      }
-    }
-  }
 
   Color _getDifficultyColor(BuildContext context, String difficulty) {
     final theme = Theme.of(context);
@@ -105,7 +79,7 @@ class _YogaRoutineCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Top Header: Category Name, Icon, Difficulty & Duration
+            // Top Header: Icon & Routine Title
             Row(
               children: [
                 Container(
@@ -122,23 +96,11 @@ class _YogaRoutineCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        flow.category.label,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        flow.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    flow.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -231,75 +193,23 @@ class _YogaRoutineCard extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-
-            // Safety Warning for Advanced Yoga
-            if (flow.category == YogaCategory.advanced) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade500.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.amber.shade700.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      size: 18,
-                      color: Colors.amber.shade800,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Includes inversions and arm balances. Practice near a wall and use modifications inside.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: AppSpacing.md),
 
-            // Actions Row: Optional Video Tutorial + Primary "Start Session" Button
-            Row(
-              children: [
-                if (flow.videoUrl != null) ...[
-                  OutlinedButton.icon(
-                    onPressed: () => _launchVideo(context, flow.videoUrl!),
-                    icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
-                    label: const Text('Video'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      final plan = flow.toWorkoutPlan();
-                      final day = plan.days.first;
-                      context.push(AppRoutes.workoutSessionPath(day.id));
-                    },
-                    icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                    label: const Text(
-                      'Start Session',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
+            // Action: Primary "Start Session" Button
+            FilledButton.icon(
+              onPressed: () {
+                final plan = flow.toWorkoutPlan();
+                final day = plan.days.first;
+                context.push(AppRoutes.workoutSessionPath(day.id));
+              },
+              icon: const Icon(Icons.play_arrow_rounded, size: 20),
+              label: const Text(
+                'Start Session',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
           ],
         ),
