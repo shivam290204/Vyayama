@@ -5,7 +5,6 @@ import 'package:fitbuddy/features/mascot/rive_mascot.dart';
 import 'package:fitbuddy/features/mascot/mascot_sound_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
 import 'package:flutter/services.dart';
 
 /// Checks once whether the Rive file is bundled.
@@ -14,9 +13,8 @@ abstract final class RiveAvailability {
 
   /// True when `assets/rive/mascot.riv` can be loaded. Cached after the
   /// first call.
-  static Future<bool> check() => _result ??= rootBundle
-      .loadString('AssetManifest.json')
-      .then((json) => (jsonDecode(json) as Map).containsKey(MascotAssets.rivePath))
+  static Future<bool> check() => _result ??= AssetManifest.loadFromAssetBundle(rootBundle)
+      .then((manifest) => manifest.listAssets().contains(MascotAssets.rivePath))
       .catchError((_) => false);
 }
 

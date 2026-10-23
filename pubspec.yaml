@@ -23,6 +23,7 @@ dependencies:
   flutter_dotenv: ^5.2.1
 
   # UI and animation
+  cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
   rive: ^0.13.20
   lottie: ^3.2.0
