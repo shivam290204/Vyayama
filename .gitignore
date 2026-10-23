@@ -55,10 +55,17 @@ app.*.map.json
 key.properties
 *.keystore
 *.jks
+*.bak
+.keystore_backup/
 
 # Compiled binaries & artifacts
 *.apk
 *.aab
 
+# Kotlin build cache
+.kotlin/
+android/.kotlin/
+
 # Widget Preview related
 .widget_preview/
+

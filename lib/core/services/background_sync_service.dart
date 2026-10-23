@@ -8,6 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 
 /// Top-level callback dispatcher executed in a headless Dart isolate by Android WorkManager.
 @pragma('vm:entry-point')
@@ -38,7 +39,7 @@ void callbackDispatcher() {
         return true;
       }
 
-      final accessToken = prefs.getString('cached_auth_access_token');
+      final accessToken = await SecureAuthStorage.instance.getAccessToken();
 
       // Initialize Supabase in this background isolate if needed
       try {
@@ -317,15 +318,13 @@ class BackgroundSyncService {
           await prefs.setString('cached_supabase_url', Env.supabaseUrl);
           await prefs.setString('cached_supabase_anon_key', Env.supabaseAnonKey);
           final session = Supabase.instance.client.auth.currentSession;
-          if (session != null) {
-            await prefs.setString('cached_auth_access_token', session.accessToken);
-            if (session.refreshToken != null) {
-              await prefs.setString('cached_auth_refresh_token', session.refreshToken!);
-            }
-          }
           final uid = session?.user.id ?? Supabase.instance.client.auth.currentUser?.id;
-          if (uid != null && uid.isNotEmpty && uid != 'u-me') {
-            await prefs.setString('last_signed_in_user_id', uid);
+          if (session != null && uid != null && uid.isNotEmpty && uid != 'u-me') {
+            await SecureAuthStorage.instance.saveSession(
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+              userId: uid,
+            );
           }
         } catch (_) {}
       }

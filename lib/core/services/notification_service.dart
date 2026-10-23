@@ -422,31 +422,15 @@ class NotificationService {
     return false;
   }
 
-  /// Checks whether battery optimization is ignored for reliable background alarms.
+  /// Checks whether background alarms can run reliably.
+  /// Vyayama relies on Android's exact alarm scheduling rather than requesting invasive Doze exemption.
   Future<bool> isBatteryOptimizationIgnored() async {
-    if (!isSupportedPlatform) return true;
-    try {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        return await Permission.ignoreBatteryOptimizations.isGranted;
-      }
-    } catch (e) {
-      debugPrint('isBatteryOptimizationIgnored error: $e');
-    }
     return true;
   }
 
-  /// Requests exemption from battery optimizations.
+  /// Compliant no-op that avoids requesting restricted Doze mode exemption on Google Play.
   Future<bool> requestIgnoreBatteryOptimizations() async {
-    if (!isSupportedPlatform) return true;
-    try {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final status = await Permission.ignoreBatteryOptimizations.request();
-        return status.isGranted;
-      }
-    } catch (e) {
-      debugPrint('requestIgnoreBatteryOptimizations error: $e');
-    }
-    return false;
+    return true;
   }
 
   /// Whether notifications are enabled system-wide for this app.

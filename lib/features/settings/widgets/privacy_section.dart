@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/settings/widgets/privacy_policy_sheet.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fitbuddy/core/constants/disclaimer.dart';
@@ -26,8 +27,8 @@ class PrivacySection extends StatelessWidget {
       'You can delete your account and all of your data at any time below.',
     ),
     (
-      Icons.description_outlined,
-      'A full Privacy Policy and Terms will be published before public release.',
+      Icons.shield_outlined,
+      'We never sell or rent your personal, workout or health information to third parties.',
     ),
   ];
 
@@ -38,6 +39,7 @@ class PrivacySection extends StatelessWidget {
     return SettingsSection(
       title: 'Privacy',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final point in _points)
             Padding(
@@ -51,6 +53,12 @@ class PrivacySection extends StatelessWidget {
                 ],
               ),
             ),
+          const SizedBox(height: AppSpacing.md),
+          OutlinedButton.icon(
+            onPressed: () => PrivacyPolicySheet.show(context),
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Read Full Privacy Policy'),
+          ),
         ],
       ),
     );

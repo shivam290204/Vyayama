@@ -1,4 +1,4 @@
-package com.example.fitbuddy
+package com.vyayama.fitbuddy
 
 import android.app.AlarmManager
 import android.app.AppOpsManager

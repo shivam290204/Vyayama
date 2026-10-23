@@ -1,12 +1,20 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Reads configuration from `.env`, falling back to `--dart-define` values.
+/// Reads configuration from compile-time `--dart-define` values first,
+/// falling back to local `.env` during development.
 abstract final class Env {
   static const String _urlDefine = String.fromEnvironment('SUPABASE_URL');
   static const String _keyDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  static String get supabaseUrl => _read('SUPABASE_URL', _urlDefine);
-  static String get supabaseAnonKey => _read('SUPABASE_ANON_KEY', _keyDefine);
+  static String get supabaseUrl {
+    if (_urlDefine.isNotEmpty) return _urlDefine;
+    return _read('SUPABASE_URL', '');
+  }
+
+  static String get supabaseAnonKey {
+    if (_keyDefine.isNotEmpty) return _keyDefine;
+    return _read('SUPABASE_ANON_KEY', '');
+  }
 
   /// True when real (non-placeholder) Supabase values are available.
   static bool get isSupabaseConfigured {

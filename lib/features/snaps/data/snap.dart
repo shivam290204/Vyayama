@@ -166,12 +166,17 @@ class VerificationResult {
   factory VerificationResult.rejected({required String reason}) =>
       VerificationResult._(VerificationStatus.rejected, reason: reason);
 
+  factory VerificationResult.pending({String? reason}) =>
+      VerificationResult._(VerificationStatus.pending, reason: reason);
+
   final VerificationStatus status;
   final String? reason;
   final String? activity;
   final double? confidence;
 
   bool get isVerified => status == VerificationStatus.verified;
+  bool get isPending => status == VerificationStatus.pending;
+  bool get isRejected => status == VerificationStatus.rejected;
 }
 
 /// A photo captured by the in-app camera (never from the gallery).

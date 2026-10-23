@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fitbuddy/core/constants/env.dart';
@@ -10,6 +11,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   if (Env.isSupabaseConfigured) {
     return SupabaseAuthRepository();
   } else {
+    if (kReleaseMode) {
+      throw StateError(
+        'Critical configuration error: Supabase is not configured in release mode. '
+        'Provide SUPABASE_URL and SUPABASE_ANON_KEY at build time via --dart-define or --dart-define-from-file.',
+      );
+    }
     final repository = MockAuthRepository();
     ref.onDispose(repository.dispose);
     return repository;

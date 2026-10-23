@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
+import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
@@ -21,34 +22,20 @@ class SupabaseAuthRepository implements AuthRepository {
 
   static void _cacheUser(AuthUser user) {
     _cachedUser = user;
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.setString('last_signed_in_user_id', user.id);
-      prefs.setString('last_signed_in_user_email', user.email);
-      if (user.displayName != null && user.displayName!.isNotEmpty) {
-        prefs.setString('last_signed_in_user_name', user.displayName!);
-      }
-      try {
-        final session = supa.Supabase.instance.client.auth.currentSession;
-        if (session != null) {
-          prefs.setString('cached_auth_access_token', session.accessToken);
-          if (session.refreshToken != null) {
-            prefs.setString('cached_auth_refresh_token', session.refreshToken!);
-          }
-        }
-      } catch (_) {}
-    }).catchError((_) {});
+    final session = supa.Supabase.instance.client.auth.currentSession;
+    SecureAuthStorage.instance.saveSession(
+      accessToken: session?.accessToken ?? '',
+      refreshToken: session?.refreshToken,
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName,
+    );
   }
 
   static void _clearCachedUser() {
     _cachedUser = null;
     BackgroundSyncService.instance.clearUser();
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.remove('last_signed_in_user_id');
-      prefs.remove('last_signed_in_user_email');
-      prefs.remove('last_signed_in_user_name');
-      prefs.remove('cached_auth_access_token');
-      prefs.remove('cached_auth_refresh_token');
-    }).catchError((_) {});
+    SecureAuthStorage.instance.clearSession();
   }
 
   @override
@@ -189,7 +176,10 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
-      await _client.resetPasswordForEmail(email);
+      await _client.resetPasswordForEmail(
+        email,
+        redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://reset-password',
+      );
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {

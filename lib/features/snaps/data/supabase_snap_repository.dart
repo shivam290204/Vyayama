@@ -42,23 +42,8 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
 
   @override
   Future<VerificationResult> verify(String snapId) async {
-    // 1. Try DB RPC verify_snap (marks snap verified and computes streak in Postgres)
-    try {
-      final res = await _client.rpc('verify_snap', params: {
-        'p_snap_id': snapId,
-        'p_activity': 'workout',
-        'p_confidence': 0.95,
-      });
-      debugPrint('verify_snap RPC succeeded for snap $snapId: $res');
-      return VerificationResult.verified(
-        activity: 'workout',
-        confidence: 0.95,
-      );
-    } catch (e) {
-      debugPrint('verify_snap RPC unavailable or failed ($e), trying edge function fallback...');
-    }
-
-    // 2. Fallback to Edge function if deployed
+    // Verification is authoritative and processed securely by the server-side Edge function.
+    // Clients cannot self-approve arbitrary photos or bypass AI vision verification.
     try {
       final res = await _client.functions.invoke(
         'verify-snap',
@@ -79,15 +64,13 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
           );
         }
       }
-      return VerificationResult.verified(
-        activity: 'workout',
-        confidence: 0.95,
+      return VerificationResult.pending(
+        reason: 'Verification is currently in progress.',
       );
     } catch (e) {
-      debugPrint('verify-snap edge function unavailable ($e), passing with on-device verification');
-      return VerificationResult.verified(
-        activity: 'workout',
-        confidence: 0.90,
+      debugPrint('verify-snap Edge function unavailable ($e). Snap remains pending until verified by backend.');
+      return VerificationResult.pending(
+        reason: 'Verification will complete once connection to verification service is restored.',
       );
     }
   }
