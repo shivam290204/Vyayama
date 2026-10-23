@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
@@ -54,12 +53,10 @@ class SupabaseAuthRepository implements AuthRepository {
     var current = currentUser;
     if (current == null) {
       try {
-        final prefs = await SharedPreferences.getInstance();
-        final id = prefs.getString('last_signed_in_user_id');
+        final id = await SecureAuthStorage.instance.getUserId();
         if (id != null && id.isNotEmpty) {
-          final email = prefs.getString('last_signed_in_user_email') ?? '';
-          final name = prefs.getString('last_signed_in_user_name');
-          current = AuthUser(id: id, email: email, displayName: name);
+          final email = (await SecureAuthStorage.instance.getUserEmail()) ?? '';
+          current = AuthUser(id: id, email: email);
           _cachedUser = current;
         }
       } catch (_) {}
@@ -69,15 +66,12 @@ class SupabaseAuthRepository implements AuthRepository {
     // 2. Stream subsequent auth state changes from Supabase
     await for (final event in _client.onAuthStateChange) {
       if (event.session != null) {
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.setString('cached_auth_access_token', event.session!.accessToken);
-          if (event.session!.refreshToken != null) {
-            prefs.setString('cached_auth_refresh_token', event.session!.refreshToken!);
-          }
-          if (event.session!.user.id.isNotEmpty) {
-            prefs.setString('last_signed_in_user_id', event.session!.user.id);
-          }
-        }).catchError((_) {});
+        await SecureAuthStorage.instance.saveSession(
+          accessToken: event.session!.accessToken,
+          refreshToken: event.session!.refreshToken,
+          userId: event.session!.user.id,
+          email: event.session!.user.email,
+        );
         final mapped = _mapUser(event.session!.user);
         BackgroundSyncService.instance.syncCurrentUserId(mapped.id);
         yield mapped;
@@ -91,12 +85,10 @@ class SupabaseAuthRepository implements AuthRepository {
           yield _cachedUser;
         } else {
           try {
-            final prefs = await SharedPreferences.getInstance();
-            final id = prefs.getString('last_signed_in_user_id');
+            final id = await SecureAuthStorage.instance.getUserId();
             if (id != null && id.isNotEmpty) {
-              final email = prefs.getString('last_signed_in_user_email') ?? '';
-              final name = prefs.getString('last_signed_in_user_name');
-              _cachedUser = AuthUser(id: id, email: email, displayName: name);
+              final email = (await SecureAuthStorage.instance.getUserEmail()) ?? '';
+              _cachedUser = AuthUser(id: id, email: email);
               yield _cachedUser;
               continue;
             }
