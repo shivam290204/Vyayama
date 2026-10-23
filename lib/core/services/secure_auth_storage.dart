@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Secure token and session credentials storage backed by
 /// Android KeyStore (EncryptedSharedPreferences) and iOS Keychain.
@@ -154,3 +155,145 @@ class SecureAuthStorage {
     } catch (_) {}
   }
 }
+
+/// Secure implementation of [LocalStorage] for [Supabase.initialize]
+/// backed by Android KeyStore (EncryptedSharedPreferences) and iOS Keychain.
+class SupabaseSecureLocalStorage extends LocalStorage {
+  SupabaseSecureLocalStorage({
+    this.persistSessionKey = 'sb_auth_session',
+    FlutterSecureStorage? storage,
+  }) : _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              iOptions:
+                  IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+            );
+
+  final String persistSessionKey;
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> hasAccessToken() async {
+    try {
+      final token = await _storage.read(key: persistSessionKey);
+      if (token != null && token.isNotEmpty) return true;
+    } catch (e) {
+      debugPrint('[SupabaseSecureLocalStorage] hasAccessToken error: $e');
+    }
+
+    // Check for legacy migration from plaintext SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.containsKey(persistSessionKey);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<String?> accessToken() async {
+    try {
+      final token = await _storage.read(key: persistSessionKey);
+      if (token != null && token.isNotEmpty) return token;
+    } catch (e) {
+      debugPrint('[SupabaseSecureLocalStorage] accessToken read error: $e');
+    }
+
+    // One-time legacy migration from SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getString(persistSessionKey);
+      if (legacy != null && legacy.isNotEmpty) {
+        await _storage.write(key: persistSessionKey, value: legacy);
+        await prefs.remove(persistSessionKey);
+        return legacy;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<void> removePersistedSession() async {
+    try {
+      await _storage.delete(key: persistSessionKey);
+    } catch (e) {
+      debugPrint(
+          '[SupabaseSecureLocalStorage] removePersistedSession error: $e');
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(persistSessionKey);
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> persistSession(String persistSessionString) async {
+    try {
+      await _storage.write(key: persistSessionKey, value: persistSessionString);
+    } catch (e) {
+      debugPrint('[SupabaseSecureLocalStorage] persistSession error: $e');
+    }
+
+    // Ensure plaintext copy in SharedPreferences is eliminated
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(persistSessionKey);
+    } catch (_) {}
+  }
+}
+
+/// Secure PKCE storage for Supabase auth flow
+class SupabaseSecureGotrueAsyncStorage extends GotrueAsyncStorage {
+  SupabaseSecureGotrueAsyncStorage({
+    FlutterSecureStorage? storage,
+  }) : _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              iOptions:
+                  IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+            );
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> getItem({required String key}) async {
+    try {
+      final value = await _storage.read(key: key);
+      if (value != null) return value;
+    } catch (_) {}
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getString(key);
+      if (legacy != null) {
+        await _storage.write(key: key, value: legacy);
+        await prefs.remove(key);
+        return legacy;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
+  Future<void> setItem({required String key, required String value}) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> removeItem({required String key}) async {
+    try {
+      await _storage.delete(key: key);
+    } catch (_) {}
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+    } catch (_) {}
+  }
+}
+

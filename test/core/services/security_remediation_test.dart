@@ -1,6 +1,8 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/constants/env.dart';
+import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 
 void main() {
@@ -70,4 +72,48 @@ void main() {
       expect(prefs.getString('last_signed_in_user_id'), 'user-123');
     });
   });
+
+  group('SupabaseSecureLocalStorage & GotrueAsyncStorage Tests', () {
+    test('SupabaseSecureLocalStorage migrates legacy plaintext session from SharedPreferences', () async {
+      const sessionKey = 'sb_test_session';
+      SharedPreferences.setMockInitialValues({
+        sessionKey: '{"access_token":"legacy-token","user":{"id":"u1"}}',
+      });
+      FlutterSecureStorage.setMockInitialValues({});
+
+      final storage = SupabaseSecureLocalStorage(persistSessionKey: sessionKey);
+      expect(await storage.hasAccessToken(), isTrue);
+
+      final token = await storage.accessToken();
+      expect(token, contains('legacy-token'));
+
+      // Confirm migrated: SharedPreferences legacy key was removed
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey(sessionKey), isFalse);
+
+      // Verify removal
+      await storage.removePersistedSession();
+      expect(await storage.hasAccessToken(), isFalse);
+    });
+
+    test('SupabaseSecureGotrueAsyncStorage reads and writes securely', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({'pkce_verifier': 'legacy-verifier'});
+
+      final storage = SupabaseSecureGotrueAsyncStorage();
+      final migrated = await storage.getItem(key: 'pkce_verifier');
+      expect(migrated, 'legacy-verifier');
+
+      // Legacy key should be removed from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey('pkce_verifier'), isFalse);
+
+      await storage.setItem(key: 'code_challenge', value: 'secret-challenge');
+      expect(await storage.getItem(key: 'code_challenge'), 'secret-challenge');
+
+      await storage.removeItem(key: 'code_challenge');
+      expect(await storage.getItem(key: 'code_challenge'), isNull);
+    });
+  });
 }
+

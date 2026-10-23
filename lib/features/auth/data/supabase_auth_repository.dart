@@ -205,7 +205,7 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       final supaClient = supa.Supabase.instance.client;
 
-      // 1. Clean up user's snap images from storage (best-effort)
+      // 1. Clean up user's snap images from storage via the official Storage API
       try {
         final res = await supaClient
             .from('snaps')
@@ -215,19 +215,28 @@ class SupabaseAuthRepository implements AuthRepository {
         final paths = (res as List)
             .map((r) => r['image_path'] as String?)
             .whereType<String>()
-            .toList();
+            .toSet();
+
+        // Also check files listed under user prefix in 'snaps' bucket
+        try {
+          final userFiles = await supaClient.storage.from('snaps').list(path: userId);
+          for (final f in userFiles) {
+            paths.add('$userId/${f.name}');
+          }
+        } catch (_) {}
 
         if (paths.isNotEmpty) {
-          await supaClient.storage.from('snaps').remove(paths);
+          await supaClient.storage.from('snaps').remove(paths.toList());
         }
-      } catch (_) {
-        // Storage cleanup is best-effort before SQL cascade
+      } catch (e) {
+        debugPrint('[deleteAccount] storage API cleanup warning: $e');
       }
 
       // 2. Call delete_my_account() RPC which cascades all tables and deletes auth user
       await supaClient.rpc('delete_my_account');
 
-      // 3. Clear local session
+      // 3. Clear local hardware-backed and shared credentials
+      await SecureAuthStorage.instance.clearSession();
       await signOut();
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));

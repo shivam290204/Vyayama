@@ -43,11 +43,19 @@ void callbackDispatcher() {
 
       // Initialize Supabase in this background isolate if needed
       try {
+        final sessionKey =
+            'sb-${Uri.parse(supabaseUrl).host.split(".").first}-auth-token';
         await Supabase.initialize(
           url: supabaseUrl,
           publishableKey: supabaseAnonKey,
+          authOptions: FlutterAuthClientOptions(
+            localStorage:
+                SupabaseSecureLocalStorage(persistSessionKey: sessionKey),
+            pkceAsyncStorage: SupabaseSecureGotrueAsyncStorage(),
+          ),
         );
       } catch (_) {}
+
 
       // Create an authenticated client with user's access token
       final client = SupabaseClient(

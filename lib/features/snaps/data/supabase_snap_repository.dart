@@ -130,9 +130,9 @@ class SupabaseSnapRepository implements SnapRepository {
           'activity_type': draft.activity.dbValue,
           'caption': draft.caption,
           'is_story': false,
-          'verification_status': 'verified',
+          'verification_status': 'pending',
           'verification_label': draft.activity.dbValue,
-          'verification_confidence': 0.95,
+          'verification_confidence': null,
         }).select().single();
 
         final directSnap = Snap.fromJson(Map<String, dynamic>.from(res));
@@ -165,9 +165,9 @@ class SupabaseSnapRepository implements SnapRepository {
           'activity_type': draft.activity.dbValue,
           'caption': draft.caption,
           'is_story': true,
-          'verification_status': 'verified',
+          'verification_status': 'pending',
           'verification_label': draft.activity.dbValue,
-          'verification_confidence': 0.95,
+          'verification_confidence': null,
         }).select().single();
 
         final storySnap = Snap.fromJson(Map<String, dynamic>.from(res));
