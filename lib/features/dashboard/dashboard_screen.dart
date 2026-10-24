@@ -32,6 +32,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await ref.read(recentStatsProvider.future);
   }
 
+  Future<void> _promptActivityRecognition(BuildContext context) async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.directions_walk, size: 36, color: Theme.of(ctx).colorScheme.primary),
+        title: const Text('Physical Activity Tracking'),
+        content: const Text(
+          'Vyayama uses on-device hardware sensors (Step Counter) to measure your daily steps, active time, and movement consistency.\n\n'
+          '• Your step counts are processed strictly on-device.\n'
+          '• Data is never sold or used for advertising.\n'
+          '• If declined, you can still sync via Health Connect or log steps manually.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (proceed == true) {
+      await StepTrackingService.instance.requestPermission();
+      await _refresh();
+    }
+  }
+
   Future<void> _showLogStepsDialog(BuildContext context) async {
     final controller = TextEditingController();
     await showDialog<void>(
@@ -206,31 +237,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             if (granted) return const SizedBox.shrink();
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: scheme.errorContainer.withValues(alpha: 0.8),
+                color: scheme.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.directions_walk, color: scheme.onErrorContainer),
+                  Icon(Icons.directions_walk, color: scheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Step tracking needs Physical Activity permission.',
-                      style: TextStyle(
-                        color: scheme.onErrorContainer,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Live step sensor paused',
+                          style: TextStyle(
+                            color: scheme.onSurface,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Tracking via Health Connect or manual entry. Tap to enable live pedometer.',
+                          style: TextStyle(
+                            color: scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   FilledButton.tonal(
-                    onPressed: () async {
-                      await StepTrackingService.instance.requestPermission();
-                      await _refresh();
-                    },
-                    child: const Text('Allow'),
+                    onPressed: () => _promptActivityRecognition(context),
+                    child: const Text('Enable'),
                   ),
                 ],
               ),

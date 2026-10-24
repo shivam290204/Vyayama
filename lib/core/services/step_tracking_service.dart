@@ -83,12 +83,13 @@ class StepTrackingService with WidgetsBindingObserver {
 
     if (kIsWeb) return;
 
-    // 3. Check and request ACTIVITY_RECOGNITION permission
+    // 3. Check physical activity recognition permission without abruptly prompting on startup
     final granted = await checkPermission();
-    if (!granted) {
-      await requestPermission();
-    } else {
+    if (granted) {
       await _initHardwareSensorStreams();
+    } else {
+      hasPermission.value = false;
+      debugPrint('StepTrackingService: Physical activity permission not granted yet. Operating in fallback mode.');
     }
 
     // 4. Reconcile any native readings recorded while Flutter was starting

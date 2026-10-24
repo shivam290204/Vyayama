@@ -82,16 +82,14 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
     setState(() => _saving = true);
     try {
       final base = widget.medicine;
-      final exactAllowed =
-          await NotificationService.instance.canScheduleExactAlarms();
       final notifAllowed =
           await NotificationService.instance.areNotificationsEnabled();
       if (!notifAllowed) {
         await NotificationService.instance.requestNotificationPermission();
       }
 
-      // If exact alarm permission is not granted yet, save as inactive until permission is granted
-      final shouldBeActive = exactAllowed && (base?.isActive ?? true);
+      // Keep reminder active; if exact alarms are not permitted, it gracefully uses inexact scheduling
+      final shouldBeActive = base?.isActive ?? true;
 
       await ref.read(medicinesProvider.notifier).save(
             Medicine(

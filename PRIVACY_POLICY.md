@@ -63,15 +63,25 @@ Vyayama utilizes trusted infrastructure providers under strict confidentiality a
 
 ---
 
-## 5. Permissions & How to Revoke Them
+## 5. Permissions, On-Device Step Counting & How to Revoke
 
-Vyayama requests minimal runtime permissions only when corresponding features are actively utilized:
-- **Activity Recognition (`ACTIVITY_RECOGNITION`):** Used to count daily steps using the low-power hardware step counter.
-- **Camera (`CAMERA`):** Used exclusively to capture workout snaps and scan friend invite QR codes.
-- **Notifications (`POST_NOTIFICATIONS`):** Used to send scheduled workout reminders, wake-up alarms, and friend updates.
-- **Exact Alarms (`SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM`):** Used to trigger exact alarms for sleep schedules and time-sensitive reminders.
+Vyayama requests minimal runtime permissions strictly when corresponding features are actively utilized, with comprehensive fallback handling:
+- **Physical Activity Recognition (`android.permission.ACTIVITY_RECOGNITION`):**
+  - **On-Device Sensor Processing:** Used to count daily steps using your phone's low-power hardware step sensor (`Sensor.TYPE_STEP_COUNTER`).
+  - **Local Real-Time Tracking:** Step detection is processed entirely on-device. Vyayama does not access GPS or location data for step tracking.
+  - **Graceful Fallback:** If permission is denied or declined, Vyayama never crashes; live tracking pauses calmly, and you can freely enter steps manually or link Google Health Connect.
+  - **Zero Commercial Sharing:** Sensor readings are never sold, rented, or shared with third parties or data brokers.
+- **Exact Alarms (`android.permission.SCHEDULE_EXACT_ALARM`):**
+  - Used to schedule precise wake-up alarms and time-critical medicine reminders.
+  - If exact alarm scheduling is not granted by the system, Vyayama automatically falls back to standard inexact notifications (`AndroidScheduleMode.inexactAllowWhileIdle`) so you never miss an alert and the app never crashes. Vyayama does not use restricted automatic exact alarm permissions (`USE_EXACT_ALARM`).
+- **Notifications (`android.permission.POST_NOTIFICATIONS`):**
+  - Used to deliver heads-up alarm alerts with quick Dismiss and Snooze actions, as well as optional habit reminders.
+- **Camera (`android.permission.CAMERA`):**
+  - Used exclusively when you choose to take workout verification snaps or scan QR codes.
+- **Zero Storage Permissions:**
+  - Vyayama does not request or require `READ_EXTERNAL_STORAGE` or `READ_MEDIA_AUDIO`. All alarm tones, chimes, and exercise media are bundled directly within the app binary.
 
-You can revoke any permission at any time through your device settings: **Settings → Apps → Vyayama → Permissions**.
+You can grant or revoke any optional permission at any time via: **Settings → Apps → Vyayama → Permissions** or **Settings → Apps → Special app access → Alarms & reminders**.
 
 ---
 

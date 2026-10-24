@@ -508,25 +508,31 @@ class _MedicineTile extends ConsumerWidget {
       }
       final exactAllowed =
           await NotificationService.instance.canScheduleExactAlarms();
-      if (!exactAllowed) {
-        await NotificationService.instance.openExactAlarmSettings();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Please grant "Alarms & Reminders" permission in Settings to turn on medicine alarms.',
-              ),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'Settings',
-                onPressed: () =>
-                    NotificationService.instance.openExactAlarmSettings(),
-              ),
+      if (!exactAllowed && context.mounted) {
+        final openSettings = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Exact Alarm Permission'),
+            content: const Text(
+              'To ensure your medicine reminder alerts ring at the exact minute, '
+              'Android requires "Alarms & Reminders" permission in Settings.\n\n'
+              'If declined, your reminders will still be scheduled, but may be slightly delayed by battery optimization.',
             ),
-          );
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Continue with Inexact'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+        if (openSettings == true) {
+          await NotificationService.instance.openExactAlarmSettings();
         }
-        return;
       }
     }
     try {

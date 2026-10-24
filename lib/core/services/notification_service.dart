@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -120,7 +119,17 @@ class NotificationService {
       await _plugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: (response) {
-          debugPrint('Notification clicked: ${response.payload}');
+          debugPrint('Notification clicked / action: ${response.actionId}, payload: ${response.payload}');
+          if (response.actionId == 'action_snooze') {
+            final snoozeId = ((response.id ?? 90000) + 50000) & 0x7FFFFFFF;
+            scheduleTestAlarmInSeconds(
+              id: snoozeId,
+              seconds: 300,
+              title: '⏰ Snoozed Alarm',
+              body: '5-minute snooze interval complete.',
+              alarmStyle: true,
+            );
+          }
           onNotificationResponse.add(response);
         },
       );
@@ -304,11 +313,6 @@ class NotificationService {
         } catch (e) {
           debugPrint('Exact alarms permission request: $e');
         }
-        try {
-          await requestAudioPermission();
-        } catch (e) {
-          debugPrint('Audio permission request: $e');
-        }
         return granted;
       }
 
@@ -391,36 +395,16 @@ class NotificationService {
     }
   }
 
-  /// Checks whether music & audio permission is granted (READ_MEDIA_AUDIO on Android 13+ or storage on older Android).
+  /// Checks whether music & audio permission is granted.
+  /// All notification and alarm audio clips in Vyayama are bundled directly in app resources (res/raw),
+  /// requiring zero runtime storage or media permissions.
   Future<bool> isAudioPermissionGranted() async {
-    if (!isSupportedPlatform) return true;
-    try {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final status = await Permission.audio.status;
-        if (status.isGranted) return true;
-        final storage = await Permission.storage.status;
-        return storage.isGranted;
-      }
-    } catch (e) {
-      debugPrint('isAudioPermissionGranted error: $e');
-    }
     return true;
   }
 
-  /// Requests music & audio permission at runtime.
+  /// No-op: all audio clips are bundled in app resources and require no permissions.
   Future<bool> requestAudioPermission() async {
-    if (!isSupportedPlatform) return true;
-    try {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final res = await Permission.audio.request();
-        if (res.isGranted) return true;
-        final storage = await Permission.storage.request();
-        return storage.isGranted;
-      }
-    } catch (e) {
-      debugPrint('requestAudioPermission error: $e');
-    }
-    return false;
+    return true;
   }
 
   /// Checks whether background alarms can run reliably.
@@ -571,20 +555,15 @@ class NotificationService {
       );
     }
 
-    // 3. For exact wake alarms and medicines, verify exact alarm permission
+    // 3. For exact wake alarms and medicines, verify exact alarm permission.
+    // If not granted by user, gracefully fall back to inexact scheduling without crashing!
     final bool requiresExact = exact || isWakeAlarm || isMedicine;
+    bool effectiveExact = requiresExact && !isBedtime;
     if (requiresExact) {
       final exactAllowed = await canScheduleExactAlarms();
       if (!exactAllowed) {
-        if (isWakeAlarm || isMedicine) {
-          // Never silently downgrade a wake alarm or medicine reminder!
-          debugPrint('Exact alarm required for $id but SCHEDULE_EXACT_ALARM is not granted.');
-          return ScheduleResult.failure(
-            ScheduleStatus.exactAlarmPermissionDenied,
-            notificationId: id,
-            errorMessage: 'SCHEDULE_EXACT_ALARM permission not granted',
-          );
-        }
+        effectiveExact = false;
+        debugPrint('SCHEDULE_EXACT_ALARM not granted for $id; falling back to inexact alarm.');
       }
     }
 
@@ -594,6 +573,24 @@ class NotificationService {
         : (isMedicine
             ? const RawResourceAndroidNotificationSound('warning_alarm')
             : null);
+
+    final isAlarmType = isWakeAlarm || isMedicine || alarmStyle;
+    final List<AndroidNotificationAction>? actions = isAlarmType
+        ? const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              'action_dismiss',
+              'Dismiss',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'action_snooze',
+              'Snooze (5m)',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ]
+        : null;
 
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
@@ -605,7 +602,6 @@ class NotificationService {
               : (isMedicine ? 'Timely reminders for medications' : 'Daily reminders')),
       importance: (isWakeAlarm || isMedicine) ? Importance.max : Importance.high,
       priority: (isWakeAlarm || isMedicine) ? Priority.max : Priority.high,
-      fullScreenIntent: (isWakeAlarm || isMedicine) && alarmStyle,
       visibility: NotificationVisibility.public,
       category: (isWakeAlarm || isMedicine)
           ? AndroidNotificationCategory.alarm
@@ -618,7 +614,8 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: AppPalette.deepGreen,
+      color: AppPalette.primaryOrange,
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -636,12 +633,11 @@ class NotificationService {
     // Wake alarms and medicines use AndroidScheduleMode.alarmClock for native clock-level priority,
     // waking the screen, and bypassing OEM battery limits.
     // Bedtime guidance uses inexact scheduling; other exact reminders use exactAllowWhileIdle.
-    final effectiveExact = requiresExact && !isBedtime;
-    final scheduleMode = (isWakeAlarm || isMedicine)
-        ? AndroidScheduleMode.alarmClock
-        : (effectiveExact
-            ? AndroidScheduleMode.exactAllowWhileIdle
-            : AndroidScheduleMode.inexactAllowWhileIdle);
+    final scheduleMode = effectiveExact
+        ? ((isWakeAlarm || isMedicine)
+            ? AndroidScheduleMode.alarmClock
+            : AndroidScheduleMode.exactAllowWhileIdle)
+        : AndroidScheduleMode.inexactAllowWhileIdle;
 
     final deviceNow = DateTime.now();
     final isSameMinute = deviceNow.hour == hour && deviceNow.minute == minute;
@@ -721,7 +717,9 @@ class NotificationService {
             immediateTarget,
             details,
             payload: payload,
-            androidScheduleMode: AndroidScheduleMode.alarmClock,
+            androidScheduleMode: effectiveExact
+                ? AndroidScheduleMode.alarmClock
+                : AndroidScheduleMode.inexactAllowWhileIdle,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
           );
@@ -795,13 +793,30 @@ class NotificationService {
         }
       }
 
-      // WAKE ALARMS AND MEDICINES MUST NEVER BE SILENTLY CONVERTED TO INEXACT!
-      if (isWakeAlarm) {
-        return ScheduleResult.failure(
-          ScheduleStatus.nativeException,
-          notificationId: id,
-          errorMessage: e.toString(),
-        );
+      // If exact scheduling fails (e.g. OS revocation), fall back to inexact scheduling without crashing!
+      if (mode != AndroidScheduleMode.inexactAllowWhileIdle) {
+        try {
+          await _plugin.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            details,
+            payload: payload,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: matchComponents,
+          );
+          debugPrint('Gracefully fell back to inexactAllowWhileIdle for $id');
+          return ScheduleResult.success(
+            exact: false,
+            notificationId: id,
+          );
+        } catch (fallbackError) {
+          _lastSchedulingError = fallbackError.toString();
+          debugPrint('Inexact fallback also failed: $fallbackError');
+        }
       }
 
       // Gentle/inexact reminders can fall back to inexact if not already inexact
@@ -867,13 +882,30 @@ class NotificationService {
                 ? const RawResourceAndroidNotificationSound('warning_alarm')
                 : null);
 
+    final isAlarmType = alarmStyle || targetChannelId == wakeAlarmChannelId || targetChannelId == medicineChannelId;
+    final List<AndroidNotificationAction>? actions = isAlarmType
+        ? const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              'action_dismiss',
+              'Dismiss',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'action_snooze',
+              'Snooze (5m)',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ]
+        : null;
+
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
       targetChannelName,
       channelDescription: 'Immediate alerts and tests',
       importance: Importance.max,
       priority: Priority.max,
-      fullScreenIntent: true,
       visibility: NotificationVisibility.public,
       category: alarmStyle
           ? AndroidNotificationCategory.alarm
@@ -886,7 +918,8 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: AppPalette.deepGreen,
+      color: AppPalette.primaryOrange,
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -936,13 +969,29 @@ class NotificationService {
                 ? const RawResourceAndroidNotificationSound('warning_alarm')
                 : null);
 
+    final List<AndroidNotificationAction>? actions = alarmStyle
+        ? const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              'action_dismiss',
+              'Dismiss',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'action_snooze',
+              'Snooze (5m)',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ]
+        : null;
+
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
       targetChannelName,
       channelDescription: 'Test Alarms',
       importance: Importance.max,
       priority: Priority.max,
-      fullScreenIntent: true,
       visibility: NotificationVisibility.public,
       category: AndroidNotificationCategory.alarm,
       playSound: true,
@@ -951,7 +1000,8 @@ class NotificationService {
       vibrationPattern: _alarmVibrationPattern,
       audioAttributesUsage: AudioAttributesUsage.alarm,
       ticker: title,
-      color: AppPalette.deepGreen,
+      color: AppPalette.primaryOrange,
+      actions: actions,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -1040,14 +1090,7 @@ class NotificationService {
       );
     }
 
-    if (exact) {
-      final canExact = await canScheduleExactAlarms();
-      if (!canExact) {
-        return const ScheduleResult.failure(
-          ScheduleStatus.exactAlarmPermissionDenied,
-        );
-      }
-    }
+    final effectiveExact = exact && (await canScheduleExactAlarms());
 
     final targetChannelId = isWakeAlarm ? wakeAlarmChannelId : sleepChannelId;
     final targetChannelName = isWakeAlarm ? 'Wake Alarms' : 'Bedtime Guidance';
@@ -1059,13 +1102,30 @@ class NotificationService {
         ? const RawResourceAndroidNotificationSound('wakeup_alarm')
         : null;
 
+    final isAlarmType = isWakeAlarm;
+    final List<AndroidNotificationAction>? actions = isAlarmType
+        ? const <AndroidNotificationAction>[
+            AndroidNotificationAction(
+              'action_dismiss',
+              'Dismiss',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'action_snooze',
+              'Snooze (5m)',
+              showsUserInterface: false,
+              cancelNotification: true,
+            ),
+          ]
+        : null;
+
     final androidDetails = AndroidNotificationDetails(
       targetChannelId,
       targetChannelName,
       channelDescription: 'Diagnostic test notification',
       importance: isWakeAlarm ? Importance.max : Importance.high,
       priority: isWakeAlarm ? Priority.max : Priority.high,
-      fullScreenIntent: isWakeAlarm,
       visibility: NotificationVisibility.public,
       category: isWakeAlarm
           ? AndroidNotificationCategory.alarm
@@ -1077,6 +1137,7 @@ class NotificationService {
       audioAttributesUsage: isWakeAlarm
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
+      actions: actions,
     );
 
     final details = NotificationDetails(
@@ -1084,9 +1145,9 @@ class NotificationService {
       iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
 
-    final targetMode = (exact && isWakeAlarm)
+    final targetMode = (effectiveExact && isWakeAlarm)
         ? AndroidScheduleMode.alarmClock
-        : (exact
+        : (effectiveExact
             ? AndroidScheduleMode.exactAllowWhileIdle
             : AndroidScheduleMode.inexactAllowWhileIdle);
 
