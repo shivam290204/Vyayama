@@ -10,7 +10,7 @@ import 'package:fitbuddy/features/profile/profile_validators.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
 
 /// Card displayed on the Profile and BMI screens showing the user's BMI, clinical category,
-/// educational disclaimer, quick height/weight editing, and access to weight tracking history.
+/// educational disclaimer, and access to weight tracking history.
 class BmiCard extends ConsumerWidget {
   const BmiCard({super.key, required this.profile});
 
@@ -92,12 +92,6 @@ class BmiCard extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final color = _getCategoryColor(result.category, theme);
-    final heightStr = profile.heightCm != null
-        ? UnitConversion.formatHeight(profile.heightCm!, unit)
-        : 'Not set';
-    final weightStr = profile.weightKg != null
-        ? UnitConversion.formatWeight(profile.weightKg!, unit)
-        : 'Not set';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -149,113 +143,15 @@ class BmiCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-
-        // Interactive Height & Weight container inside the BMI card
-        InkWell(
-          onTap: () => showEditDialog(context, ref, profile, unit),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm + 2,
-            ),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(Icons.height_rounded, size: 20, color: theme.colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Height',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            Text(
-                              heightStr,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 32,
-                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Icon(Icons.monitor_weight_outlined, size: 20, color: theme.colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Weight',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            Text(
-                              weightStr,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.edit_outlined,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
         const Divider(height: 1),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton.icon(
-              onPressed: () => _showHistorySheet(context, ref, unit),
-              icon: const Icon(Icons.history_rounded, size: 18),
-              label: const Text('History'),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            FilledButton.tonalIcon(
-              onPressed: () => showEditDialog(context, ref, profile, unit),
-              icon: const Icon(Icons.edit_rounded, size: 18),
-              label: const Text('Edit Height & Weight'),
-            ),
-          ],
+        const SizedBox(height: AppSpacing.xs),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => _showHistorySheet(context, ref, unit),
+            icon: const Icon(Icons.history_rounded, size: 18),
+            label: const Text('History'),
+          ),
         ),
       ],
     );
@@ -578,7 +474,7 @@ class BmiCard extends ConsumerWidget {
                         if (records.isEmpty) {
                           return const Center(
                             child: Text(
-                              'No historical weight entries logged yet.\nTap "Edit Height & Weight" to track changes over time.',
+                              'No historical weight entries logged yet.\nUse "Edit height & weight" to track changes over time.',
                               textAlign: TextAlign.center,
                             ),
                           );

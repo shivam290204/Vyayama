@@ -68,16 +68,12 @@ class BmiScreen extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
-                    // Summary metric chips (tap to edit height/weight)
+                    // Top Card: Measurements with "Edit height & weight" action
                     _buildMetricsHeader(context, ref, profile, unit, theme),
                     const SizedBox(height: AppSpacing.lg),
 
-                    // Main Interactive BMI Card
+                    // Main Interactive BMI Score Card
                     BmiCard(profile: profile),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Dedicated Card to change/edit Height & Weight manually inside BMI
-                    _buildEditHeightWeightCard(context, ref, profile, unit, theme),
                     const SizedBox(height: AppSpacing.lg),
 
                     // Standard Reference Ranges Card
@@ -117,199 +113,65 @@ class BmiScreen extends ConsumerWidget {
 
     return Card(
       elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
         ),
       ),
-      child: InkWell(
-        onTap: () => BmiCard.showEditDialog(context, ref, profile, unit),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMetricItem(theme, 'Weight', weightStr, Icons.scale_rounded),
-              _buildMetricDivider(theme),
-              _buildMetricItem(theme, 'Height', heightStr, Icons.height_rounded),
-              _buildMetricDivider(theme),
-              _buildMetricItem(theme, 'Age', ageStr, Icons.cake_outlined),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditHeightWeightCard(
-    BuildContext context,
-    WidgetRef ref,
-    Profile profile,
-    UnitSystem unit,
-    ThemeData theme,
-  ) {
-    final heightStr = profile.heightCm != null
-        ? UnitConversion.formatHeight(profile.heightCm!, unit)
-        : 'Not set';
-    final weightStr = profile.weightKg != null
-        ? UnitConversion.formatWeight(profile.weightKg!, unit)
-        : 'Not set';
-
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    color: theme.colorScheme.primary,
-                    size: 20,
+                Icon(
+                  Icons.straighten_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Measurements',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Change Height & Weight',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Manually adjust your measurements to update BMI',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => BmiCard.showEditDialog(context, ref, profile, unit),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Edit height & weight'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => BmiCard.showEditDialog(context, ref, profile, unit),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm + 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.height_rounded, color: theme.colorScheme.primary, size: 22),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Height',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  heightStr,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.edit_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => BmiCard.showEditDialog(context, ref, profile, unit),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm + 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.scale_rounded, color: theme.colorScheme.primary, size: 22),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Weight',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  weightStr,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.edit_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 6),
+            Divider(
+              height: 1,
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
             ),
             const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: () => BmiCard.showEditDialog(context, ref, profile, unit),
-                icon: const Icon(Icons.edit_rounded, size: 18),
-                label: const Text('Edit Height & Weight'),
+            InkWell(
+              onTap: () => BmiCard.showEditDialog(context, ref, profile, unit),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildMetricItem(theme, 'Weight', weightStr, Icons.scale_rounded),
+                    _buildMetricDivider(theme),
+                    _buildMetricItem(theme, 'Height', heightStr, Icons.height_rounded),
+                    _buildMetricDivider(theme),
+                    _buildMetricItem(theme, 'Age', ageStr, Icons.cake_outlined),
+                  ],
+                ),
               ),
             ),
           ],
