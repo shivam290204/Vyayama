@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:fitbuddy/core/services/notification_diagnostic_logger.dart';
 import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
@@ -120,6 +121,9 @@ class NotificationService {
         initSettings,
         onDidReceiveNotificationResponse: (response) {
           debugPrint('Notification clicked / action: ${response.actionId}, payload: ${response.payload}');
+          if (response.id != null) {
+            NotificationDiagnosticLogger.instance.logFired(response.id!);
+          }
           if (response.actionId == 'action_snooze') {
             final snoozeId = ((response.id ?? 90000) + 50000) & 0x7FFFFFFF;
             scheduleTestAlarmInSeconds(
@@ -141,6 +145,9 @@ class NotificationService {
           _launchNotificationResponse = launchDetails.notificationResponse;
           final response = launchDetails.notificationResponse;
           if (response != null) {
+            if (response.id != null) {
+              NotificationDiagnosticLogger.instance.logFired(response.id!);
+            }
             WidgetsBinding.instance.addPostFrameCallback((_) {
               onNotificationResponse.add(response);
             });
@@ -758,6 +765,14 @@ class NotificationService {
         matchDateTimeComponents: matchComponents,
       );
       debugPrint('Scheduled notification $id at $scheduledDate (mode: $mode)');
+      NotificationDiagnosticLogger.instance.logScheduled(
+        id: id,
+        title: title,
+        scheduledTime: scheduledDate,
+        isExact: mode == AndroidScheduleMode.exactAllowWhileIdle ||
+            mode == AndroidScheduleMode.alarmClock,
+        channelId: details.android?.channelId ?? 'default',
+      );
       return ScheduleResult.success(
         exact: mode == AndroidScheduleMode.exactAllowWhileIdle ||
             mode == AndroidScheduleMode.alarmClock,
@@ -783,6 +798,13 @@ class NotificationService {
             matchDateTimeComponents: matchComponents,
           );
           debugPrint('Fallback to exactAllowWhileIdle succeeded for $id');
+          NotificationDiagnosticLogger.instance.logScheduled(
+            id: id,
+            title: title,
+            scheduledTime: scheduledDate,
+            isExact: true,
+            channelId: details.android?.channelId ?? 'default',
+          );
           return ScheduleResult.success(
             exact: true,
             notificationId: id,
@@ -809,6 +831,13 @@ class NotificationService {
             matchDateTimeComponents: matchComponents,
           );
           debugPrint('Gracefully fell back to inexactAllowWhileIdle for $id');
+          NotificationDiagnosticLogger.instance.logScheduled(
+            id: id,
+            title: title,
+            scheduledTime: scheduledDate,
+            isExact: false,
+            channelId: details.android?.channelId ?? 'default',
+          );
           return ScheduleResult.success(
             exact: false,
             notificationId: id,
@@ -1166,6 +1195,14 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
+      NotificationDiagnosticLogger.instance.logScheduled(
+        id: id,
+        title: title ?? (isWakeAlarm ? '⏰ Diagnostic Wake Alarm Test' : '🌙 Diagnostic Bedtime Test'),
+        scheduledTime: scheduledDate,
+        isExact: targetMode == AndroidScheduleMode.alarmClock ||
+            targetMode == AndroidScheduleMode.exactAllowWhileIdle,
+        channelId: targetChannelId,
+      );
       return ScheduleResult.success(exact: exact, notificationId: id);
     } catch (e) {
       if (targetMode == AndroidScheduleMode.alarmClock) {
@@ -1180,6 +1217,13 @@ class NotificationService {
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             uiLocalNotificationDateInterpretation:
                 UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          NotificationDiagnosticLogger.instance.logScheduled(
+            id: id,
+            title: title ?? '⏰ Diagnostic Wake Alarm Test',
+            scheduledTime: scheduledDate,
+            isExact: true,
+            channelId: targetChannelId,
           );
           return ScheduleResult.success(exact: true, notificationId: id);
         } catch (_) {}

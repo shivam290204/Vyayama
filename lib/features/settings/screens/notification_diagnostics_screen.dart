@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/services/notification_diagnostic_logger.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
@@ -35,6 +36,7 @@ class _NotificationDiagnosticsScreenState
   String _timezoneName = 'Unknown';
   String _timezoneOffset = '';
   List<PendingNotificationRequest> _pendingNotifications = [];
+  List<NotificationDiagnosticRecord> _diagnosticLogs = [];
   String? _lastError;
   bool? _reconciliationSuccess;
   DateTime? _reconciliationTime;
@@ -66,6 +68,8 @@ class _NotificationDiagnosticsScreenState
     final mealsChannel =
         await service.isChannelEnabled(NotificationService.mealsChannelId);
     final pending = await service.getPendingNotifications();
+    final diagnosticLogs =
+        await NotificationDiagnosticLogger.instance.getRecentRecords();
 
     String tzName = 'Unknown';
     String tzOffset = '';
@@ -97,6 +101,7 @@ class _NotificationDiagnosticsScreenState
       _medicineChannelEnabled = medicineChannel;
       _mealsChannelEnabled = mealsChannel;
       _pendingNotifications = pending;
+      _diagnosticLogs = diagnosticLogs;
       _timezoneName = tzName;
       _timezoneOffset = tzOffset;
       _lastError = service.lastSchedulingError ?? recon.lastError;
@@ -344,6 +349,10 @@ class _NotificationDiagnosticsScreenState
 
                   // Pending Notifications Card
                   _buildPendingCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // Timing & Delay Diagnostics Card
+                  _buildTimingDiagnosticsCard(scheme, isDark),
                   const SizedBox(height: AppSpacing.md),
 
                   // Manual Testing Suite
@@ -678,6 +687,145 @@ class _NotificationDiagnosticsScreenState
                             color: scheme.onSurfaceVariant,
                             fontFamily: 'monospace',
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimingDiagnosticsCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Alarm Timing & Delivery Logs',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (_diagnosticLogs.isNotEmpty)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: Colors.redAccent,
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                    label: const Text('Clear', style: TextStyle(fontSize: 12)),
+                    onPressed: () async {
+                      await NotificationDiagnosticLogger.instance.clear();
+                      await _loadDiagnostics();
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Tracks scheduled target time vs actual delivery time to detect Android Doze delays in seconds.',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            if (_diagnosticLogs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No alarm timing events recorded yet. Run a diagnostic test below or schedule a reminder to record real delivery delays.',
+                  style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                ),
+              )
+            else
+              ..._diagnosticLogs.take(10).map((log) {
+                final targetStr =
+                    '${log.scheduledTime.hour.toString().padLeft(2, '0')}:${log.scheduledTime.minute.toString().padLeft(2, '0')}:${log.scheduledTime.second.toString().padLeft(2, '0')}';
+                final isDelivered = log.firedTime != null;
+                final delaySec = log.delaySeconds ?? 0;
+                final isLate = delaySec.abs() > 30;
+
+                final statusColor = !isDelivered
+                    ? Colors.blueGrey
+                    : (isLate ? Colors.orange : Colors.green);
+
+                final statusText = !isDelivered
+                    ? 'Pending delivery'
+                    : (delaySec == 0
+                        ? 'Fired on time'
+                        : '${delaySec > 0 ? "+" : ""}${delaySec}s delay${isLate ? " (Doze delay)" : ""}');
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              log.isExact ? Icons.alarm_on_rounded : Icons.access_time_rounded,
+                              size: 16,
+                              color: log.isExact ? AppPalette.limeGreen : Colors.blueGrey,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                log.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                              ),
+                              child: Text(
+                                statusText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Target: $targetStr (${log.isExact ? "Exact Alarm" : "Inexact"})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              'ID: ${log.id}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: scheme.onSurfaceVariant,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
