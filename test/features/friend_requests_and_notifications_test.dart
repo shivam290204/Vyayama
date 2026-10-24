@@ -98,7 +98,7 @@ void main() {
 
       expect(reminder.id, equals(bedtimeReminderId));
       expect(reminder.kind, equals(ReminderKind.bedtime));
-      expect(reminder.exact, isFalse);
+      expect(reminder.exact, isTrue);
       expect(reminder.alarmStyle, isFalse);
       expect(reminder.hour, equals(21));
       expect(reminder.minute, equals(45));
