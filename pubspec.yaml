@@ -76,6 +76,7 @@ flutter:
   generate: true
   uses-material-design: true
   assets:
+    - .env
     - assets/data/
     - assets/rive/
     - assets/lottie/
