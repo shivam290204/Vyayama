@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/core/utils/unit_conversion.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
@@ -11,8 +9,8 @@ import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/profile/profile_validators.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
 
-/// Card displayed on the Profile screen showing the user's BMI, clinical category,
-/// educational disclaimer, and access to weight tracking history.
+/// Card displayed on the Profile and BMI screens showing the user's BMI, clinical category,
+/// educational disclaimer, quick height/weight editing, and access to weight tracking history.
 class BmiCard extends ConsumerWidget {
   const BmiCard({super.key, required this.profile});
 
@@ -52,7 +50,7 @@ class BmiCard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.md),
             if (bmiResult == null)
-              _buildMissingDataView(context, theme)
+              _buildMissingDataView(context, ref, theme, unit)
             else
               _buildBmiScoreView(context, theme, bmiResult, unit, ref),
           ],
@@ -61,7 +59,12 @@ class BmiCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildMissingDataView(BuildContext context, ThemeData theme) {
+  Widget _buildMissingDataView(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeData theme,
+    UnitSystem unit,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -73,7 +76,7 @@ class BmiCard extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         FilledButton.tonalIcon(
-          onPressed: () => context.push(AppRoutes.profileEdit),
+          onPressed: () => showEditDialog(context, ref, profile, unit),
           icon: const Icon(Icons.add_rounded, size: 18),
           label: const Text('Add height & weight'),
         ),
@@ -89,6 +92,12 @@ class BmiCard extends ConsumerWidget {
     WidgetRef ref,
   ) {
     final color = _getCategoryColor(result.category, theme);
+    final heightStr = profile.heightCm != null
+        ? UnitConversion.formatHeight(profile.heightCm!, unit)
+        : 'Not set';
+    final weightStr = profile.weightKg != null
+        ? UnitConversion.formatWeight(profile.weightKg!, unit)
+        : 'Not set';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -140,82 +149,93 @@ class BmiCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        // Height & Weight integrated inside the BMI card
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+
+        // Interactive Height & Weight container inside the BMI card
+        InkWell(
+          onTap: () => showEditDialog(context, ref, profile, unit),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + 2,
             ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Icon(Icons.height_rounded, size: 20, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Height',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.height_rounded, size: 20, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Height',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              heightStr,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          profile.heightCm != null
-                              ? UnitConversion.formatHeight(profile.heightCm!, unit)
-                              : 'Not set',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 32,
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Row(
-                  children: [
-                    Icon(Icons.monitor_weight_outlined, size: 20, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Weight',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          profile.weightKg != null
-                              ? UnitConversion.formatWeight(profile.weightKg!, unit)
-                              : 'Not set',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.monitor_weight_outlined, size: 20, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Weight',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              weightStr,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -231,9 +251,9 @@ class BmiCard extends ConsumerWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             FilledButton.tonalIcon(
-              onPressed: () => _showLogWeightDialog(context, ref, unit),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Log weight'),
+              onPressed: () => showEditDialog(context, ref, profile, unit),
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text('Edit Height & Weight'),
             ),
           ],
         ),
@@ -242,7 +262,6 @@ class BmiCard extends ConsumerWidget {
   }
 
   Widget _buildBmiBar(double bmi, ThemeData theme) {
-    // Standard visual bar mapping 15.0 to 35.0
     final clamped = bmi.clamp(15.0, 35.0);
     final percent = (clamped - 15.0) / 20.0;
 
@@ -345,44 +364,124 @@ class BmiCard extends ConsumerWidget {
     );
   }
 
-  void _showLogWeightDialog(BuildContext context, WidgetRef ref, UnitSystem unit) {
+  /// Global interactive dialog to manually edit height and weight, recalculating BMI immediately.
+  static Future<void> showEditDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Profile profile,
+    UnitSystem unit,
+  ) async {
+    final isMetric = unit == UnitSystem.metric;
+    final cmController = TextEditingController();
+    final ftController = TextEditingController();
+    final inController = TextEditingController();
     final weightController = TextEditingController();
     final noteController = TextEditingController();
 
-    // Prefill with current weight if available
-    if (profile.weightKg != null) {
-      weightController.text =
-          ProfileValidators.weightText(profile.weightKg!, unit);
+    if (profile.heightCm != null) {
+      if (isMetric) {
+        cmController.text = profile.heightCm!.round().toString();
+      } else {
+        final parts = UnitConversion.cmToFeetInches(profile.heightCm!);
+        ftController.text = parts.feet.toString();
+        inController.text = parts.inches.toString();
+      }
     }
 
-    showDialog<void>(
+    if (profile.weightKg != null) {
+      weightController.text = ProfileValidators.weightText(profile.weightKg!, unit);
+    }
+
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<void>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Log Weight & Recalculate BMI'),
+          title: const Row(
+            children: [
+              Icon(Icons.edit_note_rounded),
+              SizedBox(width: 8),
+              Text('Edit Height & Weight'),
+            ],
+          ),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: weightController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Weight (${unit == UnitSystem.metric ? 'kg' : 'lb'})',
-                    prefixIcon: const Icon(Icons.monitor_weight_outlined),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Update your measurements to recalculate your BMI and adapt workout plans.',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                    prefixIcon: Icon(Icons.notes_rounded),
-                    hintText: 'e.g. morning weigh-in',
+                  const SizedBox(height: AppSpacing.md),
+                  if (isMetric) ...[
+                    TextFormField(
+                      controller: cmController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Height (cm)',
+                        prefixIcon: Icon(Icons.height_rounded),
+                        hintText: 'e.g. 182',
+                      ),
+                      validator: ProfileValidators.heightCmField,
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: ftController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Feet',
+                              prefixIcon: Icon(Icons.height_rounded),
+                              hintText: 'e.g. 5',
+                            ),
+                            validator: ProfileValidators.feetField,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: TextFormField(
+                            controller: inController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Inches',
+                              hintText: 'e.g. 11',
+                            ),
+                            validator: ProfileValidators.inchesField,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    controller: weightController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Weight (${isMetric ? 'kg' : 'lb'})',
+                      prefixIcon: const Icon(Icons.scale_rounded),
+                      hintText: isMetric ? 'e.g. 80' : 'e.g. 176',
+                    ),
+                    validator: (val) => ProfileValidators.weight(val, unit),
                   ),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Note (optional)',
+                      prefixIcon: Icon(Icons.notes_rounded),
+                      hintText: 'e.g. morning weigh-in',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -392,24 +491,42 @@ class BmiCard extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () async {
-                final text = weightController.text.trim();
-                final kg = ProfileValidators.weightKg(text, unit);
-                if (kg == null || kg <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a valid weight')),
-                  );
+                if (!(formKey.currentState?.validate() ?? false)) {
                   return;
                 }
+                final newHeight = ProfileValidators.heightCm(
+                  unit: unit,
+                  cm: cmController.text,
+                  ft: ftController.text,
+                  inch: inController.text,
+                );
+                final newWeight = ProfileValidators.weightKg(weightController.text, unit);
+
+                if (newHeight == null || newWeight == null) {
+                  return;
+                }
+
                 Navigator.of(ctx).pop();
+
+                final updatedProfile = profile.copyWith(
+                  heightCm: newHeight,
+                  weightKg: newWeight,
+                );
+
+                await ref.read(currentProfileProvider.notifier).save(updatedProfile);
                 await ref.read(bmiHistoryProvider.notifier).recordMeasurement(
-                      weightKg: kg,
+                      weightKg: newWeight,
+                      heightCm: newHeight,
                       notes: noteController.text.trim().isEmpty
                           ? null
                           : noteController.text.trim(),
                     );
+
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Weight logged and BMI updated!')),
+                    const SnackBar(
+                      content: Text('Height & weight updated! BMI recalculated.'),
+                    ),
                   );
                 }
               },
@@ -461,7 +578,7 @@ class BmiCard extends ConsumerWidget {
                         if (records.isEmpty) {
                           return const Center(
                             child: Text(
-                              'No historical weight entries logged yet.\nTap "Log weight" to track changes over time.',
+                              'No historical weight entries logged yet.\nTap "Edit Height & Weight" to track changes over time.',
                               textAlign: TextAlign.center,
                             ),
                           );
