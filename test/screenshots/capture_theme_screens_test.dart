@@ -149,7 +149,11 @@ void main() {
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData!.buffer.asUint8List();
 
-      final folder = fileName.startsWith('before') ? 'before' : 'after';
+      final folder = fileName.startsWith('before')
+          ? 'before'
+          : fileName.startsWith('step_b')
+              ? 'step_b'
+              : 'after';
       final repoFile = File('test/screenshots/$folder/$fileName');
       await repoFile.parent.create(recursive: true);
       await repoFile.writeAsBytes(bytes);
@@ -164,7 +168,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   }
 
-  testWidgets('Capture 10 baseline & after screens in light and dark mode', (WidgetTester tester) async {
+  testWidgets('Capture 10 baseline & step_b screens in light and dark mode', (WidgetTester tester) async {
     final prefs = await SharedPreferences.getInstance();
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -183,28 +187,26 @@ void main() {
       final name = entry.key;
       final widget = entry.value;
 
-      for (final prefix in ['before', 'after']) {
-        // Light mode
-        await captureScreen(
-          tester: tester,
-          widget: widget,
-          theme: AppTheme.light(useGoogleFonts: false),
-          fileName: '${prefix}_${name}_light.png',
-          prefs: prefs,
-        );
+      // Light mode
+      await captureScreen(
+        tester: tester,
+        widget: widget,
+        theme: AppTheme.light(useGoogleFonts: false),
+        fileName: 'step_b_${name}_light.png',
+        prefs: prefs,
+      );
 
-        // Dark mode
-        await captureScreen(
-          tester: tester,
-          widget: widget,
-          theme: AppTheme.dark(useGoogleFonts: false),
-          fileName: '${prefix}_${name}_dark.png',
-          prefs: prefs,
-        );
-      }
+      // Dark mode
+      await captureScreen(
+        tester: tester,
+        widget: widget,
+        theme: AppTheme.dark(useGoogleFonts: false),
+        fileName: 'step_b_${name}_dark.png',
+        prefs: prefs,
+      );
     }
 
-    expect(File('$artifactDir/after_home_light.png').existsSync(), isTrue);
-    expect(File('$artifactDir/after_nutrition_dark.png').existsSync(), isTrue);
+    expect(File('$artifactDir/step_b_home_light.png').existsSync(), isTrue);
+    expect(File('$artifactDir/step_b_nutrition_dark.png').existsSync(), isTrue);
   });
 }
