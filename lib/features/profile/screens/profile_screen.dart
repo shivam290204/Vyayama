@@ -106,7 +106,7 @@ class _ProfileBody extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             ProfileStats(profile: profile),
             const SizedBox(height: AppSpacing.xl),
-            const ProfileLinks(),
+            ProfileLinks(profile: profile),
           ],
         ),
       ),

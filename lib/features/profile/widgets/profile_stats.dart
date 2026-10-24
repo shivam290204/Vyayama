@@ -1,39 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:fitbuddy/core/theme/app_spacing.dart';
-import 'package:fitbuddy/core/utils/unit_conversion.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/profile_labels.dart';
-import 'package:fitbuddy/features/settings/providers.dart';
 
-/// Two-column grid of goal and body stats, shown in the chosen units.
-class ProfileStats extends ConsumerWidget {
+/// Two-column grid of goal, fitness level, age, and gender stats.
+class ProfileStats extends StatelessWidget {
   const ProfileStats({super.key, required this.profile});
 
   final Profile profile;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unit = ref.watch(unitSystemProvider);
-    final weight = profile.weightKg;
-    final height = profile.heightCm;
-
+  Widget build(BuildContext context) {
     final stats = <(String, String, IconData)>[
       ('Goal', ProfileLabels.goal(profile.goal), Icons.flag_rounded),
       ('Level', ProfileLabels.level(profile.fitnessLevel), Icons.bolt_rounded),
       ('Age', profile.age == null ? '-' : '${profile.age}', Icons.cake_outlined),
       ('Gender', ProfileLabels.gender(profile.gender), Icons.person_outline_rounded),
-      (
-        'Weight',
-        weight == null ? '-' : UnitConversion.formatWeight(weight, unit),
-        Icons.monitor_weight_outlined,
-      ),
-      (
-        'Height',
-        height == null ? '-' : UnitConversion.formatHeight(height, unit),
-        Icons.height_rounded,
-      ),
     ];
 
     return LayoutBuilder(

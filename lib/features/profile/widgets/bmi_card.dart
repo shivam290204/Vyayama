@@ -140,6 +140,85 @@ class BmiCard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
+        // Height & Weight integrated inside the BMI card
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.height_rounded, size: 20, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Height',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          profile.heightCm != null
+                              ? UnitConversion.formatHeight(profile.heightCm!, unit)
+                              : 'Not set',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 32,
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.monitor_weight_outlined, size: 20, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Weight',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          profile.weightKg != null
+                              ? UnitConversion.formatWeight(profile.weightKg!, unit)
+                              : 'Not set',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
         const Divider(height: 1),
         const SizedBox(height: AppSpacing.sm),
         Row(
