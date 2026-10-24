@@ -1,27 +1,12 @@
 import 'package:fitbuddy/features/mascot/fallback_mascot.dart';
-import 'package:fitbuddy/features/mascot/mascot_constants.dart';
 import 'package:fitbuddy/features/mascot/mascot_mood.dart';
-import 'package:fitbuddy/features/mascot/rive_mascot.dart';
 import 'package:fitbuddy/features/mascot/mascot_sound_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
-
-/// Checks once whether the Rive file is bundled.
-abstract final class RiveAvailability {
-  static Future<bool>? _result;
-
-  /// True when `assets/rive/mascot.riv` can be loaded. Cached after the
-  /// first call.
-  static Future<bool> check() => _result ??= AssetManifest.loadFromAssetBundle(rootBundle)
-      .then((manifest) => manifest.listAssets().contains(MascotAssets.rivePath))
-      .catchError((_) => false);
-}
 
 /// The Vyayama mascot.
 ///
-/// Uses the Rive animation when `assets/rive/mascot.riv` exists, otherwise
-/// an original drawn character.
+/// Displays the animated mascot character corresponding to the current [MascotMood].
 class MascotView extends ConsumerStatefulWidget {
   const MascotView({super.key, required this.mood, this.size = 200});
 
@@ -49,13 +34,7 @@ class _MascotViewState extends ConsumerState<MascotView> {
       child: ExcludeSemantics(
         child: SizedBox.square(
           dimension: widget.size,
-          child: FutureBuilder<bool>(
-            future: RiveAvailability.check(),
-            builder: (context, snapshot) {
-              if (snapshot.data == true) return RiveMascot(mood: widget.mood);
-              return FallbackMascot(mood: widget.mood, size: widget.size);
-            },
-          ),
+          child: FallbackMascot(mood: widget.mood, size: widget.size),
         ),
       ),
     );

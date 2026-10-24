@@ -163,7 +163,7 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                       Flutter UI Layer                      │
-│     Material 3  •  AppTheme  •  Google Fonts  •  Rive       │
+│     Material 3  •  AppTheme  •  Google Fonts  •  Lottie     │
 ├─────────────────────────────────────────────────────────────┤
 │                    State & Route Management                 │
 │        flutter_riverpod (AsyncNotifier)  •  go_router       │

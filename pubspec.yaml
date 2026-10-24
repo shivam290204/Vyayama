@@ -25,7 +25,6 @@ dependencies:
   # UI and animation
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
-  rive: ^0.13.20
   lottie: ^3.2.0
 
   # Local storage
@@ -78,7 +77,6 @@ flutter:
   assets:
     - .env
     - assets/data/
-    - assets/rive/
     - assets/lottie/
     - assets/images/
     - assets/images/mascot/
