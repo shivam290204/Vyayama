@@ -84,148 +84,148 @@ class Exercise {
 
     // Exact and specialized 3D character exercise poses
     if (clean.contains('calf_raise') || clean.contains('calf raise')) {
-      return 'assets/exercises/calf_raise.png';
+      return 'assets/exercises/calf_raise.webp';
     }
     if (clean.contains('straight_leg_raise') || clean.contains('straight leg raise')) {
-      return 'assets/exercises/straight_leg_raise.png';
+      return 'assets/exercises/straight_leg_raise.webp';
     }
     if (clean.contains('goblet_squat') || clean.contains('goblet squat')) {
-      return 'assets/exercises/goblet_squat.png';
+      return 'assets/exercises/goblet_squat.webp';
     }
     if (clean.contains('clamshell')) {
-      return 'assets/exercises/clamshell.png';
+      return 'assets/exercises/clamshell.webp';
     }
     if (clean.contains('rdl') || clean.contains('romanian deadlift')) {
-      return 'assets/exercises/dumbbell_rdl.png';
+      return 'assets/exercises/dumbbell_rdl.webp';
     }
     if (clean.contains('floor_press') || clean.contains('floor press')) {
-      return 'assets/exercises/dumbbell_floor_press.png';
+      return 'assets/exercises/dumbbell_floor_press.webp';
     }
     if (clean.contains('cross_body') || clean.contains('shoulder_stretch') || clean.contains('shoulder stretch')) {
-      return 'assets/exercises/shoulder_crossbody_stretch.png';
+      return 'assets/exercises/shoulder_crossbody_stretch.webp';
     }
     if (clean.contains('band_pull_apart') || clean.contains('pull-apart') || clean.contains('pull apart')) {
-      return 'assets/exercises/band_pull_apart.png';
+      return 'assets/exercises/band_pull_apart.webp';
     }
     if (clean.contains('burpee')) {
-      return 'assets/exercises/burpee.png';
+      return 'assets/exercises/burpee.webp';
     }
     if (clean.contains('hamstring_stretch') || clean.contains('hamstring stretch') || clean.contains('hamstring')) {
-      return 'assets/exercises/hamstring_stretch.png';
+      return 'assets/exercises/hamstring_stretch.webp';
     }
     if (clean.contains('warrior')) {
-      return 'assets/exercises/warrior_pose.png';
+      return 'assets/exercises/warrior_pose.webp';
     }
     if (clean.contains('downward_dog') || clean.contains('downward dog') || clean.contains('downward-facing')) {
-      return 'assets/exercises/downward_dog.png';
+      return 'assets/exercises/downward_dog.webp';
     }
     if (clean.contains('cobra')) {
-      return 'assets/exercises/cobra_pose.png';
+      return 'assets/exercises/cobra_pose.webp';
     }
     if (clean.contains('bicycle_crunch') || clean.contains('bicycle crunch')) {
-      return 'assets/exercises/bicycle_crunch.png';
+      return 'assets/exercises/bicycle_crunch.webp';
     }
     if (clean.contains('bird_dog') || clean.contains('bird dog')) {
-      return 'assets/exercises/bird_dog.png';
+      return 'assets/exercises/bird_dog.webp';
     }
     if (clean.contains('cat_cow') || clean.contains('cat-cow') || clean.contains('cat cow')) {
-      return 'assets/exercises/cat_cow.png';
+      return 'assets/exercises/cat_cow.webp';
     }
     if (clean.contains('chair_dips') || clean.contains('dips')) {
-      return 'assets/exercises/chair_dips.png';
+      return 'assets/exercises/chair_dips.webp';
     }
     if (clean.contains('child_pose') || clean.contains("child's pose") || clean.contains('childs pose')) {
-      return 'assets/exercises/child_pose.png';
+      return 'assets/exercises/child_pose.webp';
     }
     if (clean.contains('dead_bug') || clean.contains('dead bug')) {
-      return 'assets/exercises/dead_bug.png';
+      return 'assets/exercises/dead_bug.webp';
     }
     if (clean.contains('curl')) {
-      return 'assets/exercises/bicep_curl.png';
+      return 'assets/exercises/bicep_curl.webp';
     }
     if (clean.contains('shoulder_press') || clean.contains('shoulder press')) {
-      return 'assets/exercises/shoulder_press.png';
+      return 'assets/exercises/shoulder_press.webp';
     }
     if (clean.contains('bridge')) {
-      return 'assets/exercises/glute_bridge.png';
+      return 'assets/exercises/glute_bridge.webp';
     }
     if (clean.contains('high_knees') || clean.contains('high knees')) {
-      return 'assets/exercises/high_knees.png';
+      return 'assets/exercises/high_knees.webp';
     }
     if (clean.contains('incline_pushup') || clean.contains('incline push-up')) {
-      return 'assets/exercises/incline_pushup.png';
+      return 'assets/exercises/incline_pushup.webp';
     }
     if (clean.contains('pushup') || clean.contains('push-up') || clean.contains('push_up')) {
-      return 'assets/exercises/pushup.png';
+      return 'assets/exercises/pushup.webp';
     }
     if (clean.contains('jumping_jacks') || clean.contains('jumping jacks')) {
-      return 'assets/exercises/jumping_jacks.png';
+      return 'assets/exercises/jumping_jacks.webp';
     }
     if (clean.contains('step_jacks') || clean.contains('step jacks')) {
-      return 'assets/exercises/step_jacks.png';
+      return 'assets/exercises/step_jacks.webp';
     }
     if (clean.contains('march')) {
-      return 'assets/exercises/march_in_place.png';
+      return 'assets/exercises/march_in_place.webp';
     }
     if (clean.contains('row')) {
-      return 'assets/exercises/one_arm_dumbbell_row.png';
+      return 'assets/exercises/one_arm_dumbbell_row.webp';
     }
     if (clean.contains('plank')) {
-      return 'assets/exercises/plank.png';
+      return 'assets/exercises/plank.webp';
     }
     if (clean.contains('quad_stretch') || clean.contains('quad stretch')) {
-      return 'assets/exercises/quad_stretch.png';
+      return 'assets/exercises/quad_stretch.webp';
     }
     if (clean.contains('sun_salutation') || clean.contains('sun salutation')) {
-      return 'assets/exercises/sun_salutation.png';
+      return 'assets/exercises/sun_salutation.webp';
     }
     if (clean.contains('superman')) {
-      return 'assets/exercises/superman_hold.png';
+      return 'assets/exercises/superman_hold.webp';
     }
     if (clean.contains('wall_sit') || clean.contains('wall sit')) {
-      return 'assets/exercises/wall_sit.png';
+      return 'assets/exercises/wall_sit.webp';
     }
     if (clean.contains('squat')) {
-      return 'assets/exercises/squat.png';
+      return 'assets/exercises/squat.webp';
     }
     if (clean.contains('lunge')) {
-      return 'assets/exercises/lunge.png';
+      return 'assets/exercises/lunge.webp';
     }
     if (clean.contains('jog') || clean.contains('run') || clean.contains('walk')) {
-      return 'assets/exercises/running.png';
+      return 'assets/exercises/running.webp';
     }
     if (clean.contains('stretch') || clean.contains('yoga')) {
-      return 'assets/exercises/meditation.png';
+      return 'assets/exercises/meditation.webp';
     }
     if (clean.contains('tree_pose') || clean.contains('tree pose')) {
-      return 'assets/exercises/tree_pose.png';
+      return 'assets/exercises/tree_pose.webp';
     }
     if (clean.contains('seated_forward_fold') || clean.contains('forward fold')) {
-      return 'assets/exercises/seated_forward_fold.png';
+      return 'assets/exercises/seated_forward_fold.webp';
     }
     if (clean.contains('russian_twist') || clean.contains('russian twist')) {
-      return 'assets/exercises/russian_twist.png';
+      return 'assets/exercises/russian_twist.webp';
     }
     if (clean.contains('mountain_climber') || clean.contains('mountain climber') || clean.contains('mountain_climbers')) {
-      return 'assets/exercises/mountain_climbers.png';
+      return 'assets/exercises/mountain_climbers.webp';
     }
     if (clean.contains('side_plank') || clean.contains('side plank')) {
-      return 'assets/exercises/side_plank.png';
+      return 'assets/exercises/side_plank.webp';
     }
     if (clean.contains('lateral_raise') || clean.contains('lateral raise')) {
-      return 'assets/exercises/lateral_raise.png';
+      return 'assets/exercises/lateral_raise.webp';
     }
     if (clean.contains('overhead_triceps') || clean.contains('overhead_tricep') || clean.contains('tricep')) {
-      return 'assets/exercises/overhead_triceps_ext.png';
+      return 'assets/exercises/overhead_triceps_ext.webp';
     }
     if (clean.contains('reverse_lunge') || clean.contains('reverse lunge')) {
-      return 'assets/exercises/lunge.png';
+      return 'assets/exercises/lunge.webp';
     }
     if (clean.contains('press') || clean.contains('raise')) {
-      return 'assets/exercises/flex_proud.png';
+      return 'assets/exercises/flex_proud.webp';
     }
 
-    return 'assets/exercises/standing_hero.png';
+    return 'assets/exercises/standing_hero.webp';
   }
 
   /// Contraindication tags of this exercise that match [tags]

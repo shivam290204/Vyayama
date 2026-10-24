@@ -70,7 +70,7 @@ void main() {
         contraindications: [],
         met: 5.0,
       );
-      expect(squat.characterAsset, 'assets/exercises/squat.png');
+      expect(squat.characterAsset, 'assets/exercises/squat.webp');
 
       const lunge = Exercise(
         id: 'ex_lunge',
@@ -82,7 +82,7 @@ void main() {
         contraindications: [],
         met: 4.0,
       );
-      expect(lunge.characterAsset, 'assets/exercises/lunge.png');
+      expect(lunge.characterAsset, 'assets/exercises/lunge.webp');
 
       const jog = Exercise(
         id: 'ex_light_jog',
@@ -94,7 +94,7 @@ void main() {
         contraindications: [],
         met: 7.0,
       );
-      expect(jog.characterAsset, 'assets/exercises/running.png');
+      expect(jog.characterAsset, 'assets/exercises/running.webp');
 
       const sun = Exercise(
         id: 'ex_sun_salutation',
@@ -106,7 +106,7 @@ void main() {
         contraindications: [],
         met: 3.0,
       );
-      expect(sun.characterAsset, 'assets/exercises/sun_salutation.png');
+      expect(sun.characterAsset, 'assets/exercises/sun_salutation.webp');
 
       const pushup = Exercise(
         id: 'ex_pushup',
@@ -118,7 +118,7 @@ void main() {
         contraindications: [],
         met: 3.8,
       );
-      expect(pushup.characterAsset, 'assets/exercises/pushup.png');
+      expect(pushup.characterAsset, 'assets/exercises/pushup.webp');
     });
 
     test('Serialization to/from JSON preserves video_url', () {

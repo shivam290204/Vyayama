@@ -109,7 +109,7 @@ void main() {
       buildApp(
         const ExerciseAnimation(
           asset: null,
-          characterAsset: 'assets/exercises/squat.png',
+          characterAsset: 'assets/exercises/squat.webp',
           label: 'Squat',
         ),
       ),

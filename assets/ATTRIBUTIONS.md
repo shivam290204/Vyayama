@@ -1,6 +1,106 @@
-# Attributions
+# Attributions & Asset Licences
 
-## SVG Exercise Poses
-- Push-up (Start/Finish): Created by the AI assistant for proof of concept.
-- Squat (Start/Finish): Created by the AI assistant for proof of concept.
-- Bird Dog (Start/Finish): Created by the AI assistant for proof of concept.
+All media assets utilized in Vyayama must have verified copyright, licensing, and attribution documentation before public release.
+
+> **Notice**: As specified in project review guidelines, unknown sources or licenses must be manually verified and confirmed by the project owner prior to commercial store distribution.
+
+## Exercise Visual Demonstrations (96 Assets)
+
+| File | Exercises | Source | Licence | Created By | Date |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `assets/exercises/ankle_rotations.webp` | ex_ankle_rotations (Ankle Rotations) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/archer_pushup.webp` | ex_archer_pushups (Archer Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/ardha_matsyendrasana.webp` | ex_ardha_matsyendrasana (Ardha Matsyendrasana (Half Spinal Twist)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/arm_circles.webp` | ex_arm_circles (Arm Circles) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/arm_swings.webp` | ex_arm_swings (Arm Swings) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/baddha_konasana.webp` | ex_baddha_konasana (Baddha Konasana (Butterfly Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/band_pull_apart.webp` | ex_band_pull_apart (Band Pull-Apart) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/bicep_curl.webp` | ex_dumbbell_curl (Dumbbell Biceps Curl) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/bicycle_crunch.webp` | ex_bicycle_crunch (Bicycle Crunch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/bird_dog.webp` | ex_bird_dog (Bird Dog) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/bird_dog_end.svg` | ex_bird_dog (Bird Dog) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/bird_dog_start.svg` | ex_bird_dog (Bird Dog) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/bulgarian_split_squat.webp` | ex_bulgarian_split_squat (Bulgarian Split Squats) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/burpee.webp` | ex_burpee (Burpee) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/calf_raise.webp` | ex_calf_raise (Standing Calf Raise) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/cat_cow.webp` | ex_bitilasana (Bitilasana (Cow Pose))<br>ex_cat_cow (Cat-Cow Stretch)<br>ex_marjaryasana (Marjaryasana (Cat Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/chair_dips.webp` | ex_chair_dips (Chair Dips) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/chair_pose.webp` | ex_utkatasana (Utkatasana (Chair Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/chair_squat.webp` | ex_chair_squats (Chair Squats) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/chest_stretch.webp` | ex_chest_stretch (Chest Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/child_pose.webp` | ex_child_pose (Balasana (Child's Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/clamshell.webp` | ex_clamshell (Clamshell) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/cobra_pose.webp` | ex_cobra_pose (Bhujangasana (Cobra Pose))<br>ex_dhanurasana (Dhanurasana (Bow Pose))<br>ex_eka_pada_rajakapotasana (Eka Pada Rajakapotasana (King Pigeon Pose))<br>ex_kapotasana (Kapotasana (Pigeon Pose / Full Backbend)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/crow_pose.webp` | ex_astavakrasana (Astavakrasana (Eight-Angle Pose))<br>ex_bakasana (Bakasana (Crow Pose))<br>ex_eka_pada_koundinyasana (Eka Pada Koundinyasana (Flying Splits Pose))<br>ex_parsva_bakasana (Parsva Bakasana (Side Crow Pose))<br>ex_tittibhasana (Tittibhasana (Firefly Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/dead_bug.webp` | ex_dead_bug (Dead Bug) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/decline_pushup.webp` | ex_decline_pushups (Decline Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/diamond_pushup.webp` | ex_diamond_pushups (Diamond Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/downward_dog.webp` | ex_downward_dog (Adho Mukha Svanasana (Downward-Facing Dog)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/dumbbell_floor_press.webp` | ex_floor_press (Dumbbell Floor Press) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/dumbbell_rdl.webp` | ex_dumbbell_rdl (Dumbbell Romanian Deadlift) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/dynamic_lunges.webp` | ex_dynamic_lunges (Dynamic Lunges)<br>ex_jump_lunges (Jump Lunges) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/explosive_pushup.webp` | ex_explosive_pushups (Explosive Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/flex_proud.webp` | Exercise.characterAsset (code fallback) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/glute_bridge.webp` | ex_bridge_pose (Setu Bandhasana (Bridge Pose))<br>ex_glute_bridge (Glute Bridge)<br>ex_urdhva_dhanurasana (Urdhva Dhanurasana (Wheel Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/goblet_squat.webp` | ex_goblet_squat (Dumbbell Goblet Squat) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/hamstring_stretch.webp` | ex_hamstring_stretch (Lying Hamstring Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/high_knees.webp` | ex_high_knees (High Knees)<br>ex_standing_crunches (Standing Crunches) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/hip_circles.webp` | ex_hip_circles (Hip Circles) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/hip_flexor_stretch.webp` | ex_hip_flexor_stretch (Hip Flexor Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/hip_rotations.webp` | ex_hip_rotations (Hip Rotations) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/inchworm.webp` | ex_inchworm (Inchworms) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/incline_pushup.webp` | ex_incline_pushup (Incline Push-Up) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/jump_squat.webp` | ex_jump_squats (Jump Squats) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/jumping_jacks.webp` | ex_jumping_jacks (Jumping Jacks) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/knee_plank.webp` | ex_knee_plank (Knee Plank) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/knee_pushup.webp` | ex_knee_pushups (Knee Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/lateral_raise.webp` | ex_lateral_raise (Dumbbell Lateral Raise) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/leg_swings.webp` | ex_leg_swings (Leg Swings) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/lunge.webp` | ex_lunge (Forward Lunge) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/makarasana.webp` | ex_makarasana (Makarasana (Crocodile Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/march_in_place.webp` | ex_march_in_place (March in Place) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/meditation.webp` | ex_deep_breathing (Deep Breathing)<br>ex_kukkutasana (Kukkutasana (Rooster Pose))<br>ex_sukhasana (Sukhasana (Easy Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/mountain_climbers.webp` | ex_mountain_climbers (Mountain Climbers) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/natarajasana.webp` | ex_natarajasana (Natarajasana (Dancer Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/one_arm_dumbbell_row.webp` | ex_dumbbell_row (One-Arm Dumbbell Row) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/overhead_triceps_ext.webp` | ex_overhead_triceps_ext (Overhead Dumbbell Triceps Extension)<br>ex_overhead_triceps_stretch (Overhead Triceps Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pavanamuktasana.webp` | ex_pavanamuktasana (Pavanamuktasana (Wind-Relieving Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pigeon_stretch.webp` | ex_pigeon_stretch (Pigeon Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pike_pushup.webp` | ex_handstand_pushups (Handstand Push-up Progression)<br>ex_pike_pushups (Pike Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pistol_squat.webp` | ex_assisted_pistol_squats (Assisted Pistol Squats)<br>ex_single_leg_squats (Single-Leg Squats) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/plank.webp` | ex_mayurasana (Mayurasana (Peacock Pose))<br>ex_pincha_mayurasana (Pincha Mayurasana (Forearm Stand))<br>ex_plank (Forearm Plank)<br>ex_vrschikasana (Vrschikasana (Scorpion Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/plank_to_pushup.webp` | ex_plank_to_pushup (Plank to Push-up) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pushup.webp` | ex_pseudo_planche_pushups (Pseudo Planche Push-ups)<br>ex_pushup (Push-Up) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/pushup_end.svg` | ex_pushup (Push-Up) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/pushup_start.svg` | ex_pushup (Push-Up) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/quad_stretch.webp` | ex_quad_stretch (Standing Quad Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/reverse_lunge.webp` | ex_reverse_lunge (Reverse Lunge) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/running.webp` | ex_brisk_walk (Brisk Walk)<br>ex_light_jog (Easy Jog) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/russian_twist.webp` | ex_russian_twist (Russian Twist) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/savasana.webp` | ex_savasana (Shavasana (Corpse Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/seated_forward_fold.webp` | ex_gomukhasana (Gomukhasana (Cow Face Pose))<br>ex_hanumanasana (Hanumanasana (Monkey Pose / Splits))<br>ex_janu_sirsasana (Janu Sirsasana (Head-to-Knee Pose))<br>ex_prasarita_padottanasana (Prasarita Padottanasana (Wide-Legged Forward Bend))<br>ex_seated_forward_fold (Paschimottanasana (Seated Forward Bend)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/shoulder_crossbody_stretch.webp` | ex_shoulder_stretch (Cross-Body Shoulder Stretch) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/shoulder_press.webp` | ex_shoulder_press (Dumbbell Shoulder Press) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/shoulder_rolls.webp` | ex_neck_rotations (Neck Rotations (Gentle))<br>ex_shoulder_rolls (Shoulder Rolls) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/side_plank.webp` | ex_side_plank (Side Plank) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/single_leg_glute_bridge.webp` | ex_single_leg_glute_bridge (Single-Leg Glute Bridges) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/squat.webp` | ex_bodyweight_squat (Bodyweight Squat) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/squat_end.svg` | ex_bodyweight_squat (Bodyweight Squat) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/squat_start.svg` | ex_bodyweight_squat (Bodyweight Squat) [pose] | AI assistant generation | Project Internal (Proof of Concept) | AI assistant | 2026-10 |
+| `assets/exercises/standing_hero.webp` | ex_adho_mukha_vrksasana (Adho Mukha Vrksasana (Handstand))<br>ex_mountain_pose (Tadasana (Mountain Pose))<br>ex_sirsasana (Sirsasana (Headstand)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/step_jacks.webp` | ex_step_jacks (Step Jacks) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/straight_leg_raise.webp` | ex_hanging_leg_raises (Hanging Leg Raises)<br>ex_straight_leg_raise (Lying Straight Leg Raise) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/sumo_squat.webp` | ex_sumo_squats (Sumo Squats) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/sun_salutation.webp` | ex_sun_salutation (Sun Salutation (Surya Namaskar)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/superman_hold.webp` | ex_superman (Superman Hold) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/tree_pose.webp` | ex_garudasana (Garudasana (Eagle Pose))<br>ex_tree_pose (Vrikshasana (Tree Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/triangle_pose.webp` | ex_ardha_chandrasana (Ardha Chandrasana (Half Moon Pose))<br>ex_triangle_pose (Trikonasana (Triangle Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/v_ups.webp` | ex_lsit_hold (L-sit Hold)<br>ex_v_ups (V-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/vajrasana.webp` | ex_ustrasana (Ustrasana (Camel Pose))<br>ex_vajrasana (Vajrasana (Thunderbolt Pose)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/walking_lunge.webp` | ex_walking_lunges (Walking Lunges) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/wall_pushup.webp` | ex_wall_pushups (Wall Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/wall_sit.webp` | ex_wall_sit (Wall Sit) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/warrior_2.webp` | ex_parsvakonasana (Parsvakonasana (Extended Side Angle Pose))<br>ex_warrior_2 (Virabhadrasana II (Warrior II)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/warrior_3.webp` | ex_virabhadrasana_3 (Virabhadrasana III (Warrior III)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/warrior_pose.webp` | ex_warrior_1 (Virabhadrasana I (Warrior I)) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |
+| `assets/exercises/wide_pushup.webp` | ex_wide_pushups (Wide-Grip Push-ups) | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm | UNKNOWN: owner must confirm |

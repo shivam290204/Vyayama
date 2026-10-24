@@ -6,7 +6,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 5.0,
-      "animation_asset": "assets/exercises/squat.png",
+      "animation_asset": "assets/exercises/squat.webp",
       "contraindications": [
         "knee"
       ],
@@ -38,7 +38,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 4.0,
-      "animation_asset": "assets/exercises/lunge.png",
+      "animation_asset": "assets/exercises/lunge.webp",
       "contraindications": [
         "knee"
       ],
@@ -61,7 +61,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/calf_raise.png",
+      "animation_asset": "assets/exercises/calf_raise.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall with feet hip-width apart. Rest one hand on a wall or chair for balance.",
@@ -81,7 +81,7 @@
       "muscle_group": "legs",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/straight_leg_raise.png",
+      "animation_asset": "assets/exercises/straight_leg_raise.webp",
       "contraindications": [],
       "instructions": [
         "Lie on your back with one knee bent and the other leg straight.",
@@ -101,7 +101,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.5,
-      "animation_asset": "assets/exercises/wall_sit.png",
+      "animation_asset": "assets/exercises/wall_sit.webp",
       "contraindications": [
         "knee"
       ],
@@ -124,7 +124,7 @@
       "muscle_group": "legs",
       "equipment": "dumbbells",
       "met": 5.0,
-      "animation_asset": "assets/exercises/goblet_squat.png",
+      "animation_asset": "assets/exercises/goblet_squat.webp",
       "contraindications": [
         "knee",
         "lower_back"
@@ -147,7 +147,7 @@
       "muscle_group": "glutes",
       "equipment": "mat",
       "met": 3.5,
-      "animation_asset": "assets/exercises/glute_bridge.png",
+      "animation_asset": "assets/exercises/glute_bridge.webp",
       "contraindications": [],
       "instructions": [
         "Lie on your back with knees bent and feet flat, hip-width apart.",
@@ -167,7 +167,7 @@
       "muscle_group": "glutes",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/clamshell.png",
+      "animation_asset": "assets/exercises/clamshell.webp",
       "contraindications": [],
       "instructions": [
         "Lie on your side with knees bent and feet together.",
@@ -187,7 +187,7 @@
       "muscle_group": "glutes",
       "equipment": "dumbbells",
       "met": 4.0,
-      "animation_asset": "assets/exercises/dumbbell_rdl.png",
+      "animation_asset": "assets/exercises/dumbbell_rdl.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -210,7 +210,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 3.8,
-      "animation_asset": "assets/exercises/pushup.png",
+      "animation_asset": "assets/exercises/pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -243,7 +243,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/incline_pushup.png",
+      "animation_asset": "assets/exercises/incline_pushup.webp",
       "contraindications": [
         "wrist"
       ],
@@ -265,7 +265,7 @@
       "muscle_group": "chest",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/dumbbell_floor_press.png",
+      "animation_asset": "assets/exercises/dumbbell_floor_press.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -287,7 +287,7 @@
       "muscle_group": "arms",
       "equipment": "chair",
       "met": 3.5,
-      "animation_asset": "assets/exercises/chair_dips.png",
+      "animation_asset": "assets/exercises/chair_dips.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -311,7 +311,7 @@
       "muscle_group": "arms",
       "equipment": "dumbbells",
       "met": 3.0,
-      "animation_asset": "assets/exercises/bicep_curl.png",
+      "animation_asset": "assets/exercises/bicep_curl.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall holding a dumbbell in each hand, palms facing forward.",
@@ -331,7 +331,7 @@
       "muscle_group": "shoulders",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/shoulder_press.png",
+      "animation_asset": "assets/exercises/shoulder_press.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -353,7 +353,7 @@
       "muscle_group": "shoulders",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/shoulder_crossbody_stretch.png",
+      "animation_asset": "assets/exercises/shoulder_crossbody_stretch.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall and bring one arm across your chest.",
@@ -373,7 +373,7 @@
       "muscle_group": "back",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/one_arm_dumbbell_row.png",
+      "animation_asset": "assets/exercises/one_arm_dumbbell_row.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -395,7 +395,7 @@
       "muscle_group": "back",
       "equipment": "resistance_band",
       "met": 2.8,
-      "animation_asset": "assets/exercises/band_pull_apart.png",
+      "animation_asset": "assets/exercises/band_pull_apart.webp",
       "contraindications": [],
       "instructions": [
         "Hold a light resistance band in front of you at shoulder height, hands shoulder-width apart.",
@@ -415,7 +415,7 @@
       "muscle_group": "back",
       "equipment": "mat",
       "met": 3.0,
-      "animation_asset": "assets/exercises/superman_hold.png",
+      "animation_asset": "assets/exercises/superman_hold.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -437,7 +437,7 @@
       "muscle_group": "back",
       "equipment": "mat",
       "met": 2.3,
-      "animation_asset": "assets/exercises/cat_cow.png",
+      "animation_asset": "assets/exercises/cat_cow.webp",
       "contraindications": [
         "wrist"
       ],
@@ -459,7 +459,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.0,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/plank.webp",
       "contraindications": [
         "shoulder",
         "lower_back"
@@ -483,7 +483,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.0,
-      "animation_asset": "assets/exercises/dead_bug.png",
+      "animation_asset": "assets/exercises/dead_bug.webp",
       "contraindications": [],
       "instructions": [
         "Lie on your back with arms reaching to the ceiling and hips and knees bent to 90 degrees.",
@@ -503,7 +503,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/bird_dog.png",
+      "animation_asset": "assets/exercises/bird_dog.webp",
       "contraindications": [
         "wrist"
       ],
@@ -534,7 +534,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/bicycle_crunch.png",
+      "animation_asset": "assets/exercises/bicycle_crunch.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -556,7 +556,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/jumping_jacks.png",
+      "animation_asset": "assets/exercises/jumping_jacks.webp",
       "contraindications": [
         "high_impact",
         "knee",
@@ -580,7 +580,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 3.5,
-      "animation_asset": "assets/exercises/march_in_place.png",
+      "animation_asset": "assets/exercises/march_in_place.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall with your arms bent.",
@@ -600,7 +600,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 4.3,
-      "animation_asset": "assets/exercises/running.png",
+      "animation_asset": "assets/exercises/running.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall, look ahead and relax your shoulders.",
@@ -620,7 +620,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 7.0,
-      "animation_asset": "assets/exercises/running.png",
+      "animation_asset": "assets/exercises/running.webp",
       "contraindications": [
         "high_impact",
         "knee",
@@ -645,7 +645,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/high_knees.png",
+      "animation_asset": "assets/exercises/high_knees.webp",
       "contraindications": [
         "high_impact",
         "knee",
@@ -669,7 +669,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/burpee.png",
+      "animation_asset": "assets/exercises/burpee.webp",
       "contraindications": [
         "high_impact",
         "knee",
@@ -695,7 +695,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 4.5,
-      "animation_asset": "assets/exercises/step_jacks.png",
+      "animation_asset": "assets/exercises/step_jacks.webp",
       "contraindications": [],
       "instructions": [
         "Stand with feet together.",
@@ -715,7 +715,7 @@
       "muscle_group": "full_body",
       "equipment": "mat",
       "met": 3.3,
-      "animation_asset": "assets/exercises/sun_salutation.png",
+      "animation_asset": "assets/exercises/sun_salutation.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -738,7 +738,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/child_pose.png",
+      "animation_asset": "assets/exercises/child_pose.webp",
       "contraindications": [
         "knee"
       ],
@@ -760,7 +760,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/quad_stretch.png",
+      "animation_asset": "assets/exercises/quad_stretch.webp",
       "contraindications": [
         "knee"
       ],
@@ -782,7 +782,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/hamstring_stretch.png",
+      "animation_asset": "assets/exercises/hamstring_stretch.webp",
       "contraindications": [],
       "instructions": [
         "Lie on your back with both knees bent.",
@@ -802,7 +802,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/warrior_pose.png",
+      "animation_asset": "assets/exercises/warrior_pose.webp",
       "contraindications": [
         "knee",
         "shoulder"
@@ -825,7 +825,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/downward_dog.png",
+      "animation_asset": "assets/exercises/downward_dog.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -848,7 +848,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.3,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/cobra_pose.webp",
       "contraindications": [
         "lower_back",
         "wrist"
@@ -872,7 +872,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/tree_pose.png",
+      "animation_asset": "assets/exercises/tree_pose.webp",
       "contraindications": [
         "knee"
       ],
@@ -895,7 +895,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/seated_forward_fold.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -917,7 +917,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/glute_bridge.png",
+      "animation_asset": "assets/exercises/glute_bridge.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -939,7 +939,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
-      "animation_asset": "assets/exercises/savasana.png",
+      "animation_asset": "assets/exercises/savasana.webp",
       "contraindications": [],
       "instructions": [
         "Lie flat on your back with legs naturally apart and arms beside body, palms up.",
@@ -958,7 +958,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 1.8,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/standing_hero.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall with big toes touching and heels slightly apart, distributing weight evenly.",
@@ -979,7 +979,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/russian_twist.png",
+      "animation_asset": "assets/exercises/russian_twist.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -1002,7 +1002,7 @@
       "muscle_group": "cardio",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/mountain_climbers.png",
+      "animation_asset": "assets/exercises/mountain_climbers.webp",
       "contraindications": [
         "high_impact",
         "wrist",
@@ -1027,7 +1027,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.5,
-      "animation_asset": "assets/exercises/side_plank.png",
+      "animation_asset": "assets/exercises/side_plank.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -1051,7 +1051,7 @@
       "muscle_group": "shoulders",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/lateral_raise.png",
+      "animation_asset": "assets/exercises/lateral_raise.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -1074,7 +1074,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 4.0,
-      "animation_asset": "assets/exercises/reverse_lunge.png",
+      "animation_asset": "assets/exercises/reverse_lunge.webp",
       "contraindications": [
         "knee"
       ],
@@ -1097,7 +1097,7 @@
       "muscle_group": "arms",
       "equipment": "dumbbells",
       "met": 3.5,
-      "animation_asset": "assets/exercises/overhead_triceps_ext.png",
+      "animation_asset": "assets/exercises/overhead_triceps_ext.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -1121,7 +1121,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.5,
-      "animation_asset": "assets/exercises/warrior_2.png",
+      "animation_asset": "assets/exercises/warrior_2.webp",
       "contraindications": [
         "knee",
         "shoulder"
@@ -1144,7 +1144,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.3,
-      "animation_asset": "assets/exercises/triangle_pose.png",
+      "animation_asset": "assets/exercises/triangle_pose.webp",
       "contraindications": [
         "lower_back",
         "neck"
@@ -1167,7 +1167,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/cat_cow.png",
+      "animation_asset": "assets/exercises/cat_cow.webp",
       "contraindications": [
         "wrist"
       ],
@@ -1189,7 +1189,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/cat_cow.png",
+      "animation_asset": "assets/exercises/cat_cow.webp",
       "contraindications": [
         "neck",
         "lower_back"
@@ -1212,7 +1212,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
-      "animation_asset": "assets/exercises/meditation.png",
+      "animation_asset": "assets/exercises/meditation.webp",
       "contraindications": [
         "knee"
       ],
@@ -1234,7 +1234,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.8,
-      "animation_asset": "assets/exercises/vajrasana.png",
+      "animation_asset": "assets/exercises/vajrasana.webp",
       "contraindications": [
         "knee",
         "ankle"
@@ -1257,7 +1257,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 1.5,
-      "animation_asset": "assets/exercises/makarasana.png",
+      "animation_asset": "assets/exercises/makarasana.webp",
       "contraindications": [],
       "instructions": [
         "Lie prone on your stomach with legs comfortably apart, heels turned in or out.",
@@ -1277,7 +1277,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/pavanamuktasana.png",
+      "animation_asset": "assets/exercises/pavanamuktasana.webp",
       "contraindications": [
         "lower_back",
         "knee"
@@ -1300,7 +1300,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/baddha_konasana.png",
+      "animation_asset": "assets/exercises/baddha_konasana.webp",
       "contraindications": [
         "knee",
         "hip"
@@ -1323,7 +1323,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.2,
-      "animation_asset": "assets/exercises/ardha_matsyendrasana.png",
+      "animation_asset": "assets/exercises/ardha_matsyendrasana.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -1345,7 +1345,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/warrior_3.png",
+      "animation_asset": "assets/exercises/warrior_3.webp",
       "contraindications": [
         "knee",
         "lower_back"
@@ -1369,7 +1369,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.5,
-      "animation_asset": "assets/exercises/chair_pose.png",
+      "animation_asset": "assets/exercises/chair_pose.webp",
       "contraindications": [
         "knee"
       ],
@@ -1392,7 +1392,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/natarajasana.png",
+      "animation_asset": "assets/exercises/natarajasana.webp",
       "contraindications": [
         "knee",
         "lower_back"
@@ -1415,7 +1415,7 @@
       "muscle_group": "flexibility",
       "equipment": "none",
       "met": 2.8,
-      "animation_asset": "assets/exercises/tree_pose.png",
+      "animation_asset": "assets/exercises/tree_pose.webp",
       "contraindications": [
         "knee"
       ],
@@ -1437,7 +1437,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/triangle_pose.png",
+      "animation_asset": "assets/exercises/triangle_pose.webp",
       "contraindications": [
         "knee",
         "neck"
@@ -1460,7 +1460,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/warrior_2.png",
+      "animation_asset": "assets/exercises/warrior_2.webp",
       "contraindications": [
         "knee"
       ],
@@ -1482,7 +1482,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.3,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/seated_forward_fold.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -1505,7 +1505,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/cobra_pose.webp",
       "contraindications": [
         "lower_back",
         "shoulder"
@@ -1528,7 +1528,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.8,
-      "animation_asset": "assets/exercises/vajrasana.png",
+      "animation_asset": "assets/exercises/vajrasana.webp",
       "contraindications": [
         "lower_back",
         "neck"
@@ -1552,7 +1552,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.0,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/seated_forward_fold.webp",
       "contraindications": [
         "knee",
         "lower_back"
@@ -1575,7 +1575,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 2.2,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/seated_forward_fold.webp",
       "contraindications": [
         "shoulder",
         "knee"
@@ -1598,7 +1598,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/crow_pose.png",
+      "animation_asset": "assets/exercises/crow_pose.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1621,7 +1621,7 @@
       "muscle_group": "full_body",
       "equipment": "mat",
       "met": 3.5,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/standing_hero.webp",
       "contraindications": [
         "neck",
         "hypertension",
@@ -1646,7 +1646,7 @@
       "muscle_group": "shoulders",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/plank.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -1669,7 +1669,7 @@
       "muscle_group": "full_body",
       "equipment": "mat",
       "met": 4.5,
-      "animation_asset": "assets/exercises/standing_hero.png",
+      "animation_asset": "assets/exercises/standing_hero.webp",
       "contraindications": [
         "wrist",
         "shoulder",
@@ -1693,7 +1693,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/plank.webp",
       "contraindications": [
         "wrist",
         "elbow",
@@ -1717,7 +1717,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 3.2,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/cobra_pose.webp",
       "contraindications": [
         "knee",
         "lower_back",
@@ -1741,7 +1741,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 3.0,
-      "animation_asset": "assets/exercises/seated_forward_fold.png",
+      "animation_asset": "assets/exercises/seated_forward_fold.webp",
       "contraindications": [
         "hamstring",
         "knee"
@@ -1764,7 +1764,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 3.5,
-      "animation_asset": "assets/exercises/glute_bridge.png",
+      "animation_asset": "assets/exercises/glute_bridge.webp",
       "contraindications": [
         "wrist",
         "lower_back",
@@ -1788,7 +1788,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.2,
-      "animation_asset": "assets/exercises/crow_pose.png",
+      "animation_asset": "assets/exercises/crow_pose.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1811,7 +1811,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/crow_pose.png",
+      "animation_asset": "assets/exercises/crow_pose.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -1835,7 +1835,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.2,
-      "animation_asset": "assets/exercises/crow_pose.png",
+      "animation_asset": "assets/exercises/crow_pose.webp",
       "contraindications": [
         "wrist",
         "hamstring"
@@ -1858,7 +1858,7 @@
       "muscle_group": "shoulders",
       "equipment": "mat",
       "met": 4.5,
-      "animation_asset": "assets/exercises/plank.png",
+      "animation_asset": "assets/exercises/plank.webp",
       "contraindications": [
         "shoulder",
         "lower_back",
@@ -1882,7 +1882,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/crow_pose.png",
+      "animation_asset": "assets/exercises/crow_pose.webp",
       "contraindications": [
         "wrist",
         "lower_back"
@@ -1905,7 +1905,7 @@
       "muscle_group": "flexibility",
       "equipment": "mat",
       "met": 3.8,
-      "animation_asset": "assets/exercises/cobra_pose.png",
+      "animation_asset": "assets/exercises/cobra_pose.webp",
       "contraindications": [
         "lower_back",
         "knee",
@@ -1929,7 +1929,7 @@
       "muscle_group": "core",
       "equipment": "mat",
       "met": 4.0,
-      "animation_asset": "assets/exercises/meditation.png",
+      "animation_asset": "assets/exercises/meditation.webp",
       "contraindications": [
         "wrist",
         "knee"
@@ -1953,7 +1953,7 @@
       "muscle_group": "arms",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/arm_circles.png",
+      "animation_asset": "assets/exercises/arm_circles.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -1981,7 +1981,7 @@
       "muscle_group": "arms",
       "equipment": "none",
       "met": 2.5,
-      "animation_asset": "assets/exercises/shoulder_rolls.png",
+      "animation_asset": "assets/exercises/shoulder_rolls.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall with arms relaxed naturally at your sides.",
@@ -2007,7 +2007,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 2.8,
-      "animation_asset": "assets/exercises/hip_circles.png",
+      "animation_asset": "assets/exercises/hip_circles.webp",
       "contraindications": [
         "hip"
       ],
@@ -2035,7 +2035,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/ankle_rotations.png",
+      "animation_asset": "assets/exercises/ankle_rotations.webp",
       "contraindications": [
         "ankle"
       ],
@@ -2062,7 +2062,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/hip_rotations.png",
+      "animation_asset": "assets/exercises/hip_rotations.webp",
       "contraindications": [
         "hip"
       ],
@@ -2089,7 +2089,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 3.5,
-      "animation_asset": "assets/exercises/leg_swings.png",
+      "animation_asset": "assets/exercises/leg_swings.webp",
       "contraindications": [
         "hip"
       ],
@@ -2116,7 +2116,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 4.5,
-      "animation_asset": "assets/exercises/inchworm.png",
+      "animation_asset": "assets/exercises/inchworm.webp",
       "contraindications": [
         "wrist",
         "lower_back"
@@ -2144,7 +2144,7 @@
       "muscle_group": "arms",
       "equipment": "none",
       "met": 3.2,
-      "animation_asset": "assets/exercises/arm_swings.png",
+      "animation_asset": "assets/exercises/arm_swings.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -2171,7 +2171,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 4.5,
-      "animation_asset": "assets/exercises/dynamic_lunges.png",
+      "animation_asset": "assets/exercises/dynamic_lunges.webp",
       "contraindications": [
         "knee"
       ],
@@ -2199,7 +2199,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/wall_pushup.png",
+      "animation_asset": "assets/exercises/wall_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -2227,7 +2227,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 3.8,
-      "animation_asset": "assets/exercises/knee_pushup.png",
+      "animation_asset": "assets/exercises/knee_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -2256,7 +2256,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 4.0,
-      "animation_asset": "assets/exercises/chair_squat.png",
+      "animation_asset": "assets/exercises/chair_squat.webp",
       "contraindications": [
         "knee"
       ],
@@ -2284,7 +2284,7 @@
       "muscle_group": "core",
       "equipment": "none",
       "met": 3.0,
-      "animation_asset": "assets/exercises/knee_plank.png",
+      "animation_asset": "assets/exercises/knee_plank.webp",
       "contraindications": [
         "wrist",
         "lower_back"
@@ -2313,7 +2313,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 4.2,
-      "animation_asset": "assets/exercises/wide_pushup.png",
+      "animation_asset": "assets/exercises/wide_pushup.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -2341,7 +2341,7 @@
       "muscle_group": "arms",
       "equipment": "none",
       "met": 4.8,
-      "animation_asset": "assets/exercises/diamond_pushup.png",
+      "animation_asset": "assets/exercises/diamond_pushup.webp",
       "contraindications": [
         "wrist",
         "elbow"
@@ -2369,7 +2369,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 5.0,
-      "animation_asset": "assets/exercises/sumo_squat.png",
+      "animation_asset": "assets/exercises/sumo_squat.webp",
       "contraindications": [
         "groin",
         "knee"
@@ -2397,7 +2397,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/jump_squat.png",
+      "animation_asset": "assets/exercises/jump_squat.webp",
       "contraindications": [
         "knee",
         "ankle",
@@ -2426,7 +2426,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 5.2,
-      "animation_asset": "assets/exercises/walking_lunge.png",
+      "animation_asset": "assets/exercises/walking_lunge.webp",
       "contraindications": [
         "knee"
       ],
@@ -2453,7 +2453,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 5.5,
-      "animation_asset": "assets/exercises/bulgarian_split_squat.png",
+      "animation_asset": "assets/exercises/bulgarian_split_squat.webp",
       "contraindications": [
         "knee"
       ],
@@ -2480,7 +2480,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 5.0,
-      "animation_asset": "assets/exercises/decline_pushup.png",
+      "animation_asset": "assets/exercises/decline_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -2508,7 +2508,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 6.0,
-      "animation_asset": "assets/exercises/archer_pushup.png",
+      "animation_asset": "assets/exercises/archer_pushup.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -2536,7 +2536,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 7.5,
-      "animation_asset": "assets/exercises/explosive_pushup.png",
+      "animation_asset": "assets/exercises/explosive_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder",
@@ -2565,7 +2565,7 @@
       "muscle_group": "shoulders",
       "equipment": "none",
       "met": 5.0,
-      "animation_asset": "assets/exercises/pike_pushup.png",
+      "animation_asset": "assets/exercises/pike_pushup.webp",
       "contraindications": [
         "shoulder",
         "wrist"
@@ -2593,7 +2593,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 6.5,
-      "animation_asset": "assets/exercises/pistol_squat.png",
+      "animation_asset": "assets/exercises/pistol_squat.webp",
       "contraindications": [
         "knee",
         "ankle"
@@ -2622,7 +2622,7 @@
       "muscle_group": "glutes",
       "equipment": "none",
       "met": 4.5,
-      "animation_asset": "assets/exercises/single_leg_glute_bridge.png",
+      "animation_asset": "assets/exercises/single_leg_glute_bridge.webp",
       "contraindications": [
         "lower_back"
       ],
@@ -2649,7 +2649,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 5.5,
-      "animation_asset": "assets/exercises/plank_to_pushup.png",
+      "animation_asset": "assets/exercises/plank_to_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -2677,7 +2677,7 @@
       "muscle_group": "core",
       "equipment": "none",
       "met": 6.0,
-      "animation_asset": "assets/exercises/v_ups.png",
+      "animation_asset": "assets/exercises/v_ups.webp",
       "contraindications": [
         "lower_back",
         "neck"
@@ -2706,7 +2706,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 2.5,
-      "animation_asset": "assets/exercises/hip_flexor_stretch.png",
+      "animation_asset": "assets/exercises/hip_flexor_stretch.webp",
       "contraindications": [
         "knee"
       ],
@@ -2733,7 +2733,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 2.0,
-      "animation_asset": "assets/exercises/chest_stretch.png",
+      "animation_asset": "assets/exercises/chest_stretch.webp",
       "contraindications": [
         "shoulder"
       ],
@@ -2760,7 +2760,7 @@
       "muscle_group": "glutes",
       "equipment": "none",
       "met": 2.5,
-      "animation_asset": "assets/exercises/pigeon_stretch.png",
+      "animation_asset": "assets/exercises/pigeon_stretch.webp",
       "contraindications": [
         "knee",
         "hip"
@@ -2788,7 +2788,7 @@
       "muscle_group": "full_body",
       "equipment": "none",
       "met": 1.5,
-      "animation_asset": "assets/exercises/meditation.png",
+      "animation_asset": "assets/exercises/meditation.webp",
       "contraindications": [],
       "instructions": [
         "Sit comfortably or lie on your back with hands resting softly on your belly.",
@@ -2813,7 +2813,7 @@
       "muscle_group": "shoulders",
       "equipment": "none",
       "met": 2.5,
-      "animation_asset": "assets/exercises/shoulder_rolls.png",
+      "animation_asset": "assets/exercises/shoulder_rolls.webp",
       "contraindications": [
         "neck"
       ],
@@ -2842,7 +2842,7 @@
       "muscle_group": "abs",
       "equipment": "none",
       "met": 4.5,
-      "animation_asset": "assets/exercises/high_knees.png",
+      "animation_asset": "assets/exercises/high_knees.webp",
       "contraindications": [],
       "instructions": [
         "Stand tall with feet shoulder-width apart, fingertips lightly resting behind your ears.",
@@ -2868,7 +2868,7 @@
       "muscle_group": "chest",
       "equipment": "none",
       "met": 6.5,
-      "animation_asset": "assets/exercises/pushup.png",
+      "animation_asset": "assets/exercises/pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -2897,7 +2897,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/dynamic_lunges.png",
+      "animation_asset": "assets/exercises/dynamic_lunges.webp",
       "contraindications": [
         "knee"
       ],
@@ -2925,7 +2925,7 @@
       "muscle_group": "legs",
       "equipment": "none",
       "met": 7.0,
-      "animation_asset": "assets/exercises/pistol_squat.png",
+      "animation_asset": "assets/exercises/pistol_squat.webp",
       "contraindications": [
         "knee"
       ],
@@ -2953,7 +2953,7 @@
       "muscle_group": "abs",
       "equipment": "pull_up_bar",
       "met": 6.0,
-      "animation_asset": "assets/exercises/straight_leg_raise.png",
+      "animation_asset": "assets/exercises/straight_leg_raise.webp",
       "contraindications": [
         "shoulder",
         "lower_back"
@@ -2982,7 +2982,7 @@
       "muscle_group": "abs",
       "equipment": "none",
       "met": 6.5,
-      "animation_asset": "assets/exercises/v_ups.png",
+      "animation_asset": "assets/exercises/v_ups.webp",
       "contraindications": [
         "wrist",
         "shoulder"
@@ -3011,7 +3011,7 @@
       "muscle_group": "shoulders",
       "equipment": "none",
       "met": 8.0,
-      "animation_asset": "assets/exercises/pike_pushup.png",
+      "animation_asset": "assets/exercises/pike_pushup.webp",
       "contraindications": [
         "wrist",
         "shoulder",
@@ -3041,7 +3041,7 @@
       "muscle_group": "arms",
       "equipment": "none",
       "met": 2.5,
-      "animation_asset": "assets/exercises/overhead_triceps_ext.png",
+      "animation_asset": "assets/exercises/overhead_triceps_ext.webp",
       "contraindications": [
         "shoulder"
       ],

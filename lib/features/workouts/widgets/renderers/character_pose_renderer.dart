@@ -12,11 +12,13 @@ class CharacterPoseRenderer implements ExerciseRenderer {
   @override
   bool canHandle(String? asset, List<String> poses) {
     if (asset == null) return false;
-    final isPngOrJpg = asset.endsWith('.png') || asset.endsWith('.jpg');
+    final isRaster = asset.endsWith('.png') ||
+        asset.endsWith('.jpg') ||
+        asset.endsWith('.webp');
     final isKnownPath = asset.contains('assets/exercises/') ||
         asset.contains('assets/images/mascot/') ||
         asset.contains('assets/mascot/');
-    return isPngOrJpg && isKnownPath;
+    return isRaster && isKnownPath;
   }
 
   @override

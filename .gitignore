@@ -69,3 +69,6 @@ android/.kotlin/
 # Widget Preview related
 .widget_preview/
 
+# Exercise image originals (large backup PNGs)
+assets/exercises_originals/
+
