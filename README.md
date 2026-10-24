@@ -282,12 +282,18 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
    ```
 
 2. **Configure Environment Variables**:
-   Create a `.env` file in the project root:
+   Configuration is read from compile-time `--dart-define` flags or a local `.env` file in the project root:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your live project credentials to `.env`:
    ```env
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_ANON_KEY=your-anon-key-here
    ```
-   *(Note: For development and testing without live credentials, Vyayama includes robust fallback repositories that enable complete offline UI and feature testing.)*
+   *Behavior when configuration is omitted:*
+   - **Debug Builds**: The app automatically runs in **Mock Mode** using built-in mock repositories and displays a visible warning banner (`MOCK MODE — Supabase Not Configured`). This allows immediate UI and feature testing without requiring backend credentials.
+   - **Release Builds**: The app displays a dedicated **Application Not Configured** screen explaining the missing keys rather than crashing or hanging.
 
 3. **Install Dependencies**:
    ```bash
@@ -303,6 +309,8 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
    - **Chrome / Web**:
      ```bash
      flutter run -d chrome
+     # Or using the helper script:
+     run_web.bat
      ```
    - **Android Device / Emulator**:
      ```bash
@@ -317,7 +325,7 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
 
 ## 📦 Release & Production Builds
 
-Vyayama is configured for **Android 16 (API Level 36)** compliance:
+Vyayama is configured for **Android 16 (API Level 36)** compliance. For production release builds, provide credentials via compile-time `--dart-define` parameters or via `.env`:
 
 ### 1. Release Keystore Configuration
 Ensure `android/key.properties` exists and points to your release upload keystore:
@@ -330,14 +338,18 @@ storeFile=../upload-keystore.jks
 
 ### 2. Build Standalone Release APK
 ```bash
-flutter build apk --release
+flutter build apk --release \
+  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key-here
 ```
 - Output: `build/app/outputs/flutter-apk/app-release.apk`
 - Ready for direct installation and internal testing.
 
 ### 3. Build Google Play Release App Bundle (AAB)
 ```bash
-flutter build appbundle --release
+flutter build appbundle --release \
+  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key-here
 ```
 - Output: `build/app/outputs/bundle/release/app-release.aab`
 - Fully optimized with R8/ProGuard code shrinking and resource optimization.

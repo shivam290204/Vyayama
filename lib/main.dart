@@ -11,6 +11,7 @@ import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
+import 'package:fitbuddy/core/widgets/app_not_configured_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,13 @@ Future<void> main() async {
     await dotenv.load(fileName: '.env', isOptional: true);
   } catch (e) {
     debugPrint('dotenv.load error: $e');
+  }
+
+  // In release builds, if Supabase configuration is missing, show a clean
+  // configuration required screen instead of crashing.
+  if (kReleaseMode && !Env.isSupabaseConfigured) {
+    runApp(const AppNotConfiguredApp());
+    return;
   }
 
   // Supabase is only initialised when real keys are present.

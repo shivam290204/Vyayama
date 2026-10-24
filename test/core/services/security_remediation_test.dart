@@ -1,21 +1,34 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/secure_auth_storage.dart';
+import 'package:fitbuddy/core/widgets/app_not_configured_screen.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Env Security & Config Tests', () {
-    test('Env properties return safe defaults when unconfigured', () {
+    test('Env properties return safe empty values when unconfigured', () {
       expect(Env.supabaseUrl, isA<String>());
       expect(Env.supabaseAnonKey, isA<String>());
+      // Must not contain any committed secrets or hardcoded defaults
+      expect(Env.supabaseAnonKey.contains('eyJ'), isFalse);
+      expect(Env.supabaseUrl.contains('dkhazruvustwmudjxiro'), isFalse);
       // Without valid URL/key, isSupabaseConfigured must be false
       if (!Env.supabaseUrl.startsWith('http') || Env.supabaseAnonKey.isEmpty) {
         expect(Env.isSupabaseConfigured, isFalse);
       }
+    });
+
+    testWidgets('AppNotConfiguredScreen renders properly with guidance',
+        (tester) async {
+      await tester.pumpWidget(const AppNotConfiguredApp());
+      expect(find.text('Application Not Configured'), findsOneWidget);
+      expect(find.text('Missing Configuration Keys'), findsOneWidget);
+      expect(find.byIcon(Icons.settings_suggest_rounded), findsOneWidget);
     });
   });
 

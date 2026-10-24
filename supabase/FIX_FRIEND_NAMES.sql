@@ -2,7 +2,7 @@
 -- FITBUDDY: Fix Friend Requests, Sender Names, and Profiles Resolution
 -- ============================================================================
 -- Run this script in the Supabase SQL Editor:
--- https://supabase.com/dashboard/project/dkhazruvustwmudjxiro/sql/new
+-- https://supabase.com/dashboard/project/<PROJECT_REF>/sql/new
 --
 -- This script:
 -- 1. Updates Row Level Security (RLS) on public.profiles so pending and accepted

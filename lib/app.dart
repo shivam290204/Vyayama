@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/router/app_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
@@ -158,6 +159,42 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) {
+        final content = child ?? const SizedBox.shrink();
+        if (Env.isSupabaseConfigured) return content;
+        return Column(
+          children: [
+            Material(
+              color: const Color(0xFFD97706),
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: Colors.white),
+                      SizedBox(width: 6),
+                      Text(
+                        'MOCK MODE — Supabase Not Configured',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: content),
+          ],
+        );
+      },
     );
   }
 }
