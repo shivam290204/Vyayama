@@ -14,6 +14,9 @@ import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 
 /// Offline-first [HealthRepository] backed by Supabase `user_conditions`
 /// and `medicines` tables, with local [SharedPreferences] cache fallback.
+///
+/// Implements dirty tracking and sync queues so offline local edits to
+/// conditions and medicines are never overwritten by remote fetches on reconnect.
 class SupabaseHealthRepository implements HealthRepository {
   SupabaseHealthRepository({
     required SharedPreferences prefs,
@@ -33,7 +36,10 @@ class SupabaseHealthRepository implements HealthRepository {
   }
 
   static const String _kConditionsKey = 'vyayama_health_selected_conditions';
+  static const String _kConditionsDirtyKey = 'vyayama_health_conditions_dirty';
   static const String _kMedicinesKey = 'vyayama_health_medicines_list';
+  static const String _kPendingMedicinesSyncKey = 'vyayama_health_pending_medicine_sync';
+  static const String _kPendingMedicineDeletesKey = 'vyayama_health_pending_medicine_deletes';
   static const String _kMealRemindersKey = 'vyayama_health_meal_reminders';
 
   final SharedPreferences _prefs;
@@ -42,7 +48,8 @@ class SupabaseHealthRepository implements HealthRepository {
 
   List<ConditionRule>? _cachedRules;
 
-  String? get _currentUserId => _client?.auth.currentUser?.id;
+  String? get _currentUserId =>
+      _client?.auth.currentUser?.id ?? _prefs.getString('last_signed_in_user_id');
 
   static final RegExp _uuidRegex = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -75,8 +82,33 @@ class SupabaseHealthRepository implements HealthRepository {
   Future<List<String>> getSelectedConditionKeys() async {
     final client = _client;
     final uid = _currentUserId;
+    final isDirty = _prefs.getBool(_kConditionsDirtyKey) ?? false;
 
     if (client != null && uid != null) {
+      if (isDirty) {
+        // Local edits were made while offline: sync them up, NEVER overwrite them!
+        try {
+          final localKeys = _prefs.getStringList(_kConditionsKey) ?? const <String>[];
+          await client.from('user_conditions').delete().eq('user_id', uid);
+          if (localKeys.isNotEmpty) {
+            final rows = localKeys
+                .map((k) => <String, dynamic>{
+                      'user_id': uid,
+                      'condition_key': k,
+                    })
+                .toList();
+            await client.from('user_conditions').insert(rows);
+          }
+          await _prefs.setBool(_kConditionsDirtyKey, false);
+          return List<String>.unmodifiable(localKeys);
+        } catch (e) {
+          debugPrint('[SupabaseHealthRepository] Remote condition sync error: $e');
+          // Still dirty, return local edits
+          final list = _prefs.getStringList(_kConditionsKey);
+          return list != null ? List<String>.unmodifiable(list) : const <String>[];
+        }
+      }
+
       try {
         final res = await client
             .from('user_conditions')
@@ -87,7 +119,7 @@ class SupabaseHealthRepository implements HealthRepository {
             .map((row) => (row as Map<String, dynamic>)['condition_key'] as String)
             .toList();
 
-        // Update local cache
+        // Update local cache only because local state is not dirty
         await _prefs.setStringList(_kConditionsKey, keys);
         return List<String>.unmodifiable(keys);
       } catch (e) {
@@ -102,8 +134,9 @@ class SupabaseHealthRepository implements HealthRepository {
 
   @override
   Future<void> saveSelectedConditionKeys(List<String> keys) async {
-    // 1. Save locally immediately
+    // 1. Save locally immediately and mark dirty
     await _prefs.setStringList(_kConditionsKey, keys);
+    await _prefs.setBool(_kConditionsDirtyKey, true);
 
     // 2. Sync to Supabase if connected
     final client = _client;
@@ -111,10 +144,8 @@ class SupabaseHealthRepository implements HealthRepository {
 
     if (client != null && uid != null) {
       try {
-        // Delete previous conditions for user
         await client.from('user_conditions').delete().eq('user_id', uid);
 
-        // Insert new condition rows
         if (keys.isNotEmpty) {
           final rows = keys
               .map((k) => <String, dynamic>{
@@ -124,9 +155,59 @@ class SupabaseHealthRepository implements HealthRepository {
               .toList();
           await client.from('user_conditions').insert(rows);
         }
+        // Successfully synced to cloud: clear dirty flag
+        await _prefs.setBool(_kConditionsDirtyKey, false);
       } catch (e) {
         debugPrint('[SupabaseHealthRepository] Remote condition save error: $e');
       }
+    }
+  }
+
+  List<Medicine> _loadLocalMedicines() {
+    final rawList = _prefs.getStringList(_kMedicinesKey);
+    if (rawList == null || rawList.isEmpty) return <Medicine>[];
+    final result = <Medicine>[];
+    for (final raw in rawList) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        result.add(Medicine.fromJson(map));
+      } catch (_) {}
+    }
+    return result;
+  }
+
+  Future<void> _syncPendingMedicines(SupabaseClient client, String uid) async {
+    final pendingDeletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
+    if (pendingDeletes.isNotEmpty) {
+      final remainingDeletes = <String>[];
+      for (final id in pendingDeletes) {
+        try {
+          await client.from('medicines').delete().eq('id', id).eq('user_id', uid);
+        } catch (_) {
+          remainingDeletes.add(id);
+        }
+      }
+      await _prefs.setStringList(_kPendingMedicineDeletesKey, remainingDeletes);
+    }
+
+    final pendingSync = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
+    if (pendingSync.isNotEmpty) {
+      final localMedicines = _loadLocalMedicines();
+      final remainingSync = <String>[];
+      for (final medId in pendingSync) {
+        final med = localMedicines.firstWhere(
+          (m) => m.id == medId,
+          orElse: () => const Medicine(id: '', name: '', reminderTimes: []),
+        );
+        if (med.id.isNotEmpty) {
+          try {
+            await client.from('medicines').upsert(med.toJson());
+          } catch (_) {
+            remainingSync.add(medId);
+          }
+        }
+      }
+      await _prefs.setStringList(_kPendingMedicinesSyncKey, remainingSync);
     }
   }
 
@@ -135,7 +216,21 @@ class SupabaseHealthRepository implements HealthRepository {
     final client = _client;
     final uid = _currentUserId;
 
+    final pendingSync = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
+    final pendingDeletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
+    final hasPending = pendingSync.isNotEmpty || pendingDeletes.isNotEmpty;
+
     if (client != null && uid != null) {
+      if (hasPending) {
+        await _syncPendingMedicines(client, uid);
+        final stillPending = (_prefs.getStringList(_kPendingMedicinesSyncKey)?.isNotEmpty ?? false) ||
+            (_prefs.getStringList(_kPendingMedicineDeletesKey)?.isNotEmpty ?? false);
+        if (stillPending) {
+          // Do NOT overwrite local edits!
+          return List<Medicine>.unmodifiable(_loadLocalMedicines());
+        }
+      }
+
       try {
         final res = await client
             .from('medicines')
@@ -156,16 +251,7 @@ class SupabaseHealthRepository implements HealthRepository {
     }
 
     // Local fallback
-    final rawList = _prefs.getStringList(_kMedicinesKey);
-    if (rawList == null || rawList.isEmpty) return const <Medicine>[];
-    final result = <Medicine>[];
-    for (final raw in rawList) {
-      try {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        result.add(Medicine.fromJson(map));
-      } catch (_) {}
-    }
-    return List<Medicine>.unmodifiable(result);
+    return List<Medicine>.unmodifiable(_loadLocalMedicines());
   }
 
   @override
@@ -181,7 +267,7 @@ class SupabaseHealthRepository implements HealthRepository {
     );
 
     // 1. Save locally
-    final current = (await listMedicines()).toList();
+    final current = _loadLocalMedicines().toList();
     final index = current.indexWhere((m) => m.id == toSave.id);
     if (index >= 0) {
       current[index] = toSave;
@@ -191,11 +277,26 @@ class SupabaseHealthRepository implements HealthRepository {
     final rawList = current.map((m) => jsonEncode(m.toJson())).toList();
     await _prefs.setStringList(_kMedicinesKey, rawList);
 
+    // Mark pending sync
+    final pending = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
+    if (!pending.contains(toSave.id)) {
+      pending.add(toSave.id);
+      await _prefs.setStringList(_kPendingMedicinesSyncKey, pending);
+    }
+    final deletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
+    if (deletes.remove(toSave.id)) {
+      await _prefs.setStringList(_kPendingMedicineDeletesKey, deletes);
+    }
+
     // 2. Sync to Supabase if connected
     final client = _client;
     if (client != null && uid.isNotEmpty) {
       try {
         await client.from('medicines').upsert(toSave.toJson());
+        final updatedPending = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
+        if (updatedPending.remove(toSave.id)) {
+          await _prefs.setStringList(_kPendingMedicinesSyncKey, updatedPending);
+        }
       } catch (e) {
         debugPrint('[SupabaseHealthRepository] Remote medicine save error: $e');
       }
@@ -207,10 +308,21 @@ class SupabaseHealthRepository implements HealthRepository {
   @override
   Future<void> deleteMedicine(String id) async {
     // 1. Delete locally
-    final current = (await listMedicines()).toList();
+    final current = _loadLocalMedicines().toList();
     current.removeWhere((m) => m.id == id);
     final rawList = current.map((m) => jsonEncode(m.toJson())).toList();
     await _prefs.setStringList(_kMedicinesKey, rawList);
+
+    // Remove from pending sync, add to pending deletes
+    final pending = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
+    if (pending.remove(id)) {
+      await _prefs.setStringList(_kPendingMedicinesSyncKey, pending);
+    }
+    final deletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
+    if (!deletes.contains(id)) {
+      deletes.add(id);
+      await _prefs.setStringList(_kPendingMedicineDeletesKey, deletes);
+    }
 
     // 2. Sync to Supabase
     final client = _client;
@@ -218,6 +330,10 @@ class SupabaseHealthRepository implements HealthRepository {
     if (client != null && uid != null) {
       try {
         await client.from('medicines').delete().eq('id', id);
+        final updatedDeletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
+        if (updatedDeletes.remove(id)) {
+          await _prefs.setStringList(_kPendingMedicineDeletesKey, updatedDeletes);
+        }
       } catch (e) {
         debugPrint('[SupabaseHealthRepository] Remote medicine delete error: $e');
       }
