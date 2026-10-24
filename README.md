@@ -12,7 +12,7 @@
 [![Static Analysis](https://img.shields.io/badge/Analysis-0%20Issues-brightgreen)](https://dart.dev/tools/analysis)
 [![License](https://img.shields.io/badge/License-Proprietary-blue.svg)](#license)
 
-**Vyayama** is a modern, cross-platform fitness and holistic wellness application built with Flutter and Supabase. Unlike conventional fitness trackers that induce guilt or overwhelm users with sterile spreadsheets of numbers, Vyayama celebrates consistency, habit-building, and effort through a dynamic emotional mascot, Snapchat-style exercise photo streaks, medical condition-aware workout planning, integrated BMI physical metrics, and a unified 24-hour daily rhythm.
+**Vyayama** is a modern, cross-platform fitness and holistic wellness application built with Flutter and Supabase. Unlike conventional fitness trackers that induce guilt or overwhelm users with sterile spreadsheets of numbers, Vyayama celebrates consistency, habit-building, and effort through a dynamic emotional mascot, Snapchat-style exercise photo streaks, self-reported condition and sensitivity-aware workout suggestions, integrated BMI physical metrics, and a unified 24-hour daily rhythm.
 
 </div>
 
@@ -28,7 +28,7 @@
   - [4. Exercise Library & 3D Pose Animation Pipeline](#4-exercise-library--3d-pose-animation-pipeline)
   - [5. Friends, Snaps & Dual-Proof Snap Streaks](#5-friends-snaps--dual-proof-snap-streaks)
   - [6. Community Teams & Leaderboards](#6-community-teams--leaderboards)
-  - [7. Health Profile & Medical Condition Screening](#7-health-profile--medical-condition-screening)
+  - [7. Health Profile & Self-Reported Condition Preferences](#7-health-profile--self-reported-condition-preferences)
   - [8. Body Mass Index (BMI) & Biometric Metrics Hub](#8-body-mass-index-bmi--biometric-metrics-hub)
   - [9. Daily Schedule & Time Blocking](#9-daily-schedule--time-blocking)
   - [10. Nutrition, Meal Guidance & Smart Hydration](#10-nutrition-meal-guidance--smart-hydration)
@@ -49,11 +49,11 @@
 
 - **Emotional Accountability**: A 3D companion character anchors the home dashboard, dynamically morphing across emotional states based on how much of your daily wellness checklist has been conquered.
 - **Visual Proof Over Vanity Metrics**: Capture real exercise moments with an in-app camera, verify workout authenticity via on-device ML Kit image labeling and server-side vision AI, and build pair Snap Streaks with workout partners.
-- **Injury-Safe & Medically Adapted**: Automatically screens for user-reported injuries (knee pain, lower back discomfort, hypertension, asthma) and filters out contraindicated exercises in real time, substituting joint-friendly movements.
+- **Rule-Based Sensitivity Filtering**: Automatically cross-references self-reported sensitivities (such as knee or lower back discomfort, hypertension, or asthma) against exercise tags and excludes contraindicated movements, suggesting lower-impact alternatives. (Note: Form guidance is general and unreviewed by a medical professional; does not diagnose, treat, or rehabilitate injuries.)
 - **Streamlined Physical Metrics (BMI Hub)**: Profile metrics are centered around an integrated Body Mass Index (BMI) hub that brings Height and Weight together with WHO classifications, trend history, and actionable health guidance.
 - **Unified 24-Hour Daily Rhythm**: Eliminates the need for 5 separate apps by coordinating training sessions, meals, medicine times, hydration intervals, and sleep wind-down blocks into a single agenda.
 - **Offline-First Resilience**: Full operational support when offline via local caching and bundled asset databases, paired with automated cloud sync when network connectivity is restored.
-- **Enterprise-Grade Security**: Hardware-backed session encryption (Android KeyStore / iOS Keychain), strict Row Level Security (RLS) on all database tables, zero plaintext tokens, and fully compliant two-tier account deletion.
+- **Standard Security & Privacy**: Hardware-backed session encryption (Android KeyStore / iOS Keychain), PostgreSQL Row Level Security (RLS) on user tables, compile-time/environment-based credentials with zero committed secrets, and fully compliant two-tier account deletion.
 
 ---
 
@@ -105,11 +105,12 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
   - Post-workout summary dialog logging XP, duration, and calories burned.
 
 ### 4. Exercise Library & 3D Pose Animation Pipeline
-- **Extensive Exercise Database**: Over 100+ exercises with primary/secondary muscle targets, equipment requirements, execution steps, and safety considerations.
+- **Extensive Exercise Database**: Over 100+ exercises with primary/secondary muscle targets, equipment requirements, execution steps, and common mistakes.
+- **Unreviewed General Form Guidance**: Form instructions and cues are general guidelines and have not yet been reviewed or approved by a licensed personal trainer or physiotherapist. The app displays visible notices reminding users until individual professional reviews are completed.
 - **Multi-Format Visual Demonstrations**:
-  - **High-Resolution 3D Poses**: Studio-grade full-body anatomical renders illustrating the exact movement trajectory.
+  - **High-Resolution 3D Poses**: Full-body anatomical renders illustrating general movement trajectory.
   - **Alternating SVG Animations**: Lightweight vector animations showing starting and contracted positions.
-  - **Video Previews**: Rounded video previews for dynamic exercises requiring continuous motion analysis.
+  - **Video Previews**: Video tutorial previews for dynamic exercises requiring continuous motion analysis.
 
 ### 5. Friends, Snaps & Dual-Proof Snap Streaks
 - **In-App Exercise Camera**: Full-screen photo capture with flash toggle, front/back camera switching, and timer.
@@ -125,10 +126,10 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 - **Collaborative Leaderboards**: Track teammate contributions and cheer peer achievements.
 - **Safe Team Ownership Transfer**: If a team creator deletes their account, team ownership automatically transfers to the longest-standing active member, preserving community records.
 
-### 7. Health Profile & Medical Condition Screening
-- **Pre-Existing Condition Screening**: Configurable health profiles covering joint sensitivity (knee, lower back, shoulder), cardiovascular conditions (hypertension), and respiratory conditions (asthma).
-- **Automated Contraindication Filtering**: Exercises that stress flagged joints or conditions are automatically excluded from generated plans and replaced with safe alternatives.
-- **Local Medication Alarms**: Schedule offline medication alarms using Android exact alarm channels (`SCHEDULE_EXACT_ALARM`) with battery-optimization diagnostics.
+### 7. Health Profile & Self-Reported Condition Preferences
+- **Self-Reported Sensitivity Profiles**: Configurable health preferences covering user-flagged joint sensitivities (knee, lower back, shoulder) and personal health notes (hypertension, asthma).
+- **Rule-Based Movement Filtering**: Exercises tagged as contraindicated for user-flagged sensitivities are excluded from recommendations and replaced with lower-impact alternatives. (The app does not provide medical screening, injury diagnosis, physical therapy, or rehabilitation.)
+- **Local Medication Alarms**: Schedule offline medication alarms using Android exact alarm channels (`SCHEDULE_EXACT_ALARM`) with battery-optimization diagnostics. (Reminders only; never dosage or medical advice.)
 
 ### 8. Body Mass Index (BMI) & Biometric Metrics Hub
 - **Streamlined 2x2 Profile Grid**: Profile stats are organized into a clean 2x2 grid displaying **Goal**, **Fitness Level**, **Age**, and **Gender**.

@@ -5,6 +5,7 @@ import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:fitbuddy/features/workouts/providers.dart';
 import 'package:fitbuddy/features/workouts/widgets/exercise_animation.dart';
 import 'package:fitbuddy/features/workouts/widgets/exercise_info_sheet.dart';
+import 'package:fitbuddy/features/workouts/widgets/unreviewed_form_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -308,6 +309,10 @@ class SessionExerciseView extends ConsumerWidget {
               ],
             ),
           ),
+          if (ex.reviewedBy == null || ex.reviewedBy!.isEmpty) ...[
+            const SizedBox(height: 10),
+            const UnreviewedFormNotice(compact: true),
+          ],
           const SizedBox(height: 12),
           // Elapsed time & Rest duration pills
           Row(

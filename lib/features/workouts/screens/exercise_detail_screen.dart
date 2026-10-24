@@ -6,6 +6,7 @@ import 'package:fitbuddy/features/workouts/widgets/contraindication_chips.dart';
 import 'package:fitbuddy/features/workouts/widgets/exercise_animation.dart';
 import 'package:fitbuddy/features/workouts/widgets/exercise_info_sheet.dart';
 import 'package:fitbuddy/features/workouts/widgets/state_views.dart';
+import 'package:fitbuddy/features/workouts/widgets/unreviewed_form_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -226,6 +227,10 @@ class _Body extends ConsumerWidget {
               ),
             ],
           ),
+          if (exercise.reviewedBy == null || exercise.reviewedBy!.isEmpty) ...[
+            const SizedBox(height: 12),
+            const UnreviewedFormNotice(),
+          ],
           if (clash.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(

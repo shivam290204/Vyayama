@@ -1,4 +1,5 @@
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
+import 'package:fitbuddy/features/workouts/widgets/unreviewed_form_notice.dart';
 import 'package:flutter/material.dart';
 
 /// Numbered instruction list.
@@ -91,6 +92,10 @@ Future<void> showExerciseHowTo(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(exercise.name, style: theme.textTheme.titleLarge),
+            if (exercise.reviewedBy == null || exercise.reviewedBy!.isEmpty) ...[
+              const SizedBox(height: 10),
+              const UnreviewedFormNotice(compact: true),
+            ],
             const SizedBox(height: 16),
             ExerciseSteps(steps: exercise.instructions),
             if (exercise.commonMistakes.isNotEmpty) ...[
