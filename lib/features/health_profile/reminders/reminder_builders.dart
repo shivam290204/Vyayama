@@ -36,5 +36,6 @@ ReminderRequest buildMealReminder(MealSlot slot, MealReminder reminder) {
     body: 'A friendly nudge to enjoy a balanced meal.',
     hour: reminder.time.hour,
     minute: reminder.time.minute,
+    exact: true,
   );
 }

@@ -347,6 +347,10 @@ class _NotificationDiagnosticsScreenState
                   _buildEnvironmentCard(scheme, isDark),
                   const SizedBox(height: AppSpacing.md),
 
+                  // Samsung & OEM Battery Guide
+                  _buildSamsungBatteryGuideCard(scheme, isDark),
+                  const SizedBox(height: AppSpacing.md),
+
                   // Pending Notifications Card
                   _buildPendingCard(scheme, isDark),
                   const SizedBox(height: AppSpacing.md),
@@ -455,6 +459,65 @@ class _NotificationDiagnosticsScreenState
                 await _loadDiagnostics();
               },
             ),
+            if (!_exactAlarmsAllowed) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.colors.amberWarning.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.amberWarning, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: context.colors.amberWarning, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Exact Alarms Permission Disabled',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Without this permission, meal, bedtime, and medicine reminders may be delayed by up to 45 minutes by Android battery batching.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.colors.amberWarning,
+                        foregroundColor: Colors.black,
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.alarm_on_rounded, size: 16),
+                      label: const Text(
+                        'Open Alarms & Reminders Settings',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        await SystemFeaturesService.instance
+                            .openAlarmsAndRemindersSettings();
+                        await _loadDiagnostics();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const Divider(height: 16),
             _buildStatusRow(
               icon: Icons.picture_in_picture_alt_rounded,
@@ -595,6 +658,95 @@ class _NotificationDiagnosticsScreenState
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSamsungBatteryGuideCard(ColorScheme scheme, bool isDark) {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.battery_alert_rounded,
+                    color: AppPalette.primary, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Samsung One UI Battery Guide',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Samsung devices aggressively sleep background apps. To guarantee zero reminder delays on Samsung Galaxy:',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            _buildGuideStep(
+              '1',
+              'Set Battery to "Unrestricted"',
+              'Settings > Apps > Vyayama > Battery > Select "Unrestricted" (prevents background sleep).',
+            ),
+            const SizedBox(height: 8),
+            _buildGuideStep(
+              '2',
+              'Add to "Never auto-sleeping apps"',
+              'Settings > Battery > Background usage limits > Never auto-sleeping apps > Tap "+" > Add Vyayama.',
+            ),
+            const SizedBox(height: 8),
+            _buildGuideStep(
+              '3',
+              'Allow "Alarms & reminders"',
+              'Settings > Apps > Vyayama > Alarms & reminders > Toggle ON.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuideStep(String stepNumber, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: AppPalette.primary.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            stepNumber,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              color: AppPalette.primary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

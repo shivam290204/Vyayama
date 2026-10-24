@@ -562,10 +562,10 @@ class NotificationService {
       );
     }
 
-    // 3. For exact wake alarms and medicines, verify exact alarm permission.
+    // 3. For exact wake alarms, medicines, bedtime, and meals, verify exact alarm permission.
     // If not granted by user, gracefully fall back to inexact scheduling without crashing!
     final bool requiresExact = exact || isWakeAlarm || isMedicine;
-    bool effectiveExact = requiresExact && !isBedtime;
+    bool effectiveExact = requiresExact;
     if (requiresExact) {
       final exactAllowed = await canScheduleExactAlarms();
       if (!exactAllowed) {
