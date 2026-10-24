@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
@@ -85,15 +86,15 @@ class SessionRestView extends StatelessWidget {
               if (contextInfo != null) {
                 final (phaseColor, phaseIcon) = switch (contextInfo.phase) {
                   WorkoutSectionType.warmup => (
-                      const Color(0xFFFF9800),
+                      context.colors.streak,
                       Icons.wb_sunny_rounded,
                     ),
                   WorkoutSectionType.main => (
-                      const Color(0xFF00C853),
+                      context.colors.success,
                       Icons.fitness_center_rounded,
                     ),
                   WorkoutSectionType.cooldown => (
-                      const Color(0xFF00B4D8),
+                      context.colors.water,
                       Icons.self_improvement_rounded,
                     ),
                 };

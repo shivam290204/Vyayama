@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_colors_extension.dart';
 import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
@@ -63,9 +64,9 @@ class SleepScreen extends ConsumerWidget {
                       actions: [
                         IconButton(
                           tooltip: 'Alarm & Notification Diagnostics',
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.healing_rounded,
-                            color: Color(0xFFFF9500),
+                            color: context.colors.streak,
                           ),
                           onPressed: () =>
                               context.push(AppRoutes.notificationDiagnostics),

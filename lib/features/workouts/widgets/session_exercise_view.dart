@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
@@ -85,12 +86,12 @@ class SessionExerciseView extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                      color: context.colors.danger.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.smart_display_rounded,
-                      color: Color(0xFFFF0000),
+                      color: context.colors.danger,
                       size: 24,
                     ),
                   ),
@@ -176,15 +177,15 @@ class SessionExerciseView extends ConsumerWidget {
                 builder: (context) {
                   final (phaseColor, phaseIcon) = switch (contextInfo.phase) {
                     WorkoutSectionType.warmup => (
-                        const Color(0xFFFF9800),
+                        context.colors.streak,
                         Icons.wb_sunny_rounded,
                       ),
                     WorkoutSectionType.main => (
-                        const Color(0xFF00C853),
+                        context.colors.success,
                         Icons.fitness_center_rounded,
                       ),
                     WorkoutSectionType.cooldown => (
-                        const Color(0xFF00B4D8),
+                        context.colors.water,
                         Icons.self_improvement_rounded,
                       ),
                   };
@@ -266,19 +267,19 @@ class SessionExerciseView extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                        color: context.colors.danger.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: const Color(0xFFFF0000).withValues(alpha: 0.4),
+                          color: context.colors.danger.withValues(alpha: 0.4),
                           width: 1,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.play_circle_fill_rounded,
-                            color: Color(0xFFFF0000),
+                            color: context.colors.danger,
                             size: 18,
                           ),
                           const SizedBox(width: 8),

@@ -158,14 +158,14 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
-              side: BorderSide(color: const Color(0xFF14532D).withValues(alpha: 0.6)),
+              side: BorderSide(color: scheme.primary.withValues(alpha: 0.6)),
             ),
-            icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF14532D)),
-            label: const Text(
+            icon: Icon(Icons.qr_code_scanner, color: scheme.primary),
+            label: Text(
               'Scan a QR code',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF14532D),
+                color: scheme.primary,
               ),
             ),
             onPressed: _scan,
@@ -280,7 +280,7 @@ class _ResultCard extends StatelessWidget {
             : label == null
                 ? FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF14532D),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: () => onAdd(user),
                     child: const Text('Add'),

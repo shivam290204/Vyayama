@@ -53,7 +53,7 @@ class _TipGroup extends ConsumerWidget {
     final isEatMore = category == DietTip.eatMore;
     final iconColor = isEatMore
         ? (isDark ? AppPalette.limeGreen : AppPalette.forestGreen)
-        : (isDark ? AppPalette.softCoral : const Color(0xFFC04B35));
+        : context.colors.warning;
 
     return Container(
       decoration: BoxDecoration(

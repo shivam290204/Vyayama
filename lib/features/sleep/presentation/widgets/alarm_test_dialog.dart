@@ -92,6 +92,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -100,7 +101,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
         constraints: const BoxConstraints(maxWidth: 380),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF141A14),
+          color: context.colors.stageBackground,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: AppPalette.limeGreen.withValues(alpha: 0.4),
@@ -113,7 +114,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
               offset: const Offset(0, 8),
             ),
             BoxShadow(
-              color: const Color(0xFFFF9500).withValues(alpha: 0.25),
+              color: context.colors.streak.withValues(alpha: 0.25),
               blurRadius: 32,
               spreadRadius: 2,
             ),
@@ -133,12 +134,12 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const RadialGradient(
-                        colors: [Color(0xFFFF9500), Color(0xFFE25822)],
+                      gradient: RadialGradient(
+                        colors: [context.colors.streak, context.colors.alarmFlame],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF9500).withValues(alpha: 0.5),
+                          color: context.colors.streak.withValues(alpha: 0.5),
                           blurRadius: 20,
                           spreadRadius: 4,
                         ),
@@ -174,7 +175,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
             Text(
               'Alarm Sound: ${widget.alarmSound}${widget.vibrate ? ' · Vibrate On' : ''}',
               style: text.bodyMedium?.copyWith(
-                color: const Color(0xFFB0BEB0),
+                color: scheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 12),
@@ -185,11 +186,11 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: playing
                         ? AppPalette.limeGreen
-                        : const Color(0xFFFF9500),
+                        : context.colors.streak,
                     side: BorderSide(
                       color: playing
                           ? AppPalette.limeGreen.withValues(alpha: 0.5)
-                          : const Color(0xFFFF9500).withValues(alpha: 0.5),
+                          : context.colors.streak.withValues(alpha: 0.5),
                     ),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -206,8 +207,8 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                   },
                   icon: Icon(
                     playing
-                        ? Icons.volume_up_rounded
-                        : Icons.volume_off_rounded,
+                    ? Icons.volume_up_rounded
+                    : Icons.volume_off_rounded,
                     size: 18,
                   ),
                   label: Text(
@@ -222,7 +223,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
             const SizedBox(height: 12),
             TextButton.icon(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFFF9500),
+                foregroundColor: context.colors.streak,
                 visualDensity: VisualDensity.compact,
               ),
               onPressed: () async {
@@ -258,8 +259,8 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB0BEB0),
-                      side: const BorderSide(color: Color(0xFF3B4D3B)),
+                      foregroundColor: scheme.onSurfaceVariant,
+                      side: BorderSide(color: scheme.outline),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -285,7 +286,7 @@ class _AlarmTestDialogState extends State<AlarmTestDialog>
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: AppPalette.limeGreen,
-                      foregroundColor: const Color(0xFF142014),
+                      foregroundColor: scheme.onTertiary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

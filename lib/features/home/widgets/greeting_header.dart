@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/auth/widgets/brand_mark.dart';
 import 'package:fitbuddy/features/mascot/mascot_message_picker.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
@@ -30,7 +31,7 @@ class GreetingHeader extends ConsumerWidget {
     switch (DayPart.of(now)) {
       case DayPart.morning:
         timeIcon = Icons.wb_twilight;
-        iconColor = const Color(0xFFFFB49F); // Soft Coral morning glow
+        iconColor = context.colors.warningContainer; // Soft Coral morning glow
         break;
       case DayPart.afternoon:
         timeIcon = Icons.wb_sunny;

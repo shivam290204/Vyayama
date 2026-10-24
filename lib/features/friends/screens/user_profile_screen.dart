@@ -317,13 +317,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     CircleAvatar(
                       radius: 54,
                       backgroundColor:
-                          const Color(0xFF8BCF45).withValues(alpha: 0.3),
+                          theme.colorScheme.tertiary.withValues(alpha: 0.3),
                       child: Text(
                         user.initials,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF14532D),
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -360,12 +360,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.badge_outlined, color: Color(0xFF14532D)),
-                            SizedBox(width: 8),
-                            Text(
+                            Icon(Icons.badge_outlined, color: theme.colorScheme.primary),
+                            const SizedBox(width: 8),
+                            const Text(
                               'This is your personal profile',
                               style: TextStyle(fontWeight: FontWeight.w600),
                             ),
@@ -408,22 +408,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14532D).withValues(alpha: 0.08),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF14532D).withValues(alpha: 0.2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
                     ),
                   ),
-                  child: const Column(
+                  child: Column(
                     children: [
                       Icon(Icons.phone_android_rounded,
-                          color: Color(0xFF14532D), size: 32),
-                      SizedBox(height: 8),
+                          color: theme.colorScheme.primary, size: 32),
+                      const SizedBox(height: 8),
                       Text(
                         'Install Vyayama App',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF14532D),
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -443,27 +443,28 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildFriendsBadge(FriendUser user) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
-      color: const Color(0xFF14532D).withValues(alpha: 0.1),
+      color: cs.primary.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFF14532D), width: 1.5),
+        side: BorderSide(color: cs.primary, width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.check_circle_rounded, color: Color(0xFF14532D)),
-                SizedBox(width: 8),
+                Icon(Icons.check_circle_rounded, color: cs.primary),
+                const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     'You and this athlete are Friends',
                     style: TextStyle(
-                      color: Color(0xFF14532D),
+                      color: cs.primary,
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
@@ -478,7 +479,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF14532D),
+                      backgroundColor: cs.primary,
                     ),
                     onPressed: () => context.push(AppRoutes.snapsCamera),
                     icon: const Icon(Icons.camera_alt_outlined),
@@ -565,8 +566,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.mail_outline_rounded,
-                    color: Color(0xFF14532D)),
+                Icon(Icons.mail_outline_rounded,
+                    color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   '$displayName sent you a friend request!',
@@ -590,7 +591,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF14532D),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
                     onPressed: _isActing ? null : () => _acceptRequest(user),
                     child: _isActing
@@ -619,7 +620,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         children: [
           FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF14532D),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               minimumSize: const Size.fromHeight(50),
             ),

@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
@@ -112,12 +113,12 @@ class _Body extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                      color: context.colors.danger.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.smart_display_rounded,
-                      color: Color(0xFFFF0000),
+                      color: context.colors.danger,
                       size: 24,
                     ),
                   ),
@@ -312,7 +313,7 @@ class _Body extends ConsumerWidget {
           color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFFFF0000).withValues(alpha: 0.35),
+            color: context.colors.danger.withValues(alpha: 0.35),
             width: 1,
           ),
         ),
@@ -342,17 +343,17 @@ class _Body extends ConsumerWidget {
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 color: Colors.black26,
-                                child: const Icon(Icons.smart_display_rounded,
-                                    color: Color(0xFFFF0000), size: 24),
+                                child: Icon(Icons.smart_display_rounded,
+                                    color: context.colors.danger, size: 24),
                               ),
                             ),
                             Container(
                               color: Colors.black.withValues(alpha: 0.28),
                             ),
-                            const Center(
+                            Center(
                               child: Icon(
                                 Icons.play_circle_fill_rounded,
-                                color: Color(0xFFFF0000),
+                                color: context.colors.danger,
                                 size: 28,
                               ),
                             ),
@@ -365,12 +366,12 @@ class _Body extends ConsumerWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF0000).withValues(alpha: 0.15),
+                        color: context.colors.danger.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.play_circle_fill_rounded,
-                        color: Color(0xFFFF0000),
+                        color: context.colors.danger,
                         size: 24,
                       ),
                     ),
@@ -387,7 +388,7 @@ class _Body extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFF0000),
+                                color: context.colors.danger,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(

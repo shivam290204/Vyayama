@@ -1,4 +1,4 @@
-import 'package:fitbuddy/core/theme/app_palette.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/workouts/logic/labels.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:flutter/material.dart';
@@ -49,10 +49,10 @@ class WorkoutPipView extends StatelessWidget {
 
     return Theme(
       data: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF101216),
+        scaffoldBackgroundColor: AppPalette.darkBackground,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF101216),
+        backgroundColor: AppPalette.darkBackground,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -68,9 +68,9 @@ class WorkoutPipView extends StatelessWidget {
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: isRest
-                            ? const Color(0xFF2196F3).withValues(alpha: 0.25)
+                            ? context.colors.water.withValues(alpha: 0.25)
                             : isFinished
-                                ? const Color(0xFF4CAF50).withValues(alpha: 0.25)
+                                ? context.colors.success.withValues(alpha: 0.25)
                                 : AppPalette.primary.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -85,9 +85,9 @@ class WorkoutPipView extends StatelessWidget {
                                     : Icons.fitness_center_rounded,
                             size: 11,
                             color: isRest
-                                ? const Color(0xFF64B5F6)
+                                ? context.colors.water
                                 : isFinished
-                                    ? const Color(0xFF81C784)
+                                    ? context.colors.success
                                     : AppPalette.primary,
                           ),
                           const SizedBox(width: 4),
@@ -102,9 +102,9 @@ class WorkoutPipView extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
                               color: isRest
-                                  ? const Color(0xFF64B5F6)
+                                  ? context.colors.water
                                   : isFinished
-                                      ? const Color(0xFF81C784)
+                                      ? context.colors.success
                                       : AppPalette.primary,
                             ),
                           ),
@@ -167,7 +167,7 @@ class WorkoutPipView extends StatelessWidget {
                         timerOrReps,
                         style: TextStyle(
                           color: isRest
-                              ? const Color(0xFF64B5F6)
+                              ? context.colors.water
                               : AppPalette.primary,
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -187,7 +187,7 @@ class WorkoutPipView extends StatelessWidget {
                     minHeight: 3,
                     backgroundColor: Colors.white12,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      isFinished ? const Color(0xFF4CAF50) : AppPalette.primary,
+                      isFinished ? context.colors.success : AppPalette.primary,
                     ),
                   ),
                 ),

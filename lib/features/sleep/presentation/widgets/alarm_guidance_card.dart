@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_colors_extension.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -67,7 +68,7 @@ class AlarmGuidanceCard extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9500),
+                  backgroundColor: context.colors.streak,
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () =>

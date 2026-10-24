@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/widgets/bouncing_card.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/daily_targets.dart';
@@ -107,7 +108,7 @@ class _RingsRow extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final trackColor = scheme.surfaceContainerHighest;
     final limeColor = scheme.tertiary; // Lime Green
-    final coralColor = const Color(0xFFFFB49F); // Soft Coral
+    final coralColor = context.colors.warningContainer; // Soft Coral
     final activeMinutesColor = isDark ? scheme.primaryContainer : scheme.secondary; // Deep Green / Fresh forest tone
 
     return Semantics(

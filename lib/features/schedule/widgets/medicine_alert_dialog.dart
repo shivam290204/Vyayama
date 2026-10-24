@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -93,14 +94,13 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     return Dialog(
-      backgroundColor: isDark ? const Color(0xFF1E281E) : Colors.white,
+      backgroundColor: scheme.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
         side: BorderSide(
-          color: const Color(0xFFE5A000).withValues(alpha: 0.5),
+          color: context.colors.amberWarning.withValues(alpha: 0.5),
           width: 2,
         ),
       ),
@@ -118,16 +118,16 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                   height: 72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFE5A000).withValues(alpha: 0.18),
+                    color: context.colors.amberWarning.withValues(alpha: 0.18),
                     border: Border.all(
-                      color: const Color(0xFFE5A000),
+                      color: context.colors.amberWarning,
                       width: 2,
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.medication_rounded,
                     size: 40,
-                    color: Color(0xFFE5A000),
+                    color: context.colors.amberWarning,
                   ),
                 ),
               ),
@@ -153,14 +153,10 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF283628)
-                      : const Color(0xFFF2F7F0),
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF384E38)
-                        : const Color(0xFFD8E4D5),
+                    color: scheme.outlineVariant,
                   ),
                 ),
                 child: Text(
@@ -175,7 +171,7 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
               const SizedBox(height: 12),
               TextButton.icon(
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFE5A000),
+                  foregroundColor: context.colors.amberWarning,
                   visualDensity: VisualDensity.compact,
                 ),
                 onPressed: () async {
@@ -252,7 +248,7 @@ class _MedicineAlertDialogState extends State<MedicineAlertDialog>
                   Expanded(
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: context.colors.success,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(48),
                         shape: RoundedRectangleBorder(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
 import 'package:fitbuddy/features/settings/widgets/settings_section.dart';
 
@@ -78,7 +79,7 @@ class NotificationsSection extends ConsumerWidget {
           const Divider(height: AppSpacing.lg),
           ListTile(
             minTileHeight: 52,
-            leading: const Icon(Icons.alarm_on_rounded, color: Color(0xFFFF9500)),
+            leading: Icon(Icons.alarm_on_rounded, color: context.colors.streak),
             title: const Text(
               'Alarms & Reminders (App Info)',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
@@ -93,8 +94,8 @@ class NotificationsSection extends ConsumerWidget {
           ),
           ListTile(
             minTileHeight: 52,
-            leading: const Icon(Icons.picture_in_picture_alt_rounded,
-                color: Color(0xFF673AB7)),
+            leading: Icon(Icons.picture_in_picture_alt_rounded,
+                color: context.colors.pill),
             title: const Text(
               'Picture-in-Picture (App Info)',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
@@ -113,10 +114,10 @@ class NotificationsSection extends ConsumerWidget {
               vertical: AppSpacing.sm,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9500).withValues(alpha: 0.1),
+              color: context.colors.streak.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFFF9500).withValues(alpha: 0.35),
+                color: context.colors.streak.withValues(alpha: 0.35),
                 width: 1.5,
               ),
             ),
@@ -128,12 +129,12 @@ class NotificationsSection extends ConsumerWidget {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF9500).withValues(alpha: 0.2),
+                  color: context.colors.streak.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.healing_rounded,
-                  color: Color(0xFFFF9500),
+                  color: context.colors.streak,
                   size: 24,
                 ),
               ),
@@ -145,9 +146,9 @@ class NotificationsSection extends ConsumerWidget {
                 'Check exact alarms, music & audio permissions, notification channels & run tests',
                 style: TextStyle(fontSize: 12),
               ),
-              trailing: const Icon(
+              trailing: Icon(
                 Icons.chevron_right_rounded,
-                color: Color(0xFFFF9500),
+                color: context.colors.streak,
               ),
               onTap: () => context.push(AppRoutes.notificationDiagnostics),
             ),

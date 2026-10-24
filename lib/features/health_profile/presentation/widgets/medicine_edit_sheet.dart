@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/services/app_sound_service.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/data/time_codec.dart';
@@ -169,10 +170,10 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF141A14) : Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         border: Border.all(
-          color: isDark ? const Color(0xFF2E3D2E) : const Color(0xFFDEE5DA),
+          color: scheme.outlineVariant,
           width: 1.5,
         ),
         boxShadow: [
@@ -198,7 +199,7 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF3B4D3B) : const Color(0xFFCCD5C7),
+                    color: scheme.outline,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -230,12 +231,10 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xFF1E281E).withValues(alpha: 0.6)
-                      : const Color(0xFFF4F7F2),
+                  color: scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: const Color(0xFFE5A000).withValues(alpha: 0.35),
+                    color: context.colors.amberWarning.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Row(
@@ -243,12 +242,12 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5A000).withValues(alpha: isDark ? 0.2 : 0.12),
+                        color: context.colors.amberWarning.withValues(alpha: isDark ? 0.2 : 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.alarm_on_rounded,
-                        color: Color(0xFFE5A000),
+                        color: context.colors.amberWarning,
                         size: 20,
                       ),
                     ),
@@ -279,7 +278,7 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
                         return TextButton.icon(
                           style: TextButton.styleFrom(
                             visualDensity: VisualDensity.compact,
-                            foregroundColor: const Color(0xFFE5A000),
+                            foregroundColor: context.colors.amberWarning,
                           ),
                           onPressed: () {
                             if (isPlaying) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:fitbuddy/core/services/schedule_result.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -617,7 +618,7 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: const Color(0xFF2E7D32),
+      color: AppPalette.deepGreen,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -885,7 +886,7 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: const Color(0xFF2E7D32),
+      color: AppPalette.deepGreen,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -950,7 +951,7 @@ class NotificationService {
       vibrationPattern: _alarmVibrationPattern,
       audioAttributesUsage: AudioAttributesUsage.alarm,
       ticker: title,
-      color: const Color(0xFF2E7D32),
+      color: AppPalette.deepGreen,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -1178,7 +1179,7 @@ class NotificationService {
       channelShowBadge: true,
       visibility: NotificationVisibility.public,
       ticker: 'New friend request',
-      color: Color(0xFF2E7D32),
+      color: AppPalette.deepGreen,
     );
 
     const darwinDetails = DarwinNotificationDetails(
@@ -1237,7 +1238,7 @@ class NotificationService {
       channelShowBadge: true,
       visibility: NotificationVisibility.public,
       ticker: 'New snap received',
-      color: Color(0xFF2E7D32),
+      color: AppPalette.deepGreen,
     );
 
     const darwinDetails = DarwinNotificationDetails(

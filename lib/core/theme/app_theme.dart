@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:fitbuddy/core/theme/app_colors_extension.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
+
+export 'package:fitbuddy/core/theme/app_colors_extension.dart';
 
 /// Centralized Vyayama brand palette.
 /// Forest Green & Lime Green design system with accessible contrast.
@@ -14,6 +17,10 @@ abstract final class AppPalette {
   static const Color offWhite = Color(0xFFF7F8F2);    // Light mode background
   static const Color charcoalGreen = Color(0xFF202820); // Dark mode surface & deep text
   static const Color softCoral = Color(0xFFFFB49F);   // Warning / rest alerts & accents
+  static const Color deepCoral = Color(0xFFE08272);
+  static const Color pipBackground = Color(0xFF101216);
+  static const Color pipBadgeBackground = Color(0xFF4CAF50);
+  static const Color pipBadgeText = Color(0xFF81C784);
 
   // Dark mode surfaces
   static const Color darkBackground = Color(0xFF151D17); // Dark mode background: #151D17
@@ -46,10 +53,12 @@ abstract final class AppPalette {
 
 /// Material 3 light and dark themes built using the Forest Green & Lime Green system.
 abstract final class AppTheme {
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData light({bool useGoogleFonts = true}) =>
+      _build(Brightness.light, useGoogleFonts: useGoogleFonts);
+  static ThemeData dark({bool useGoogleFonts = true}) =>
+      _build(Brightness.dark, useGoogleFonts: useGoogleFonts);
 
-  static ThemeData _build(Brightness brightness) {
+  static ThemeData _build(Brightness brightness, {bool useGoogleFonts = true}) {
     final isDark = brightness == Brightness.dark;
 
     final textMuted =
@@ -118,7 +127,10 @@ abstract final class AppTheme {
           );
 
     final base = ThemeData(useMaterial3: true, colorScheme: scheme);
-    final textTheme = GoogleFonts.nunitoTextTheme(base.textTheme).apply(
+    final textTheme = (useGoogleFonts
+            ? GoogleFonts.nunitoTextTheme(base.textTheme)
+            : base.textTheme)
+        .apply(
       bodyColor: scheme.onSurface,
       displayColor: scheme.onSurface,
     );
@@ -138,6 +150,7 @@ abstract final class AppTheme {
     );
 
     return base.copyWith(
+      extensions: [isDark ? AppColorsExtension.dark : AppColorsExtension.light],
       textTheme: textTheme,
       scaffoldBackgroundColor: scheme.surface,
       splashFactory: InkRipple.splashFactory,

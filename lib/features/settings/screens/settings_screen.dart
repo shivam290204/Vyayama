@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/settings/widgets/account_section.dart';
 import 'package:fitbuddy/features/settings/widgets/notifications_section.dart';
@@ -29,10 +30,10 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9500).withValues(alpha: 0.12),
+                    color: context.colors.streak.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFFF9500).withValues(alpha: 0.4),
+                      color: context.colors.streak.withValues(alpha: 0.4),
                       width: 1.5,
                     ),
                   ),
@@ -40,12 +41,12 @@ class SettingsScreen extends StatelessWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9500).withValues(alpha: 0.25),
+                        color: context.colors.streak.withValues(alpha: 0.25),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.healing_rounded,
-                        color: Color(0xFFFF9500),
+                        color: context.colors.streak,
                         size: 22,
                       ),
                     ),
@@ -57,10 +58,10 @@ class SettingsScreen extends StatelessWidget {
                       'Check system permissions, channels, pending alarms & tests',
                       style: TextStyle(fontSize: 12),
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 16,
-                      color: Color(0xFFFF9500),
+                      color: context.colors.streak,
                     ),
                     onTap: () => context.push(AppRoutes.notificationDiagnostics),
                   ),

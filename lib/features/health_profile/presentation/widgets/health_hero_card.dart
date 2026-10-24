@@ -15,13 +15,15 @@ class HealthHeroCard extends ConsumerWidget {
     final activeMedsCount = medicines.where((m) => m.isActive).length;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final scheme = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF141A14) : Colors.white,
+        color: scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? const Color(0xFF2E3D2E) : const Color(0xFFE2E8DE),
+          color: scheme.outlineVariant,
           width: 1.5,
         ),
         boxShadow: [
@@ -44,9 +46,8 @@ class HealthHeroCard extends ConsumerWidget {
                     center: Alignment.centerRight,
                     radius: 1.1,
                     colors: [
-                      (isDark ? const Color(0xFF1F2B1F) : const Color(0xFFE8F5E9))
-                          .withValues(alpha: 0.6),
-                      isDark ? const Color(0xFF141A14) : Colors.white,
+                      context.colors.successContainer.withValues(alpha: 0.6),
+                      scheme.surfaceContainer,
                     ],
                   ),
                 ),
@@ -100,7 +101,7 @@ class HealthHeroCard extends ConsumerWidget {
                               icon: Icons.health_and_safety_rounded,
                               label: 'Conditions',
                               count: activeConditionsCount,
-                              color: const Color(0xFF2E7D32),
+                              color: context.colors.success,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -109,7 +110,7 @@ class HealthHeroCard extends ConsumerWidget {
                               icon: Icons.medication_rounded,
                               label: 'Active Meds',
                               count: activeMedsCount,
-                              color: const Color(0xFFE5A000),
+                              color: context.colors.amberWarning,
                             ),
                           ),
                         ],
@@ -141,15 +142,15 @@ class _HealthMetricBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E281E) : const Color(0xFFF4F7F2),
+        color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF334433) : const Color(0xFFDEE5DA),
+          color: scheme.outlineVariant,
         ),
       ),
       child: Row(
@@ -165,7 +166,7 @@ class _HealthMetricBadge extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : const Color(0xFF1B281B),
+                    color: scheme.onSurface,
                   ),
                 ),
                 Text(

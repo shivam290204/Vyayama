@@ -1,8 +1,8 @@
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
-import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -240,10 +240,10 @@ class _NotificationDiagnosticsScreenState
     if (inPip) {
       return Theme(
         data: ThemeData.dark().copyWith(
-          scaffoldBackgroundColor: const Color(0xFF101216),
+          scaffoldBackgroundColor: AppPalette.pipBackground,
         ),
         child: Scaffold(
-          backgroundColor: const Color(0xFF101216),
+          backgroundColor: AppPalette.pipBackground,
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -281,7 +281,7 @@ class _NotificationDiagnosticsScreenState
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color:
-                              const Color(0xFF4CAF50).withValues(alpha: 0.25),
+                              AppPalette.pipBadgeBackground.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -289,7 +289,7 @@ class _NotificationDiagnosticsScreenState
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF81C784),
+                            color: AppPalette.pipBadgeText,
                           ),
                         ),
                       ),
@@ -365,8 +365,8 @@ class _NotificationDiagnosticsScreenState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: allHealthy
-            ? (isDark ? const Color(0xFF142B14) : const Color(0xFFE8F5E9))
-            : (isDark ? const Color(0xFF2C1E14) : const Color(0xFFFFF3E0)),
+            ? context.colors.diagnosticHealthy
+            : context.colors.streakContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: allHealthy ? Colors.green.shade400 : Colors.orange.shade400,
@@ -615,7 +615,7 @@ class _NotificationDiagnosticsScreenState
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      color: Color(0xFF2E7D32),
+                      color: AppPalette.deepGreen,
                     ),
                   ),
                 ),
@@ -641,15 +641,13 @@ class _NotificationDiagnosticsScreenState
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF253325)
-                          : const Color(0xFFF1F5F0),
+                      color: scheme.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.alarm_rounded,
-                            size: 18, color: Color(0xFFFF9500)),
+                        Icon(Icons.alarm_rounded,
+                            size: 18, color: context.colors.streak),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
@@ -732,7 +730,7 @@ class _NotificationDiagnosticsScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9500),
+                  backgroundColor: context.colors.streak,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -752,7 +750,7 @@ class _NotificationDiagnosticsScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE5A000),
+                  backgroundColor: context.colors.amberWarning,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -772,7 +770,7 @@ class _NotificationDiagnosticsScreenState
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF673AB7),
+                  backgroundColor: context.colors.pill,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(

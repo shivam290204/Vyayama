@@ -95,14 +95,11 @@ class MascotSection extends ConsumerWidget {
                   width: cardWidth,
                   height: 230,
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF141A14)
-                        : const Color(0xFF192319),
+                    color: context.colors.stageBackground,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF2E3D2E)
-                          : AppPalette.forestGreen.withValues(alpha: 0.35),
+                      color: context.colors.stageBorder
+                          .withValues(alpha: isDark ? 1.0 : 0.35),
                       width: 1.5,
                     ),
                     boxShadow: [
@@ -115,7 +112,7 @@ class MascotSection extends ConsumerWidget {
                       ),
                       if (progress.tier == DailyCompletionTier.everythingDone)
                         BoxShadow(
-                          color: const Color(0xFFFF6B00).withValues(alpha: 0.28),
+                          color: context.colors.streak.withValues(alpha: 0.28),
                           blurRadius: 24,
                           spreadRadius: 2,
                         )
@@ -142,15 +139,15 @@ class MascotSection extends ConsumerWidget {
                                 colors: [
                                   if (progress.tier ==
                                       DailyCompletionTier.everythingDone) ...[
-                                    const Color(0xFF5A2A10).withValues(alpha: 0.4),
-                                    const Color(0xFF141A14),
+                                    context.colors.streakContainer.withValues(alpha: 0.4),
+                                    context.colors.stageBackground,
                                   ] else if (progress.tier ==
                                       DailyCompletionTier.fourToFiveDone) ...[
-                                    const Color(0xFF253D25).withValues(alpha: 0.5),
-                                    const Color(0xFF141A14),
+                                    scheme.secondaryContainer.withValues(alpha: 0.5),
+                                    context.colors.stageBackground,
                                   ] else ...[
-                                    const Color(0xFF1F261F).withValues(alpha: 0.4),
-                                    const Color(0xFF141A14),
+                                    scheme.surfaceContainerLow.withValues(alpha: 0.4),
+                                    context.colors.stageBackground,
                                   ],
                                 ],
                               ),
@@ -221,6 +218,7 @@ class _ProgressBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     Color badgeColor;
     Color textColor;
     IconData badgeIcon;
@@ -228,19 +226,19 @@ class _ProgressBadge extends StatelessWidget {
 
     switch (progress.tier) {
       case DailyCompletionTier.nothingDone:
-        badgeColor = const Color(0xFF2C352C);
-        textColor = const Color(0xFFB0BEB0);
+        badgeColor = scheme.surfaceContainerHigh;
+        textColor = scheme.onSurfaceVariant;
         badgeIcon = Icons.flag_outlined;
         badgeText = '${progress.completedCount} / ${progress.totalCount} Done';
         break;
       case DailyCompletionTier.fourToFiveDone:
         badgeColor = AppPalette.limeGreen;
-        textColor = const Color(0xFF142314);
+        textColor = scheme.onTertiary;
         badgeIcon = Icons.bolt_rounded;
         badgeText = '${progress.completedCount} / ${progress.totalCount} Done';
         break;
       case DailyCompletionTier.everythingDone:
-        badgeColor = const Color(0xFFFF7A00);
+        badgeColor = context.colors.streak;
         textColor = Colors.white;
         badgeIcon = Icons.local_fire_department_rounded;
         badgeText = progress.stepsDone && progress.completedCount < progress.totalCount

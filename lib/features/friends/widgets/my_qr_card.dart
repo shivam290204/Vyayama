@@ -172,7 +172,7 @@ class _MyQrCardState extends State<MyQrCard> {
                   Text(
                     'My QR Code',
                     style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFF14532D),
+                          color: Theme.of(ctx).colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                   ),
@@ -183,17 +183,17 @@ class _MyQrCardState extends State<MyQrCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              QrImageView(
+                QrImageView(
                 data: _inviteLink,
                 size: 260,
                 backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
+                eyeStyle: QrEyeStyle(
                   eyeShape: QrEyeShape.square,
-                  color: Color(0xFF14532D),
+                  color: Theme.of(ctx).colorScheme.primary,
                 ),
-                dataModuleStyle: const QrDataModuleStyle(
+                dataModuleStyle: QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF1B1B1B),
+                  color: Theme.of(ctx).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 12),
@@ -216,7 +216,7 @@ class _MyQrCardState extends State<MyQrCard> {
               const SizedBox(height: 16),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF14532D),
+                  backgroundColor: Theme.of(ctx).colorScheme.primary,
                   minimumSize: const Size.fromHeight(44),
                 ),
                 onPressed: () {
@@ -240,8 +240,7 @@ class _MyQrCardState extends State<MyQrCard> {
     final isDark = theme.brightness == Brightness.dark;
 
     final cardBg = isDark ? theme.colorScheme.surfaceContainer : Colors.white;
-    const brandForest = Color(0xFF14532D);
-    const brandLightCard = Colors.white;
+    final brandForest = theme.colorScheme.primary;
 
     return Card(
       elevation: 1,
@@ -256,12 +255,12 @@ class _MyQrCardState extends State<MyQrCard> {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: const Color(0xFF8BCF45).withValues(alpha: 0.25),
+                  backgroundColor: theme.colorScheme.tertiary.withValues(alpha: 0.25),
                   child: Text(
                     _displayName.isNotEmpty
                         ? _displayName[0].toUpperCase()
                         : 'V',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: brandForest,
@@ -306,7 +305,7 @@ class _MyQrCardState extends State<MyQrCard> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: brandLightCard,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: isDark
@@ -332,13 +331,13 @@ class _MyQrCardState extends State<MyQrCard> {
                           data: _inviteLink,
                           size: 180,
                           backgroundColor: Colors.white,
-                          eyeStyle: const QrEyeStyle(
+                          eyeStyle: QrEyeStyle(
                             eyeShape: QrEyeShape.square,
                             color: brandForest,
                           ),
-                          dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleStyle: QrDataModuleStyle(
                             dataModuleShape: QrDataModuleShape.square,
-                            color: Color(0xFF1E293B),
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ),

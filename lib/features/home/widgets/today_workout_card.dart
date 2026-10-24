@@ -27,9 +27,7 @@ class TodayWorkoutCard extends ConsumerWidget {
           color: isDark ? AppPalette.darkSurface : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isDark
-                ? AppPalette.darkOutline.withValues(alpha: 0.5)
-                : const Color(0xFFE5E9E0),
+            color: scheme.outline.withValues(alpha: isDark ? 0.5 : 1.0),
           ),
         ),
         child: const Center(child: CircularProgressIndicator()),
@@ -60,9 +58,7 @@ class TodayWorkoutCard extends ConsumerWidget {
             color: isDark ? AppPalette.darkSurface : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: isDark
-                  ? AppPalette.darkOutline.withValues(alpha: 0.5)
-                  : const Color(0xFFE5E9E0),
+              color: scheme.outline.withValues(alpha: isDark ? 0.5 : 1.0),
               width: 1,
             ),
             boxShadow: [
@@ -87,7 +83,7 @@ class TodayWorkoutCard extends ConsumerWidget {
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? const Color(0xFF263226)
+                        ? context.colors.waterContainer
                         : AppPalette.softLime.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -130,7 +126,7 @@ class TodayWorkoutCard extends ConsumerWidget {
                               isRestDay ? 'REST DAY' : 'TODAY\'S WORKOUT',
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: isRestDay
-                                    ? (isDark ? AppPalette.softCoral : const Color(0xFFC04B35))
+                                    ? context.colors.warning
                                     : (isDark ? AppPalette.limeGreen : AppPalette.forestGreen),
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.5,

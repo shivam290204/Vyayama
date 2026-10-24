@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/nutrition/data/meal.dart';
 import 'package:fitbuddy/features/nutrition/providers.dart';
@@ -220,12 +221,12 @@ class _MealCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.local_fire_department, size: 16, color: Color(0xFFFFB49F)),
+                      Icon(Icons.local_fire_department, size: 16, color: context.colors.warningContainer),
                       const SizedBox(width: 4),
                       Text(
                         '${meal.calories} kcal',
                         style: text.labelMedium?.copyWith(
-                          color: isDark ? const Color(0xFFFFB49F) : const Color(0xFFC04B35),
+                          color: context.colors.warning,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -235,7 +236,7 @@ class _MealCard extends StatelessWidget {
                       Text(
                         '${meal.proteinG}g protein',
                         style: text.labelMedium?.copyWith(
-                          color: isDark ? scheme.tertiary : const Color(0xFF2E7D32),
+                          color: context.colors.success,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

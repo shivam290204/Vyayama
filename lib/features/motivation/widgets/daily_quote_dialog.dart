@@ -78,10 +78,8 @@ class DailyQuoteDialog extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final isFav = ref.watch(isFavoriteProvider(quote.id));
 
-    final dialogBg = isDark ? const Color(0xFF161F16) : Colors.white;
-    final borderColor = isDark
-        ? const Color(0xFF2E3D2E)
-        : const Color(0xFFE2E8DE);
+    final dialogBg = scheme.surfaceContainer;
+    final borderColor = scheme.outlineVariant;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -228,7 +226,7 @@ class DailyQuoteDialog extends ConsumerWidget {
                     fontWeight: FontWeight.w600,
                     height: 1.45,
                     fontStyle: FontStyle.italic,
-                    color: isDark ? Colors.white : const Color(0xFF1B281B),
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -257,15 +255,13 @@ class DailyQuoteDialog extends ConsumerWidget {
                           ? Icons.favorite_rounded
                           : Icons.favorite_border_rounded,
                       color: isFav
-                          ? const Color(0xFFFF453A)
+                          ? context.colors.danger
                           : scheme.onSurfaceVariant,
                       size: 24,
                     ),
                     tooltip: isFav ? 'Remove favorite' : 'Save to favorites',
                     style: IconButton.styleFrom(
-                      backgroundColor: isDark
-                          ? const Color(0xFF222E22)
-                          : const Color(0xFFF0F5EE),
+                      backgroundColor: scheme.surfaceContainerHighest,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),

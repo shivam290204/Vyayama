@@ -12,6 +12,7 @@ class SleepHeroCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
     final plan = ref.watch(sleepPlanProvider);
     final settings = ref.watch(sleepSettingsProvider).asData?.value;
     final wake = plan.wakeTime.toTimeOfDay().format(context);
@@ -22,12 +23,12 @@ class SleepHeroCard extends ConsumerWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFF141A14),
+        color: context.colors.stageBackground,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isAlarmOn
-              ? const Color(0xFFFF9500).withValues(alpha: 0.35)
-              : const Color(0xFF2E3D2E),
+              ? context.colors.streak.withValues(alpha: 0.35)
+              : context.colors.stageBorder,
           width: 1.5,
         ),
         boxShadow: [
@@ -38,7 +39,7 @@ class SleepHeroCard extends ConsumerWidget {
           ),
           if (isAlarmOn)
             BoxShadow(
-              color: const Color(0xFFFF9500).withValues(alpha: 0.15),
+              color: context.colors.streak.withValues(alpha: 0.15),
               blurRadius: 24,
               spreadRadius: 1,
             ),
@@ -56,8 +57,8 @@ class SleepHeroCard extends ConsumerWidget {
                     center: Alignment.centerRight,
                     radius: 1.1,
                     colors: [
-                      const Color(0xFF1F2B1F).withValues(alpha: 0.6),
-                      const Color(0xFF141A14),
+                      context.colors.successContainer.withValues(alpha: 0.6),
+                      context.colors.stageBackground,
                     ],
                   ),
                 ),
@@ -88,7 +89,7 @@ class SleepHeroCard extends ConsumerWidget {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              const Color(0xFF141A14).withValues(alpha: 0.85),
+                              context.colors.stageBackground.withValues(alpha: 0.85),
                             ],
                             stops: const [0.55, 1.0],
                           ),
@@ -105,8 +106,8 @@ class SleepHeroCard extends ConsumerWidget {
                           ),
                           decoration: BoxDecoration(
                             color: isAlarmOn
-                                ? const Color(0xFFFF9500)
-                                : const Color(0xFF253325),
+                                ? context.colors.streak
+                                : scheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
@@ -125,7 +126,7 @@ class SleepHeroCard extends ConsumerWidget {
                                 size: 14,
                                 color: isAlarmOn
                                     ? Colors.white
-                                    : const Color(0xFFB0BEB0),
+                                    : scheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 5),
                               Text(
@@ -135,7 +136,7 @@ class SleepHeroCard extends ConsumerWidget {
                                   fontWeight: FontWeight.bold,
                                   color: isAlarmOn
                                       ? Colors.white
-                                      : const Color(0xFFB0BEB0),
+                                      : scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -169,9 +170,9 @@ class SleepHeroCard extends ConsumerWidget {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Target: $durationStr ($bed → $wake)',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: Color(0xFFB0BEB0),
+                                    color: scheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],

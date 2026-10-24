@@ -56,13 +56,13 @@ class ReminderTogglesCard extends ConsumerWidget {
                 secondary: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF9500)
+                    color: context.colors.streak
                         .withValues(alpha: isDark ? 0.2 : 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.alarm_on_rounded,
-                    color: Color(0xFFFF9500),
+                    color: context.colors.streak,
                     semanticLabel: 'Wake-up alarm',
                     size: 22,
                   ),
@@ -137,13 +137,13 @@ class ReminderTogglesCard extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? const Color(0xFF1E281E).withValues(alpha: isAlarmOn ? 0.6 : 0.3)
-                      : const Color(0xFFF4F7F2),
+                      ? scheme.surfaceContainer.withValues(alpha: isAlarmOn ? 0.6 : 0.3)
+                      : scheme.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: isAlarmOn
-                        ? const Color(0xFFFF9500).withValues(alpha: 0.45)
-                        : (isDark ? const Color(0xFF2C3B2C) : const Color(0xFFDEE5DA)),
+                        ? context.colors.streak.withValues(alpha: 0.45)
+                        : scheme.outlineVariant,
                     width: isAlarmOn ? 1.5 : 1,
                   ),
                 ),
@@ -163,7 +163,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                                     : Icons.alarm_off_rounded,
                                 size: 16,
                                 color: isAlarmOn
-                                    ? const Color(0xFFFF9500)
+                                    ? context.colors.streak
                                     : scheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 6),
@@ -177,7 +177,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                     color: isAlarmOn
-                                        ? const Color(0xFFFF9500)
+                                        ? context.colors.streak
                                         : scheme.onSurfaceVariant,
                                   ),
                                 ),
@@ -255,15 +255,11 @@ class ReminderTogglesCard extends ConsumerWidget {
                                   shape: BoxShape.circle,
                                   color: isSelected
                                       ? AppPalette.limeGreen
-                                      : (isDark
-                                          ? const Color(0xFF253325)
-                                          : const Color(0xFFE5EDE3)),
+                                      : scheme.surfaceContainerHigh,
                                   border: Border.all(
                                     color: isSelected
                                         ? AppPalette.limeGreen
-                                        : (isDark
-                                            ? const Color(0xFF334533)
-                                            : const Color(0xFFCCD7CA)),
+                                        : scheme.outlineVariant,
                                     width: 1,
                                   ),
                                   boxShadow: isSelected
@@ -285,10 +281,10 @@ class ReminderTogglesCard extends ConsumerWidget {
                                         ? FontWeight.w800
                                         : FontWeight.w600,
                                     color: isSelected
-                                        ? const Color(0xFF142014)
+                                        ? scheme.onTertiary
                                         : (isDark
                                             ? Colors.white70
-                                            : const Color(0xFF3C4A3C)),
+                                            : scheme.onSurfaceVariant),
                                   ),
                                 ),
                               ),
@@ -319,13 +315,11 @@ class ReminderTogglesCard extends ConsumerWidget {
                           padding: const EdgeInsets.only(left: 10, right: 2),
                           decoration: BoxDecoration(
                             color: isDark
-                                ? const Color(0xFF253325)
+                                ? scheme.surfaceContainerHigh
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isDark
-                                  ? const Color(0xFF334533)
-                                  : const Color(0xFFCCD7CA),
+                              color: scheme.outlineVariant,
                               width: 1,
                             ),
                           ),
@@ -341,7 +335,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                                       : _soundOptions.first,
                                   borderRadius: BorderRadius.circular(14),
                                   dropdownColor: isDark
-                                      ? const Color(0xFF1E281E)
+                                      ? scheme.surfaceContainer
                                       : Colors.white,
                                   style: text.bodyMedium?.copyWith(
                                     color: AppPalette.limeGreen,
@@ -380,7 +374,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                                       isPlaying
                                           ? Icons.stop_circle_rounded
                                           : Icons.play_circle_fill_rounded,
-                                      color: const Color(0xFFFF9500),
+                                      color: context.colors.streak,
                                       size: 22,
                                     ),
                                     onPressed: () {
@@ -433,15 +427,13 @@ class ReminderTogglesCard extends ConsumerWidget {
                                     color: isSelected
                                         ? AppPalette.limeGreen
                                         : (isDark
-                                            ? const Color(0xFF253325)
+                                            ? scheme.surfaceContainerHigh
                                             : Colors.white),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isSelected
                                           ? AppPalette.limeGreen
-                                          : (isDark
-                                              ? const Color(0xFF334533)
-                                              : const Color(0xFFCCD7CA)),
+                                          : scheme.outlineVariant,
                                       width: 1,
                                     ),
                                   ),
@@ -453,7 +445,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                                           ? FontWeight.bold
                                           : FontWeight.w600,
                                       color: isSelected
-                                          ? const Color(0xFF142014)
+                                          ? scheme.onTertiary
                                           : (isDark
                                               ? Colors.white70
                                               : Colors.black87),
@@ -491,9 +483,9 @@ class ReminderTogglesCard extends ConsumerWidget {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFF9500),
-                          side: const BorderSide(
-                            color: Color(0xFFFF9500),
+                          foregroundColor: context.colors.streak,
+                          side: BorderSide(
+                            color: context.colors.streak,
                             width: 1.2,
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -532,13 +524,13 @@ class ReminderTogglesCard extends ConsumerWidget {
                 secondary: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF818CF8)
+                    color: context.colors.sleep
                         .withValues(alpha: isDark ? 0.2 : 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.bedtime_outlined,
-                    color: Color(0xFF818CF8),
+                    color: context.colors.sleep,
                     semanticLabel: 'Bedtime reminder',
                     size: 22,
                   ),

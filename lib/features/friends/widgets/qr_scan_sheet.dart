@@ -168,7 +168,7 @@ class _QrScanSheetState extends State<QrScanSheet>
     required String message,
     required bool isPermissionError,
   }) {
-    const forestGreen = Color(0xFF14532D);
+    final forestGreen = Theme.of(context).colorScheme.primary;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -243,7 +243,7 @@ class _QrScanSheetState extends State<QrScanSheet>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const limeAccent = Color(0xFF8BCF45);
+    final limeAccent = theme.colorScheme.tertiary;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -287,7 +287,7 @@ class _QrScanSheetState extends State<QrScanSheet>
         children: [
           // 1. Mobile Camera View or Permission / Loading State
           if (_checkingPermission)
-            const Center(
+            Center(
               child: CircularProgressIndicator(color: limeAccent),
             )
           else if (!_hasPermission || _controller == null)
@@ -326,6 +326,7 @@ class _QrScanSheetState extends State<QrScanSheet>
                   painter: _ViewfinderPainter(
                     scanProgress: _animController.value,
                     hasError: _errorMessage != null,
+                    accentColor: limeAccent,
                   ),
                 );
               },
@@ -385,12 +386,12 @@ class _QrScanSheetState extends State<QrScanSheet>
                       borderRadius: BorderRadius.circular(30),
                       border: Border.all(color: Colors.white24),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.qr_code_scanner, color: limeAccent, size: 20),
-                        SizedBox(width: 10),
-                        Text(
+                        const SizedBox(width: 10),
+                        const Text(
                           'Align QR code inside the frame',
                           style: TextStyle(
                             color: Colors.white,
@@ -414,10 +415,12 @@ class _ViewfinderPainter extends CustomPainter {
   _ViewfinderPainter({
     required this.scanProgress,
     required this.hasError,
+    required this.accentColor,
   });
 
   final double scanProgress;
   final bool hasError;
+  final Color accentColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -436,7 +439,7 @@ class _ViewfinderPainter extends CustomPainter {
     canvas.drawPath(path, bgPaint);
 
     // Border corners
-    final cornerColor = hasError ? Colors.redAccent : const Color(0xFF8BCF45);
+    final cornerColor = hasError ? Colors.redAccent : accentColor;
     final cornerPaint = Paint()
       ..color = cornerColor
       ..strokeWidth = 4
@@ -495,7 +498,7 @@ class _ViewfinderPainter extends CustomPainter {
           Offset(left + boxSize - 20, lineY),
           [
             Colors.transparent,
-            const Color(0xFF8BCF45),
+            accentColor,
             Colors.transparent,
           ],
         )

@@ -43,7 +43,8 @@ class SleepPlanCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(sleepPlanProvider);
     final text = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
     final notifier = ref.read(sleepSettingsProvider.notifier);
 
     final bedTimeOfDay = plan.bedtime.toTimeOfDay();
@@ -67,7 +68,7 @@ class SleepPlanCard extends ConsumerWidget {
               Expanded(
                 child: _InteractiveTimeBlock(
                   icon: Icons.bedtime_outlined,
-                  accentColor: const Color(0xFF818CF8),
+                  accentColor: context.colors.sleep,
                   label: 'Bedtime',
                   value: bed,
                   subtitle: isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
@@ -78,7 +79,7 @@ class SleepPlanCard extends ConsumerWidget {
               Expanded(
                 child: _InteractiveTimeBlock(
                   icon: Icons.wb_sunny_outlined,
-                  accentColor: const Color(0xFFFBBF24),
+                  accentColor: context.colors.sun,
                   label: 'Wake up (Alarm)',
                   value: wake,
                   subtitle: isCustom ? 'Custom · Tap to edit' : 'Tap to customize',
@@ -92,13 +93,13 @@ class SleepPlanCard extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: isDark
-                  ? const Color(0xFF1E281E).withValues(alpha: 0.6)
-                  : const Color(0xFFF0F5EE),
+                  ? scheme.surfaceContainer.withValues(alpha: 0.6)
+                  : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isHealthyDuration
                     ? AppPalette.forestGreen.withValues(alpha: 0.3)
-                    : const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                    : context.colors.amberWarning.withValues(alpha: 0.4),
                 width: 1,
               ),
             ),
@@ -109,7 +110,7 @@ class SleepPlanCard extends ConsumerWidget {
                       ? Icons.check_circle_outline_rounded
                       : Icons.info_outline_rounded,
                   size: 18,
-                  color: isHealthyDuration ? AppPalette.limeGreen : const Color(0xFFF59E0B),
+                  color: isHealthyDuration ? AppPalette.limeGreen : context.colors.amberWarning,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -182,7 +183,8 @@ class _InteractiveTimeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
 
     return Material(
       color: Colors.transparent,
@@ -193,7 +195,7 @@ class _InteractiveTimeBlock extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isDark
-                ? const Color(0xFF1E281E).withValues(alpha: 0.5)
+                ? scheme.surfaceContainer.withValues(alpha: 0.5)
                 : Colors.black.withValues(alpha: 0.03),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(

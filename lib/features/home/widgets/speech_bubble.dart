@@ -14,13 +14,11 @@ class SpeechBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = scheme.brightness == Brightness.dark;
     final text = Theme.of(context).textTheme;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final isDark = scheme.brightness == Brightness.dark;
-    final bubbleColor = isDark ? const Color(0xFF202820) : Colors.white;
-    final borderColor = isDark
-        ? const Color(0xFF3B4D3B).withValues(alpha: 0.5)
-        : const Color(0xFFE5E9E0);
+    final bubbleColor = scheme.surfaceContainer;
+    final borderColor = scheme.outline.withValues(alpha: isDark ? 0.5 : 1.0);
 
     return Semantics(
       liveRegion: true,

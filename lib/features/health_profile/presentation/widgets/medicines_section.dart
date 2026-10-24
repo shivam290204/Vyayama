@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
@@ -71,11 +72,11 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFE5A000)
+              color: context.colors.amberWarning
                   .withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFE5A000).withValues(alpha: 0.4),
+                color: context.colors.amberWarning.withValues(alpha: 0.4),
                 width: 1.5,
               ),
             ),
@@ -87,12 +88,12 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5A000).withValues(alpha: 0.2),
+                        color: context.colors.amberWarning.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.notifications_off_rounded,
-                        color: Color(0xFFE5A000),
+                        color: context.colors.amberWarning,
                         size: 20,
                       ),
                     ),
@@ -103,7 +104,7 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: isDark ? Colors.white : const Color(0xFF8A5A00),
+                          color: context.colors.onAmberWarning,
                         ),
                       ),
                     ),
@@ -114,13 +115,13 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                   'To receive heads-up popups and loud warning alarms when it is time to take your medicine, please enable notifications.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white70 : const Color(0xFF5A4A20),
+                    color: context.colors.onAmberWarning.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE5A000),
+                    backgroundColor: context.colors.amberWarning,
                     foregroundColor: Colors.black,
                   ),
                   onPressed: () async {
@@ -145,11 +146,11 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9500)
+              color: context.colors.streak
                   .withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFFF9500).withValues(alpha: 0.4),
+                color: context.colors.streak.withValues(alpha: 0.4),
                 width: 1.5,
               ),
             ),
@@ -161,12 +162,12 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9500).withValues(alpha: 0.2),
+                        color: context.colors.streak.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.alarm_off_rounded,
-                        color: Color(0xFFFF9500),
+                        color: context.colors.streak,
                         size: 20,
                       ),
                     ),
@@ -177,7 +178,7 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: isDark ? Colors.white : const Color(0xFF8A5A00),
+                          color: context.colors.onAmberWarning,
                         ),
                       ),
                     ),
@@ -188,13 +189,13 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                   'To ring loud alarms and show popups when the app is closed, Android requires "Alarms & Reminders" permission.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: isDark ? Colors.white70 : const Color(0xFF5A4A20),
+                    color: context.colors.onAmberWarning.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF9500),
+                    backgroundColor: context.colors.streak,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -242,8 +243,8 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                       children: [
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFFF9500),
-                            side: const BorderSide(color: Color(0xFFFF9500)),
+                            foregroundColor: context.colors.streak,
+                            side: BorderSide(color: context.colors.streak),
                           ),
                           onPressed: () =>
                               context.push(AppRoutes.notificationDiagnostics),
@@ -256,13 +257,13 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                         const SizedBox(width: 8),
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFE5A000),
-                            side: const BorderSide(color: Color(0xFFE5A000)),
+                            foregroundColor: context.colors.amberWarning,
+                            side: BorderSide(color: context.colors.amberWarning),
                           ),
                           onPressed: () async {
                             final timeStr = list.first.reminderTimes.firstOrNull
                                     ?.format(context) ??
-                                '09:00 AM';
+                                 '09:00 AM';
                             await NotificationService.instance
                                 .requestPermissions();
                             await NotificationService.instance
@@ -298,7 +299,7 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                         const SizedBox(width: 8),
                         FilledButton.icon(
                           style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFE5A000),
+                            backgroundColor: context.colors.amberWarning,
                             foregroundColor: Colors.black,
                           ),
                           onPressed: () async {
@@ -412,7 +413,7 @@ class _EmptyMedicines extends StatelessWidget {
             const SizedBox(height: 12),
             TextButton.icon(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFE5A000),
+                foregroundColor: context.colors.amberWarning,
               ),
               onPressed: () async {
                 await NotificationService.instance.requestPermissions();
@@ -449,7 +450,7 @@ class _EmptyMedicines extends StatelessWidget {
             const SizedBox(height: 6),
             TextButton.icon(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFFF9500),
+                foregroundColor: context.colors.streak,
               ),
               onPressed: () => context.push(AppRoutes.notificationDiagnostics),
               icon: const Icon(Icons.healing_rounded, size: 16),

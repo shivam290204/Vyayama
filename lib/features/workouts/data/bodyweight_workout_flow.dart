@@ -4,32 +4,30 @@ import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
 
 /// Difficulty level / routine category for the 5 structured Bodyweight Workouts.
 enum BodyweightLevel {
-  warmup('Warm-up', 'Warm-up & Mobility', Icons.wb_sunny_rounded, Color(0xFF0D9488)),
-  beginner('Beginner', 'Beginner Bodyweight Workout', Icons.directions_walk_rounded, Color(0xFF2E7D32)),
-  intermediate('Intermediate', 'Intermediate Bodyweight Workout', Icons.fitness_center_rounded, Color(0xFFD97706)),
-  advanced('Advanced', 'Advanced Bodyweight Workout', Icons.whatshot_rounded, Color(0xFFC2410C)),
-  cooldown('Cool-down', 'Cool-down & Recovery', Icons.spa_rounded, Color(0xFF2563EB));
+  warmup('Warm-up', 'Warm-up & Mobility', Icons.wb_sunny_rounded),
+  beginner('Beginner', 'Beginner Bodyweight Workout', Icons.directions_walk_rounded),
+  intermediate('Intermediate', 'Intermediate Bodyweight Workout', Icons.fitness_center_rounded),
+  advanced('Advanced', 'Advanced Bodyweight Workout', Icons.whatshot_rounded),
+  cooldown('Cool-down', 'Cool-down & Recovery', Icons.spa_rounded);
 
-  const BodyweightLevel(this.difficulty, this.title, this.icon, this.color);
+  const BodyweightLevel(this.difficulty, this.title, this.icon);
 
   final String difficulty;
   final String title;
   final IconData icon;
-  final Color color;
 }
 
 /// The category types for the 5 workouts.
 enum WorkoutSectionType {
-  warmup('Warm-up', 'Prepare joints and elevate body temperature', Icons.wb_sunny_rounded, Color(0xFFFF9800)),
-  main('Main Workout', 'Strength, endurance and technique work', Icons.fitness_center_rounded, Color(0xFF00C853)),
-  cooldown('Cool-down', 'Static stretching and recovery', Icons.self_improvement_rounded, Color(0xFF00B4D8));
+  warmup('Warm-up', 'Prepare joints and elevate body temperature', Icons.wb_sunny_rounded),
+  main('Main Workout', 'Strength, endurance and technique work', Icons.fitness_center_rounded),
+  cooldown('Cool-down', 'Static stretching and recovery', Icons.self_improvement_rounded);
 
-  const WorkoutSectionType(this.label, this.subtitle, this.icon, this.color);
+  const WorkoutSectionType(this.label, this.subtitle, this.icon);
 
   final String label;
   final String subtitle;
   final IconData icon;
-  final Color color;
 }
 
 /// One exercise prescription within a workout category.

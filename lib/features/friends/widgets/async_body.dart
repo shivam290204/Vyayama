@@ -43,7 +43,7 @@ class StateMessage extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF14532D),
+                  backgroundColor: scheme.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(48, 48),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

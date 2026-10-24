@@ -34,7 +34,7 @@ class ConsultDoctorBanner extends StatelessWidget {
           children: <Widget>[
             Icon(
               Icons.medical_services_outlined,
-              color: isDark ? AppPalette.softCoral : const Color(0xFFC04B35),
+              color: context.colors.warning,
               semanticLabel: 'Doctor advice',
             ),
             const SizedBox(width: 12),
@@ -45,7 +45,7 @@ class ConsultDoctorBanner extends StatelessWidget {
                   Text(
                     'Please consult your doctor before starting a program',
                     style: text.titleSmall?.copyWith(
-                      color: isDark ? AppPalette.offWhite : const Color(0xFF5C1B10),
+                      color: context.colors.onWarning,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -56,7 +56,7 @@ class ConsultDoctorBanner extends StatelessWidget {
                     style: text.bodySmall?.copyWith(
                       color: isDark
                           ? AppPalette.darkTextMuted
-                          : const Color(0xFF7A2E20),
+                          : context.colors.onWarning.withValues(alpha: 0.8),
                     ),
                   ),
                 ],

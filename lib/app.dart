@@ -165,7 +165,7 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
         return Column(
           children: [
             Material(
-              color: const Color(0xFFD97706),
+              color: context.colors.warning,
               child: SafeArea(
                 bottom: false,
                 child: Container(

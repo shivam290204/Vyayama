@@ -22,9 +22,7 @@ class WellnessSummaryCards extends ConsumerWidget {
     final sleepPlan = ref.watch(sleepPlanProvider);
 
     final cardBg = isDark ? AppPalette.darkSurface : Colors.white;
-    final borderColor = isDark
-        ? AppPalette.darkOutline.withValues(alpha: 0.5)
-        : const Color(0xFFE5E9E0);
+    final borderColor = scheme.outline.withValues(alpha: isDark ? 0.5 : 1.0);
 
     return Row(
       children: [
@@ -95,9 +93,7 @@ class WellnessSummaryCards extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: (water / waterTarget).clamp(0.0, 1.0),
                       minHeight: 6,
-                      backgroundColor: isDark
-                          ? const Color(0xFF263226)
-                          : const Color(0xFFE8F1F5),
+                      backgroundColor: context.colors.waterContainer,
                       color: AppPalette.limeGreen,
                     ),
                   ),

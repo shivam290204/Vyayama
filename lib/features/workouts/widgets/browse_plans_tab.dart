@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/workouts/data/bodyweight_workout_flow.dart';
 
 /// The "Workouts" section displaying exactly five bodyweight categories in order:
@@ -70,15 +71,15 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
   Color _getDifficultyColor(BuildContext context, BodyweightLevel level) {
     switch (level) {
       case BodyweightLevel.warmup:
-        return const Color(0xFF0D9488); // Teal
+        return context.colors.workoutWarmup;
       case BodyweightLevel.beginner:
-        return const Color(0xFF2E7D32); // Forest Green
+        return Theme.of(context).colorScheme.primary;
       case BodyweightLevel.intermediate:
-        return const Color(0xFFD97706); // Warm Amber
+        return context.colors.workoutIntermediate;
       case BodyweightLevel.advanced:
-        return const Color(0xFFC2410C); // Deep Flame / Rust
+        return context.colors.workoutAdvanced;
       case BodyweightLevel.cooldown:
-        return const Color(0xFF2563EB); // Royal Blue
+        return context.colors.workoutCooldown;
     }
   }
 

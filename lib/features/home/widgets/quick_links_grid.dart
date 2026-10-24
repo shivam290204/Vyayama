@@ -27,7 +27,7 @@ class QuickLinksGrid extends StatelessWidget {
       const _Link('Nutrition', Icons.restaurant_menu, AppRoutes.nutrition,
           [AppPalette.deepGreen, AppPalette.forestGreen]),
       const _Link('Health', Icons.monitor_heart_outlined, AppRoutes.health,
-          [AppPalette.softCoral, Color(0xFFE08272)]),
+          [AppPalette.softCoral, AppPalette.deepCoral]),
       const _Link('Sleep', Icons.bedtime_outlined, AppRoutes.sleep,
           [AppPalette.charcoalGreen, AppPalette.forestGreen]),
       const _Link('Challenges', Icons.emoji_events_outlined, AppRoutes.challenges,
