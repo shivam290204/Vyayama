@@ -144,7 +144,7 @@ abstract final class BodyweightWorkoutCatalog {
       description:
           'Prime your joints, activate key muscle groups, and elevate core temperature before any workout.',
       estimatedDuration: '10–12 minutes',
-      illustrationAsset: 'assets/exercises/arm_swings.png',
+      illustrationAsset: 'assets/exercises/arm_swings.webp',
       exercises: [
         BodyweightExerciseItem(
           exerciseId: 'ex_march_in_place',
@@ -259,7 +259,7 @@ abstract final class BodyweightWorkoutCatalog {
       description:
           'Build basic fitness, learn correct exercise techniques, and develop consistency.',
       estimatedDuration: '20–25 minutes',
-      illustrationAsset: 'assets/exercises/incline_pushup.png',
+      illustrationAsset: 'assets/exercises/incline_pushup.webp',
       exercises: [
         BodyweightExerciseItem(
           exerciseId: 'ex_wall_pushups',
@@ -360,7 +360,7 @@ abstract final class BodyweightWorkoutCatalog {
       description:
           'Improve strength, stamina, and muscular endurance with more challenging bodyweight exercises.',
       estimatedDuration: '30–35 minutes',
-      illustrationAsset: 'assets/exercises/pushup.png',
+      illustrationAsset: 'assets/exercises/pushup.webp',
       exercises: [
         BodyweightExerciseItem(
           exerciseId: 'ex_pushup',
@@ -482,7 +482,7 @@ abstract final class BodyweightWorkoutCatalog {
       description:
           'Maximize relative strength, power, and athletic control through high-level calisthenics.',
       estimatedDuration: '40–45 minutes',
-      illustrationAsset: 'assets/exercises/archer_pushup.png',
+      illustrationAsset: 'assets/exercises/archer_pushup.webp',
       exercises: [
         BodyweightExerciseItem(
           exerciseId: 'ex_archer_pushups',
@@ -597,7 +597,7 @@ abstract final class BodyweightWorkoutCatalog {
       description:
           'Aid muscle recovery, lower heart rate safely, improve flexibility, and reduce soreness.',
       estimatedDuration: '10–15 minutes',
-      illustrationAsset: 'assets/exercises/child_pose.png',
+      illustrationAsset: 'assets/exercises/child_pose.webp',
       exercises: [
         BodyweightExerciseItem(
           exerciseId: 'ex_child_pose',

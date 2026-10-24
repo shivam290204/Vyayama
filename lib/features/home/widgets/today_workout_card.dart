@@ -91,8 +91,8 @@ class TodayWorkoutCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: Image.asset(
                       isRestDay
-                          ? 'assets/exercises/meditation.png'
-                          : 'assets/exercises/running.png',
+                          ? 'assets/exercises/meditation.webp'
+                          : 'assets/exercises/running.webp',
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => Icon(
                         Icons.fitness_center_rounded,
