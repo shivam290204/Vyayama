@@ -6,6 +6,7 @@ import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/data/local_daily_stats_storage.dart';
 import 'package:fitbuddy/features/dashboard/data/supabase_daily_stats_repository.dart';
+import 'package:fitbuddy/features/workouts/data/supabase_workout_log_repository.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -802,6 +803,11 @@ class StepTrackingService with WidgetsBindingObserver {
           }
         } catch (_) {}
       }
+    } catch (_) {}
+
+    try {
+      final workoutLogRepo = SupabaseWorkoutLogRepository();
+      await workoutLogRepo.syncPendingLogs();
     } catch (_) {}
   }
 
