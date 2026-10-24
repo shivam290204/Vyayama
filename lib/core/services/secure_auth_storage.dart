@@ -16,7 +16,10 @@ class SecureAuthStorage {
   static const _kUserName = 'last_signed_in_user_name';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      resetOnError: true,
+    ),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
@@ -164,7 +167,10 @@ class SupabaseSecureLocalStorage extends LocalStorage {
     FlutterSecureStorage? storage,
   }) : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              aOptions: AndroidOptions(
+                encryptedSharedPreferences: true,
+                resetOnError: true,
+              ),
               iOptions:
                   IOSOptions(accessibility: KeychainAccessibility.first_unlock),
             );
@@ -252,7 +258,10 @@ class SupabaseSecureGotrueAsyncStorage extends GotrueAsyncStorage {
     FlutterSecureStorage? storage,
   }) : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              aOptions: AndroidOptions(
+                encryptedSharedPreferences: true,
+                resetOnError: true,
+              ),
               iOptions:
                   IOSOptions(accessibility: KeychainAccessibility.first_unlock),
             );

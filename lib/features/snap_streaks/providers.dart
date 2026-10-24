@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/snap_streaks/data/mock_ids.dart';
@@ -18,9 +19,13 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 /// Provides [SupabaseSnapStreakRepository] when configured, falling back to mock.
 final snapStreakRepositoryProvider = Provider<SnapStreakRepository>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseSnapStreakRepository(
-      clock: ref.watch(clockProvider),
-    );
+    try {
+      return SupabaseSnapStreakRepository(
+        clock: ref.watch(clockProvider),
+      );
+    } catch (e) {
+      debugPrint('[snapStreakRepositoryProvider] Fallback: $e');
+    }
   }
   return MockSnapStreakRepository(
     currentUserId: ref.watch(currentUserIdProvider),

@@ -58,7 +58,7 @@ String? appRedirect({
     return atSplash ? null : AppRoutes.splash;
   }
 
-  if (auth.valueOrNull == null) {
+  if (auth.hasError || auth.valueOrNull == null) {
     if (location.startsWith('/u/')) return null;
     return _publicPaths.contains(location) ? null : AppRoutes.login;
   }

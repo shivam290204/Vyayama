@@ -20,9 +20,17 @@ class SupabaseHealthRepository implements HealthRepository {
     SupabaseClient? client,
     AssetBundle? bundle,
   })  : _prefs = prefs,
-        _client = client ??
-            (Env.isSupabaseConfigured ? Supabase.instance.client : null),
+        _client = client ?? _safeClient(),
         _bundle = bundle ?? rootBundle;
+
+  static SupabaseClient? _safeClient() {
+    if (!Env.isSupabaseConfigured) return null;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static const String _kConditionsKey = 'vyayama_health_selected_conditions';
   static const String _kMedicinesKey = 'vyayama_health_medicines_list';

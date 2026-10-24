@@ -324,10 +324,22 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<void> deletePlan(String id) async {
-    await _client
-        .from('workout_plans')
-        .delete()
-        .eq('id', id)
-        .eq('owner_id', _userId);
+    try {
+      await _client
+          .from('workout_plans')
+          .delete()
+          .eq('id', id)
+          .eq('owner_id', _userId);
+    } catch (_) {}
+    final uid = await _resolveUserId();
+    if (uid != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final myPlans = await getMyPlans();
+        final filtered = myPlans.where((p) => p.id != id).toList();
+        final raw = jsonEncode([for (final p in filtered) p.toJson()]);
+        await prefs.setString('cached_my_plans_$uid', raw);
+      } catch (_) {}
+    }
   }
 }

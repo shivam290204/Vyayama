@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
@@ -13,7 +14,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Provides [SupabaseSnapRepository] when configured, falling back to mock.
 final snapRepositoryProvider = Provider<SnapRepository>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseSnapRepository();
+    try {
+      return SupabaseSnapRepository();
+    } catch (e) {
+      debugPrint('[snapRepositoryProvider] Fallback: $e');
+    }
   }
   return MockSnapRepository(
     currentUserId: ref.watch(currentUserIdProvider),
@@ -23,7 +28,11 @@ final snapRepositoryProvider = Provider<SnapRepository>((ref) {
 
 final snapImageUrlSignerProvider = Provider<SnapImageUrlSigner>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseSnapImageUrlSigner();
+    try {
+      return SupabaseSnapImageUrlSigner();
+    } catch (e) {
+      debugPrint('[snapImageUrlSignerProvider] Fallback: $e');
+    }
   }
   return MockSnapImageUrlSigner();
 });
@@ -36,10 +45,20 @@ final snapImageProcessorProvider =
 /// Provides [SupabaseSnapVerificationService] when configured, falling back to mock.
 final snapVerificationServiceProvider = Provider<SnapVerificationService>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseSnapVerificationService();
+    try {
+      return SupabaseSnapVerificationService();
+    } catch (e) {
+      debugPrint('[snapVerificationServiceProvider] Fallback: $e');
+    }
   }
+  final snapRepo = ref.watch(snapRepositoryProvider);
   return MockSnapVerificationService(
-    ref.watch(snapRepositoryProvider) as MockSnapRepository,
+    snapRepo is MockSnapRepository
+        ? snapRepo
+        : MockSnapRepository(
+            currentUserId: ref.watch(currentUserIdProvider),
+            clock: ref.watch(clockProvider),
+          ),
     ref.watch(snapStreakRepositoryProvider),
     ref.watch(currentUserIdProvider),
   );

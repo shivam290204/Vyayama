@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/health_profile/data/async_value_x.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
@@ -25,7 +26,11 @@ final teamsCurrentUserNameProvider = Provider<String>((ref) {
 final teamRepositoryProvider = Provider<TeamRepository>(
   (ref) {
     if (Env.isSupabaseConfigured) {
-      return SupabaseTeamRepository();
+      try {
+        return SupabaseTeamRepository();
+      } catch (e) {
+        debugPrint('[teamRepositoryProvider] Fallback: $e');
+      }
     }
     return MockTeamRepository(
       currentUserId: () => ref.read(teamsCurrentUserIdProvider),

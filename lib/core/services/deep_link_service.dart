@@ -33,9 +33,8 @@ class DeepLinkService {
   void _handleUri(Uri uri, GoRouter router) {
     debugPrint('Handling deep link: $uri');
 
-    // Ignore OAuth login and password-recovery redirects (handled directly by Supabase auth listener)
-    if (uri.scheme == 'io.vyayama.fitbuddy' &&
-        (uri.host == 'login-callback' || uri.host == 'reset-password')) {
+    // Ignore OAuth login redirects (handled directly by Supabase auth listener)
+    if (uri.scheme == 'io.vyayama.fitbuddy' && uri.host == 'login-callback') {
       return;
     }
 

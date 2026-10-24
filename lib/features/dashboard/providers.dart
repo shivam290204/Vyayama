@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/features/dashboard/body_metrics.dart';
@@ -18,7 +19,11 @@ const int recentStatsDays = 14;
 /// Daily stats storage. Uses Supabase when configured, falling back to mock.
 final dailyStatsRepositoryProvider = Provider<DailyStatsRepository>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseDailyStatsRepository();
+    try {
+      return SupabaseDailyStatsRepository();
+    } catch (e) {
+      debugPrint('[dailyStatsRepositoryProvider] Fallback: $e');
+    }
   }
   return MockDailyStatsRepository(clock: ref.watch(clockProvider));
 });

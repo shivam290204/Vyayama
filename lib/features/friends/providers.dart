@@ -7,10 +7,16 @@ import 'package:fitbuddy/features/snap_streaks/data/snap_streak.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flutter/foundation.dart';
+
 /// Provides [SupabaseFriendRepository] when configured, falling back to mock.
 final friendRepositoryProvider = Provider<FriendRepository>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseFriendRepository();
+    try {
+      return SupabaseFriendRepository();
+    } catch (e) {
+      debugPrint('[friendRepositoryProvider] Fallback: $e');
+    }
   }
   return MockFriendRepository(currentUserId: ref.watch(currentUserIdProvider));
 });

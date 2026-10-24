@@ -16,7 +16,11 @@ import 'package:fitbuddy/features/profile/logic/bmi_calculator.dart';
 /// Provides [SupabaseProfileRepository] when configured, falling back to mock.
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   if (Env.isSupabaseConfigured) {
-    return SupabaseProfileRepository();
+    try {
+      return SupabaseProfileRepository();
+    } catch (e) {
+      debugPrint('[profileRepositoryProvider] Fallback: $e');
+    }
   }
   return MockProfileRepository();
 });

@@ -183,9 +183,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       return saved;
     } catch (e) {
       debugPrint('[SupabaseProfileRepository] Remote upsert failed (profile saved locally): $e');
-      // In offline-first architecture, return the locally saved profile so the user
-      // can continue editing and using their profile without interruption.
-      return sanitizedProfile;
     }
+    return sanitizedProfile;
   }
 }

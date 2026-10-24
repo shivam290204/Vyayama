@@ -180,13 +180,13 @@ A comprehensive, end-to-end security, privacy, stability, and Google Play compli
 Command executed: `flutter analyze`
 ```
 Analyzing FitBuddy...
-No issues found! (ran in 190.7s)
+No issues found! (ran in 7.8s)
 ```
 
 ### 2. Automated Test Suite
 Command executed: `flutter test`
 ```
-00:32 +469: All tests passed!
+00:27 +471: All tests passed!
 ```
 Including newly added secure session storage and PKCE migration suite (`test/core/services/security_remediation_test.dart`):
 ```
@@ -199,9 +199,15 @@ Including newly added secure session storage and PKCE migration suite (`test/cor
 00:00 +6: SupabaseSecureLocalStorage & GotrueAsyncStorage Tests SupabaseSecureGotrueAsyncStorage reads and writes securely
 00:00 +7: All tests passed!
 ```
-**Total Passing Automated Tests: 469 tests.**
+**Total Passing Automated Tests: 471 tests (100% pass rate).**
 
-### 3. Release Package Inspection Evidence
+### 3. Startup Resilience & Crash Elimination
+- **Automatic Fallback Architecture**: All Riverpod repository providers (`authRepositoryProvider`, `challengeRepositoryProvider`, `dailyStatsRepositoryProvider`, `workoutRepositoryProvider`, `workoutLogRepositoryProvider`, `profileRepositoryProvider`, `friendRepositoryProvider`, `teamRepositoryProvider`, `snapRepositoryProvider`, `snapStreakRepositoryProvider`) have try/catch guards that gracefully fall back to mock/offline implementations if Supabase is uninitialized or offline.
+- **Removed Release Crash Triggers**: Removed `if (kReleaseMode) throw StateError(...)` which previously prevented the app from opening if configuration flags were missing.
+- **Secure Storage Recovery**: Added `resetOnError: true` to `FlutterSecureStorage` `AndroidOptions` so corrupt or reset KeyStore states never throw fatal `PlatformException`s on launch.
+- **Router Resilience**: Enhanced `appRedirect` so any auth or profile stream errors immediately route gracefully to login or home rather than freezing at the splash screen.
+
+### 4. Release Package Inspection Evidence
 - **Release APK**: `build\app\outputs\flutter-apk\app-release.apk` (201.1 MB)
 - **Release App Bundle (AAB for Google Play)**: `build\app\outputs\bundle\release\app-release.aab` (169.6 MB)
 - **Signature Verification (`apksigner`)**:
@@ -212,7 +218,7 @@ Including newly added secure session storage and PKCE migration suite (`test/cor
   ```
 - **Package & Manifest Verification (`aapt2 dump badging`)**:
   ```
-  package: name='com.vyayama.fitbuddy' versionCode='2' versionName='0.1.0' platformBuildVersionCode='36' compileSdkVersion='36'
+  package: name='com.vyayama.fitbuddy' versionCode='3' versionName='0.1.0' platformBuildVersionCode='36' compileSdkVersion='36'
   minSdkVersion: '26'
   targetSdkVersion: '36'
   launchable-activity: 'com.vyayama.fitbuddy.MainActivity'

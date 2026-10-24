@@ -8,7 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Offline-first repository for historical BMI and weight measurements.
 class BmiHistoryRepository {
   BmiHistoryRepository({SupabaseClient? client})
-      : _client = client ?? (Env.isSupabaseConfigured ? Supabase.instance.client : null);
+      : _client = client ?? _safeClient();
+
+  static SupabaseClient? _safeClient() {
+    if (!Env.isSupabaseConfigured) return null;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
 
   final SupabaseClient? _client;
 
