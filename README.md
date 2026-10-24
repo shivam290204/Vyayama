@@ -2,148 +2,193 @@
 
 <div align="center">
 
-> *"Every effort counts."*
+> *"Every effort counts. A companion that celebrates your consistency."*
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.27+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.6+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![Supabase](https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/Tests-314%20Passing-brightgreen?logo=checkmarx&logoColor=white)](./test)
+[![Android](https://img.shields.io/badge/Android%20Target-API%2036%20(Android%2016)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+[![Backend](https://img.shields.io/badge/Backend-Supabase%20PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![Tests](https://img.shields.io/badge/Tests-471%20Passing%20(100%25)-brightgreen?logo=checkmarx&logoColor=white)](./test)
+[![Static Analysis](https://img.shields.io/badge/Analysis-0%20Issues-brightgreen)](https://dart.dev/tools/analysis)
 [![License](https://img.shields.io/badge/License-Proprietary-blue.svg)](#license)
 
-**Vyayama** is a modern, cross-platform fitness and wellness application built with Flutter. Unlike traditional fitness trackers that induce guilt or overwhelm users with complex metrics, Vyayama celebrates consistency, habit-building, and effort through a dynamic emotional mascot, Snapchat-style exercise photo streaks, condition-aware workout planning, and holistic wellness routines.
+**Vyayama** is a modern, cross-platform fitness and holistic wellness application built with Flutter and Supabase. Unlike conventional fitness trackers that induce guilt or overwhelm users with sterile spreadsheets of numbers, Vyayama celebrates consistency, habit-building, and effort through a dynamic emotional mascot, Snapchat-style exercise photo streaks, medical condition-aware workout planning, integrated BMI physical metrics, and a unified 24-hour daily rhythm.
 
 </div>
 
 ---
 
 ## 🌟 Table of Contents
-- [✨ Key Highlights & What App Can Do](#-key-highlights--what-app-can-do)
+- [✨ Key Highlights & What Sets Vyayama Apart](#-key-highlights--what-sets-vyayama-apart)
 - [🎨 Design System & Visual Identity](#-design-system--visual-identity)
-- [📱 Core Features & Modules](#-core-features--modules)
-  - [1. Dynamic Mascot Companion](#1-dynamic-mascot-companion)
-  - [2. Tracking Dashboard & Daily Activity](#2-tracking-dashboard--daily-activity)
+- [📱 Deep Dive: Core Features & Modules](#-deep-dive-core-features--modules)
+  - [1. Dynamic Mascot Companion & Mood Engine](#1-dynamic-mascot-companion--mood-engine)
+  - [2. Tracking Dashboard & Activity Rings](#2-tracking-dashboard--activity-rings)
   - [3. Goal-Based & Custom Workout Engine](#3-goal-based--custom-workout-engine)
-  - [4. Exercise Library & Animation Pipeline](#4-exercise-library--animation-pipeline)
-  - [5. Friends, Snaps & Snap Streaks](#5-friends-snaps--snap-streaks)
-  - [6. Health Profile & Adapted Workouts](#6-health-profile--adapted-workouts)
-  - [7. Daily Schedule & Time Blocking](#7-daily-schedule--time-blocking)
-  - [8. Nutrition & Water Tracking](#8-nutrition--water-tracking)
-  - [9. Sleep, Wake & Wind-Down Routine](#9-sleep-wake--wind-down-routine)
-  - [10. Daily Boost: Quotes, Memes & Challenges](#10-daily-boost-quotes-memes--challenges)
+  - [4. Exercise Library & 3D Pose Animation Pipeline](#4-exercise-library--3d-pose-animation-pipeline)
+  - [5. Friends, Snaps & Dual-Proof Snap Streaks](#5-friends-snaps--dual-proof-snap-streaks)
+  - [6. Community Teams & Leaderboards](#6-community-teams--leaderboards)
+  - [7. Health Profile & Medical Condition Screening](#7-health-profile--medical-condition-screening)
+  - [8. Body Mass Index (BMI) & Biometric Metrics Hub](#8-body-mass-index-bmi--biometric-metrics-hub)
+  - [9. Daily Schedule & Time Blocking](#9-daily-schedule--time-blocking)
+  - [10. Nutrition, Meal Guidance & Smart Hydration](#10-nutrition-meal-guidance--smart-hydration)
+  - [11. Circadian Sleep Schedule & Wind-Down Routine](#11-circadian-sleep-schedule--wind-down-routine)
+  - [12. Daily Boost: XP Progression, Quotes & Memes](#12-daily-boost-xp-progression-quotes--memes)
 - [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
 - [📂 Project Directory Structure](#-project-directory-structure)
-- [🚀 Getting Started](#-getting-started)
+- [🗄️ Database Architecture & Migrations](#️-database-architecture--migrations)
+- [🚀 Getting Started & Local Development](#-getting-started--local-development)
+- [📦 Release & Production Builds](#-release--production-builds)
 - [🧪 Testing & Quality Assurance](#-testing--quality-assurance)
-- [🔒 Privacy & Medical Disclaimer](#-privacy--medical-disclaimer)
+- [🔒 Security, Privacy & Google Play Compliance](#-security-privacy--google-play-compliance)
+- [📄 Medical Disclaimer](#-medical-disclaimer)
 
 ---
 
-## ✨ Key Highlights & What App Can Do
+## ✨ Key Highlights & What Sets Vyayama Apart
 
-- **Emotional Accountability**: A high-fidelity 3D mascot sits at the top of your home dashboard, dynamically reacting to how much you've accomplished today.
-- **Visual Proof Over Vanity Metrics**: Capture real exercise moments with an in-app camera, verify workout authenticity with on-device ML / Cloud Vision, and keep pair Snap Streaks alive with friends.
-- **Safety First & Medical Adaptation**: Automatically excludes exercises contraindicated by health conditions (e.g. knee pain, lower back issues, hypertension, asthma) and schedules exact offline medicine and meal reminders.
-- **All-in-One Daily Rhythm**: Unifies your workouts, nutrition goals, hydration, sleep hygiene, and daily schedule into a single, cohesive daily timeline.
-- **Offline-First & Cloud-Synced**: Operates fully offline with local caches and bundled content, while seamlessly synchronizing with Supabase when connected.
+- **Emotional Accountability**: A 3D companion character anchors the home dashboard, dynamically morphing across emotional states based on how much of your daily wellness checklist has been conquered.
+- **Visual Proof Over Vanity Metrics**: Capture real exercise moments with an in-app camera, verify workout authenticity via on-device ML Kit image labeling and server-side vision AI, and build pair Snap Streaks with workout partners.
+- **Injury-Safe & Medically Adapted**: Automatically screens for user-reported injuries (knee pain, lower back discomfort, hypertension, asthma) and filters out contraindicated exercises in real time, substituting joint-friendly movements.
+- **Streamlined Physical Metrics (BMI Hub)**: Profile metrics are centered around an integrated Body Mass Index (BMI) hub that brings Height and Weight together with WHO classifications, trend history, and actionable health guidance.
+- **Unified 24-Hour Daily Rhythm**: Eliminates the need for 5 separate apps by coordinating training sessions, meals, medicine times, hydration intervals, and sleep wind-down blocks into a single agenda.
+- **Offline-First Resilience**: Full operational support when offline via local caching and bundled asset databases, paired with automated cloud sync when network connectivity is restored.
+- **Enterprise-Grade Security**: Hardware-backed session encryption (Android KeyStore / iOS Keychain), strict Row Level Security (RLS) on all database tables, zero plaintext tokens, and fully compliant two-tier account deletion.
 
 ---
 
 ## 🎨 Design System & Visual Identity
 
-Vyayama uses a curated **Forest Green & Lime Green** color palette designed to feel energizing, fresh, healthy, and premium:
+Vyayama utilizes a curated **Forest Green & Lime Green** color palette engineered to feel energizing, organic, fresh, and premium:
 
-| Token | Hex | Role |
+| Token | Hex | Semantic Role |
 | :--- | :--- | :--- |
-| **Forest Green** | `#14532D` | Primary brand color, hero buttons, and primary actions |
-| **Deep Green** | `#2E7D32` | Secondary actions, card accents, and subheadings |
-| **Lime Green** | `#8BCF45` | Progress indicators, streak counters, active states, and highlights |
-| **Soft Lime** | `#DDF2B5` | Badge surfaces, chip backgrounds, and soft highlights |
-| **Off White** | `#F7F8F2` | Primary light mode background |
-| **Charcoal Green** | `#202820` | Dark mode card surfaces and high-contrast text |
-| **Soft Coral** | `#FFB49F` | Rest alerts, gentle warnings, and mascot accents |
+| **Forest Green** | `#14532D` | Primary brand surface, hero buttons, and primary app bar actions |
+| **Deep Green** | `#2E7D32` | Secondary actions, interactive cards, and section subheadings |
+| **Lime Green** | `#8BCF45` | Progress ring indicators, active streak counters, and success states |
+| **Soft Lime** | `#DDF2B5` | Badge surfaces, chip backgrounds, and highlighted status pills |
+| **Off White** | `#F7F8F2` | Light mode primary canvas and background |
+| **Charcoal Dark** | `#121612` | Dark mode primary canvas and deep surface styling |
+| **Elevated Dark** | `#1E251E` | Dark mode card containers and navigation bar styling |
+| **Soft Coral** | `#FFB49F` | Rest day indicators, recovery warnings, and mascot accents |
 
-### Visual Polish
-- **Rounded Aesthetics**: Standardized border radiuses across all cards (`20–24px`) and images (`16–24px`).
-- **Responsive Layout**: Fluid layouts that scale elegantly across mobile phones, tablets, and desktop browsers.
-- **Full Theme Support**: Light Mode and Dark Mode with smooth transitions and glassmorphism accents.
+### Visual Principles & Polish
+- **Standardized Radiuses**: Consistent `16–24px` border corners across cards, buttons, dialogs, and image containers.
+- **Adaptive Typography**: Google Fonts typography hierarchy (Inter / Outfit) optimized for readability, accessibility, and high contrast.
+- **Responsive Layouts**: Fully responsive layouts scaling across compact phones, tall aspect ratios, foldable devices, tablets, and desktop/web viewports.
+- **Dynamic Theming**: Seamless transitions between **Light**, **Dark**, and **System Default** themes.
 
 ---
 
-## 📱 Core Features & Modules
+## 📱 Deep Dive: Core Features & Modules
 
-### 1. Dynamic Mascot Companion
-The top of the home screen features Vyayama's emotional character companion that visually reflects daily progress across 6 key accomplishments (Steps, Active Calories, Active Minutes, Workout, Hydration, Daily Challenge):
-- **Nothing Done (0 items)**: Displays `Sad_Drooped_Head.png` with supportive, empathetic nudges reminding you that every journey starts with a single step.
-- **In Progress (4 to 5 items)**: Displays `flex_proud.png` flexing proudly with high-energy motivational messages as you approach full completion.
-- **All Goals Conquered (100%)**: Displays `Fire_Determined.png` surrounded by flames with celebratory champion messages.
-- **Interactive Progress Badge**: Shows live progress (e.g., `4 / 6 Done`) with one-tap preview cycling for easy testing.
-- **Speech Bubble**: Context-aware messages personalized with the user's name that cycle on tap.
+### 1. Dynamic Mascot Companion & Mood Engine
+At the top of the home screen, Vyayama's mascot companion visually reflects daily accomplishments across 6 core pillars (Steps, Active Calories, Active Minutes, Workout Completed, Hydration Met, Daily Challenge):
+- **Nothing Done (0 items)**: The mascot adopts a drooped, empathetic posture (`Sad_Drooped_Head.png`) offering gentle encouragement that every big journey begins with a single step.
+- **Building Momentum (1 to 3 items)**: The mascot stands alert and energetic, urging you onward as you complete routine tasks.
+- **Crushing It (4 to 5 items)**: The mascot flexes proudly (`flex_proud.png`) with enthusiastic, high-energy praise.
+- **All Goals Conquered (6 / 6 Done - 100%)**: Surrounded by victorious flames (`Fire_Determined.png`), the mascot celebrates full completion as a daily champion.
+- **Interactive Speech Bubbles**: Tap the mascot to cycle through personalized, context-aware motivational remarks addressed to the user.
 
-### 2. Tracking Dashboard & Daily Activity
-- **Activity Rings**: Animated concentric progress rings tracking **Steps**, **Active Calories (kcal)**, and **Active Time (minutes)**.
-- **Health Integrations**: Connects with **Apple HealthKit** (iOS) and **Android Health Connect** (`health` package) with mock data fallback for Web/preview.
-- **Custom Targets**: Goal-adjusted daily targets (weight loss, muscle gain, maintenance) using Mifflin-St Jeor TDEE formulas.
+### 2. Tracking Dashboard & Activity Rings
+- **Concentric Activity Rings**: Smooth animated rings visualizing **Steps**, **Active Calories (kcal)**, and **Active Time (minutes)**.
+- **Health Connect & Apple HealthKit**: Reads native steps and calories from on-device hardware sensors, Google Health Connect (Android 14–16), and Apple HealthKit (iOS).
+- **Mifflin-St Jeor TDEE Engine**: Calculates personalized calorie and hydration baselines according to age, gender, height, weight, and fitness goal.
 
 ### 3. Goal-Based & Custom Workout Engine
-- **System Curated Plans**: Built-in workout programs tailored for fat loss, hypertrophy, and general fitness across Beginner, Intermediate, and Advanced tiers.
-- **Custom Plan Builder**: Create personalized routines by selecting exercises, reordering sets, configuring repetitions, and scheduling training days.
-- **Active Workout Session Player**:
-  - Live interval and exercise timers.
-  - Form guidance notes and common mistakes checklist.
-  - Rest countdowns with audio/visual feedback.
-  - Post-workout completion summary logging XP and stats.
+- **Curated Multi-Week Programs**: Built-in workout splits designed for **Fat Loss**, **Hypertrophy**, **Endurance**, and **Mobility** across Beginner, Intermediate, and Advanced tiers.
+- **Custom Routine Builder**: Assemble personalized workouts with exercise selection, drag-and-drop reordering, custom set/rep targets, and rest intervals.
+- **Interactive Session Player**:
+  - Live interval and exercise timers with visual countdown wheels.
+  - Audio cues and milestone sound effects for set completion and rest periods.
+  - Form guidance notes and "Common Mistakes to Avoid" checklist.
+  - Post-workout summary dialog logging XP, duration, and calories burned.
 
-### 4. Exercise Library & Animation Pipeline
-- **Extensive Exercise Database**: Detailed instructions, targeted muscle groups, equipment requirements, and injury contraindications.
-- **Pluggable Visual Renderer**:
-  - **3D Character Renders**: High-resolution studio poses.
-  - **SVG Alternating Pose Renderer**: Lightweight, fluid start/finish animations.
-  - **Lottie & Video Support**: Video demonstrations with rounded thumbnail previews.
+### 4. Exercise Library & 3D Pose Animation Pipeline
+- **Extensive Exercise Database**: Over 100+ exercises with primary/secondary muscle targets, equipment requirements, execution steps, and safety considerations.
+- **Multi-Format Visual Demonstrations**:
+  - **High-Resolution 3D Poses**: Studio-grade full-body anatomical renders illustrating the exact movement trajectory.
+  - **Alternating SVG Animations**: Lightweight vector animations showing starting and contracted positions.
+  - **Video Previews**: Rounded video previews for dynamic exercises requiring continuous motion analysis.
 
-### 5. Friends, Snaps & Snap Streaks
-- **In-App Exercise Camera**: Full-screen photo capture with flash, timer, and front/back camera toggling.
-- **Activity Tags & Overlays**: Tag workouts (Running, Yoga, Gym, Walking, Cycling) and stamp dynamic stickers (steps count, timestamp).
-- **Pair Snap Streaks**: Shared streak between two friends that advances only when **both** send verified workout snaps within the streak window.
-- **Verification Engine**: Dual verification via on-device **Google ML Kit Image Labeling** and server-side vision AI on Supabase Edge Functions.
-- **Friends Hub**: Add friends via unique username, invite links, or QR code scanning. View friends feed and send instant emoji reactions (`🔥`, `💪`, `👏`).
+### 5. Friends, Snaps & Dual-Proof Snap Streaks
+- **In-App Exercise Camera**: Full-screen photo capture with flash toggle, front/back camera switching, and timer.
+- **Dynamic Workout Watermarks**: Automatic on-canvas stamps embedding current steps, active minutes, timestamp, and activity category tags.
+- **Dual-Proof Verification Pipeline**:
+  - **On-Device ML**: Google ML Kit Image Labeling verifies exercise gear, athletic apparel, and workout contexts locally on-device.
+  - **Cloud Vision Verification**: Supabase Edge Functions inspect exercise authenticity before advancing streak records.
+- **Pair Snap Streaks**: Shared streak counters between fitness partners that advance only when **both** participants submit verified workout snaps within the 24-hour window.
+- **24-Hour Ephemeral Privacy**: All snap photos automatically expire and are purged from storage after 24 hours.
 
-### 6. Health Profile & Adapted Workouts
-- **Injury & Condition Screening**: Select pre-existing conditions (e.g., knee pain, lower back pain, asthma, hypertension, diabetes).
-- **Automatic Exercise Filtering**: Unsafe movements are automatically excluded and replaced with joint-friendly alternatives.
-- **Medicine Reminders**: Schedule exact daily times for medications with offline local alarms.
-- **Medical Disclaimers**: Transparent safety banners emphasizing that Vyayama provides wellness guidance, not medical diagnosis.
+### 6. Community Teams & Leaderboards
+- **Team Workouts**: Join or create community teams to collaborate on weekly step targets and group workout volume.
+- **Collaborative Leaderboards**: Track teammate contributions and cheer peer achievements.
+- **Safe Team Ownership Transfer**: If a team creator deletes their account, team ownership automatically transfers to the longest-standing active member, preserving community records.
 
-### 7. Daily Schedule & Time Blocking
-- Interactive daily agenda mapping out training sessions, meals, medicine times, and wind-down blocks.
-- Smart missed-block detection that prompts the mascot to provide gentle accountability when a routine is missed.
+### 7. Health Profile & Medical Condition Screening
+- **Pre-Existing Condition Screening**: Configurable health profiles covering joint sensitivity (knee, lower back, shoulder), cardiovascular conditions (hypertension), and respiratory conditions (asthma).
+- **Automated Contraindication Filtering**: Exercises that stress flagged joints or conditions are automatically excluded from generated plans and replaced with safe alternatives.
+- **Local Medication Alarms**: Schedule offline medication alarms using Android exact alarm channels (`SCHEDULE_EXACT_ALARM`) with battery-optimization diagnostics.
 
-### 8. Nutrition & Water Tracking
-- **Smart Water Tracker**: Interactive glass-by-glass hydration logger calculating daily water targets based on body weight.
-- **Meal Reminders**: Timely notifications for breakfast, lunch, and dinner.
-- **Personalized Food Recommendations**: Tailored "Eat More" and "Limit" lists filtered by dietary preferences (Vegetarian, Non-Veg, Vegan) and medical conditions.
+### 8. Body Mass Index (BMI) & Biometric Metrics Hub
+- **Streamlined 2x2 Profile Grid**: Profile stats are organized into a clean 2x2 grid displaying **Goal**, **Fitness Level**, **Age**, and **Gender**.
+- **Integrated BMI Card**:
+  - Displays real-time **Height** and **Weight** with seamless Metric (`cm` / `kg`) and Imperial (`ft/in` / `lbs`) conversion.
+  - Real-time WHO classification badge (Underweight, Normal, Overweight, Obesity, Pediatric) rendered with distinct semantic status colors.
+  - Continuous BMI meter bar with personalized health guidance text.
+  - Direct measurement logging and chronological BMI history tracking.
 
-### 9. Sleep, Wake & Wind-Down Routine
-- Work-schedule-aware sleep and wake recommendations aiming for the optimal 7–9 hour recovery window.
-- Pre-sleep wind-down checklist and guidance on evening nutrition (foods to avoid before bed).
+### 9. Daily Schedule & Time Blocking
+- **24-Hour Visual Agenda**: Visual timeline organizing workouts, meal windows, hydration check-ins, medication times, and evening wind-down blocks.
+- **Missed Block Detection**: Identifies overdue agenda items and nudges the user to stay on track.
 
-### 10. Daily Boost: Quotes, Memes & Challenges
-- **Daily Challenge**: Fresh daily fitness challenges awarding XP and level progression upon completion.
-- **Morning Quotes & Evening Health Memes**: Curated daily motivation cards to keep morale high.
+### 10. Nutrition, Meal Guidance & Smart Hydration
+- **Dynamic Water Intake Calculator**: Computes target hydration volume based on body weight, daily step count, and climate.
+- **Interactive Glass Logger**: Tap-to-log water tracker visualizing remaining daily hydration targets.
+- **Dietary Recommendations**: Curated "Eat More" and "Limit" food guidance filtered by dietary lifestyle (Vegetarian, Vegan, Non-Vegetarian) and medical conditions.
+
+### 11. Circadian Sleep Schedule & Wind-Down Routine
+- **Circadian Rhythm Planner**: Formulates target bedtime and wake-up times for the recommended 7–9 hour restorative sleep window.
+- **Pre-Sleep Wind-Down Checklist**: Evening checklist promoting blue-light reduction, stretching, hydration cutoff, and room temperature optimization.
+
+### 12. Daily Boost: XP Progression, Quotes & Memes
+- **XP & Level Milestones**: Earn experience points for logging workouts, drinking water, hitting step goals, and keeping streaks alive.
+- **Curated Motivational Content**: Daily rotating fitness quotes and wholesome health memes to keep morale high.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend Framework** | **Flutter 3.27+** (Dart 3.6+) |
-| **State Management** | **Riverpod** (`flutter_riverpod`, `AsyncNotifier`, `NotifierProvider`) |
-| **Navigation & Routing** | **go_router** (declarative routing with auth redirect guards) |
-| **Backend & Database** | **Supabase** (PostgreSQL, Row Level Security, Storage, Edge Functions) |
-| **Local Storage** | `shared_preferences`, bundled JSON databases |
-| **Device & Sensor APIs** | `health`, `camera`, `flutter_local_notifications`, `timezone`, `permission_handler` |
-| **On-Device Vision** | `google_mlkit_image_labeling` |
-| **UI & Styling** | Custom Material 3 Design System (`AppTheme`, `AppPalette`, Google Fonts) |
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                       Flutter UI Layer                      │
+│     Material 3  •  AppTheme  •  Google Fonts  •  Rive       │
+├─────────────────────────────────────────────────────────────┤
+│                    State & Route Management                 │
+│        flutter_riverpod (AsyncNotifier)  •  go_router       │
+├─────────────────────────────────────────────────────────────┤
+│                      Domain & Services                      │
+│   Health Connect  •  Exact Alarms  •  Google ML Kit Vision  │
+├─────────────────────────────────────────────────────────────┤
+│                    Offline Caching & Security               │
+│   SecureAuthStorage (KeyStore / AES) • SharedPreferences    │
+├─────────────────────────────────────────────────────────────┤
+│                     Cloud & Backend Layer                   │
+│   Supabase (PostgreSQL 15, RLS, Storage, Edge Functions)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | **Flutter 3.27+** (Dart 3.6+) | Cross-platform client application |
+| **State Management** | **flutter_riverpod 2.6.1** | Declarative, reactive, testable state management |
+| **Routing** | **go_router 14.6.2** | Declarative URL-based routing with auth state guards |
+| **Backend & Database** | **Supabase** (PostgreSQL 15) | Relational database, Row Level Security, Storage & Auth |
+| **Session Security** | **flutter_secure_storage 9.2.2** | Hardware-encrypted storage for auth tokens and keys |
+| **Health & Sensors** | **health 13.3.1** | Health Connect (Android 14-16) & HealthKit (iOS) |
+| **Notifications** | **flutter_local_notifications 18.0.1** | High-priority alarms, medication & hydration reminders |
+| **On-Device Vision** | **google_mlkit_image_labeling 0.14.0** | On-device ML validation for exercise snap authenticity |
+| **Target Platform** | **Android API 36 (Android 16)** | Full compliance with current Google Play store standards |
 
 ---
 
@@ -151,108 +196,190 @@ The top of the home screen features Vyayama's emotional character companion that
 
 ```text
 FitBuddy/
+├── android/                  # Native Android host configuration (Target API 36, Keystore)
 ├── assets/
-│   ├── data/                 # exercises.json, quotes.json, memes.json, diet_tips.json
-│   ├── exercises/            # 3D full-body exercise poses & demonstrations
+│   ├── audio/                # Set completion chimes and countdown audio
+│   ├── data/                 # Bundled JSON databases (exercises, diet tips, quotes, memes)
+│   ├── exercises/            # 3D full-body exercise poses & video assets
 │   ├── images/
-│   │   ├── mascot/           # 3D mascot renders (Sad, Flex, Fire, etc.)
+│   │   ├── mascot/           # 3D mascot emotional states (Sad, Flex, Fire)
 │   │   └── logo.png          # App brandmark
-│   └── audio/                # Sound effects for workout milestones
+│   └── icons/                # High-contrast application icons
 ├── lib/
 │   ├── core/
-│   │   ├── router/           # go_router configuration & route guards
-│   │   ├── services/         # HealthKit/HealthConnect & Notification service
-│   │   ├── theme/            # AppTheme, AppPalette, typography & spacing
-│   │   └── widgets/          # Reusable design system cards, headers & buttons
+│   │   ├── router/           # go_router definitions, route paths & auth redirect logic
+│   │   ├── services/         # HealthKit/HealthConnect, Exact Alarms, Workmanager
+│   │   ├── theme/            # AppTheme, AppPalette, AppSpacing, Typography
+│   │   ├── utils/            # UnitConversion (metric/imperial), TDEE formulas
+│   │   └── widgets/          # Shared atomic components (cards, badges, buttons)
 │   ├── features/
-│   │   ├── auth/             # Sign-in, sign-up, splash & password reset
-│   │   ├── challenges/       # Daily challenges, streaks & XP system
-│   │   ├── dashboard/        # Activity rings, daily stats & body metrics
-│   │   ├── friends/          # Friends list, friend requests & QR connect
-│   │   ├── health_profile/   # Health conditions & medicine reminders
+│   │   ├── auth/             # Sign-in, sign-up, password recovery & SecureAuthStorage
+│   │   ├── challenges/       # XP progression, levels, daily challenges
+│   │   ├── dashboard/        # Activity rings, daily stats & Mifflin-St Jeor TDEE
+│   │   ├── friends/          # Friend list, friend request RPCs, QR code connect
+│   │   ├── health_profile/   # Health conditions, contraindications, medicine alarms
 │   │   ├── home/             # MascotSection, Today's workout & daily blocks
-│   │   ├── mascot/           # MoodEngine, debug panel & fallback renderer
-│   │   ├── motivation/       # Daily boost quotes & wellness memes
-│   │   ├── nutrition/        # Water tracker, meal recommendations & diet tips
-│   │   ├── onboarding/       # Multi-step profile & goal setup flow
-│   │   ├── profile/          # User profile management & account lifecycle
-│   │   ├── schedule/         # Daily time blocks & timeline actions
-│   │   ├── sleep/            # Sleep schedule, smart wake & wind-down cards
-│   │   ├── snap_streaks/     # Pair streak calculation & status panel
-│   │   ├── snaps/            # In-app camera, sticker overlay & signed URLs
-│   │   └── workouts/         # Plans, builder, active session & exercise details
-│   └── main.dart             # App entry point & initialization
+│   │   ├── mascot/           # MoodEngine, 6-stage emotional progression
+│   │   ├── motivation/       # Daily boost quotes, wellness memes, audio feedback
+│   │   ├── nutrition/        # Water tracker, meal notifications, diet recommendations
+│   │   ├── onboarding/       # Multi-step onboarding questionnaire
+│   │   ├── profile/          # Profile screen, 2x2 stats grid, BMI hub & account deletion
+│   │   ├── schedule/         # 24-hour time blocks & missed block detection
+│   │   ├── settings/         # Unit system, theme preferences, alarm diagnostics
+│   │   ├── sleep/            # Circadian sleep schedule, smart wake, wind-down checklist
+│   │   ├── snap_streaks/     # Pair streak calculations & grace periods
+│   │   ├── snaps/            # In-app exercise camera, watermarks & vision verification
+│   │   ├── teams/            # Workout teams, group challenges, leaderboards
+│   │   └── workouts/         # Workout plans, custom builder & active session player
+│   └── main.dart             # Application initialization & provider root
 ├── supabase/
-│   ├── migrations/           # 100+ SQL migrations with strict RLS policies
-│   └── functions/            # Edge functions (e.g., verify-snap vision model)
-└── test/                     # 314 unit, widget & integration tests
+│   ├── migrations/           # 16 SQL migrations with strict RLS policies & RPCs
+│   └── functions/            # Edge functions (verify-snap vision model)
+└── test/                     # 471 unit, widget, and integration tests
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🗄️ Database Architecture & Migrations
+
+Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RLS) enabled across every table:
+
+| Migration File | Key Tables & Responsibilities |
+| :--- | :--- |
+| `001_profiles_and_auth_trigger.sql` | `profiles` table, automatic profile provisioning on auth signup |
+| `002_exercises_and_plans.sql` | `exercises`, `workout_plans`, `workout_plan_exercises` |
+| `003_logs_stats_schedule_streaks.sql` | `workout_logs`, `daily_stats`, `schedule_blocks`, `challenges` |
+| `004_health.sql` | `health_conditions`, `medication_reminders` |
+| `005_friendships.sql` | `friendships` table with mutual acceptance state machine |
+| `006_snaps_streaks_devices_reports.sql` | `snaps` (ephemeral), `snap_streaks`, `device_tokens`, `reports` |
+| `007_teams.sql` | `teams`, `team_memberships`, `team_challenges` |
+| `008_account_deletion.sql` | Two-tier `delete_my_account()` RPC cascading through user data |
+| `009_indexes.sql` | Performance composite indexes on user foreign keys and timestamps |
+| `010_friend_qr_and_profile_lookup.sql` | Privacy-safe QR code scan and username lookup functions |
+| `011_friend_requests_rpc.sql` | Atomic friend request dispatch, accept, and reject RPCs |
+| `012_fix_friendships_and_profiles.sql` | Granular profile read policies restricted to accepted friends |
+| `013_fix_snaps_verification_feed.sql` | Private storage policies and friend-only snap feed visibility |
+| `014_bmi_records.sql` | `bmi_records` table tracking chronological height, weight & BMI history |
+| `015_security_privacy_hardening.sql` | Revokes public RPC execution; restricts verification to `service_role` |
+| `100_snap_streak_functions.sql` | Real-time pair streak calculation and timezone-aware midnight reset |
+
+---
+
+## 🚀 Getting Started & Local Development
 
 ### Prerequisites
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (`>= 3.27.0`)
-- [Dart SDK](https://dart.dev/get-dart) (`>= 3.6.0`)
-- Git
+- **Flutter SDK**: `>= 3.27.0` ([Installation Guide](https://docs.flutter.dev/get-started/install))
+- **Dart SDK**: `>= 3.6.0`
+- **Git**
+- **Android Studio** (with Android 16 / API 36 SDK platform installed) or **Xcode** (for iOS builds)
 
-### Installation
+### Step-by-Step Setup
 
-1. **Clone the repository**:
+1. **Clone the Repository**:
    ```bash
    git clone https://github.com/shivam290204/Vyayama.git
    cd Vyayama
    ```
 
-2. **Configure environment variables**:
+2. **Configure Environment Variables**:
    Create a `.env` file in the project root:
    ```env
    SUPABASE_URL=https://your-project.supabase.co
    SUPABASE_ANON_KEY=your-anon-key-here
    ```
-   *(Note: The app runs with built-in mock fallbacks if Supabase is not configured, allowing complete UI and feature exploration.)*
+   *(Note: For development and testing without live credentials, Vyayama includes robust fallback repositories that enable complete offline UI and feature testing.)*
 
-3. **Install dependencies**:
+3. **Install Dependencies**:
    ```bash
    flutter pub get
    ```
 
-4. **Run the application**:
+4. **Run Code Generation (if modifying models)**:
+   ```bash
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+
+5. **Launch the Application**:
    - **Chrome / Web**:
      ```bash
      flutter run -d chrome
      ```
-   - **Android / iOS Device**:
+   - **Android Device / Emulator**:
      ```bash
-     flutter run
+     flutter run -d android
      ```
+   - **iOS Simulator / Device**:
+     ```bash
+     flutter run -d ios
+     ```
+
+---
+
+## 📦 Release & Production Builds
+
+Vyayama is configured for **Android 16 (API Level 36)** compliance:
+
+### 1. Release Keystore Configuration
+Ensure `android/key.properties` exists and points to your release upload keystore:
+```properties
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=../upload-keystore.jks
+```
+
+### 2. Build Standalone Release APK
+```bash
+flutter build apk --release
+```
+- Output: `build/app/outputs/flutter-apk/app-release.apk`
+- Ready for direct installation and internal testing.
+
+### 3. Build Google Play Release App Bundle (AAB)
+```bash
+flutter build appbundle --release
+```
+- Output: `build/app/outputs/bundle/release/app-release.aab`
+- Fully optimized with R8/ProGuard code shrinking and resource optimization.
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-Vyayama maintains high code quality and test coverage across state providers, repositories, and widget trees:
+Vyayama maintains a rigorous test suite spanning Unit tests, Mock Repository tests, Riverpod State Notifier tests, and Widget trees:
 
-- **Run all automated tests** (314 tests):
-  ```bash
-  flutter test
-  ```
-- **Run static analysis** (0 warnings / lint-clean):
-  ```bash
-  flutter analyze
-  ```
-- **Build production web bundle**:
-  ```bash
-  flutter build web
-  ```
+```bash
+# Run all 471 automated tests
+flutter test
+
+# Run static analysis (0 warnings / lint-clean)
+flutter analyze
+```
+
+### Test Coverage Highlights
+- **Auth & Session Persistence**: Verifies `SecureAuthStorage`, encrypted token persistence, and recovery deep link parsing.
+- **Mascot MoodEngine**: Verifies correct 6-tier mascot emotional state transitions across all milestone combinations.
+- **BMI & Unit Calculations**: Validates Mifflin-St Jeor formulas, Metric/Imperial conversions, and WHO BMI classifications.
+- **Pair Snap Streaks**: Verifies dual-submission logic, grace periods, and streak freeze rules.
+- **Condition Filtering**: Verifies that exercises contraindicated for specific injuries are excluded from custom and curated plans.
 
 ---
 
-## 🔒 Privacy & Medical Disclaimer
+## 🔒 Security, Privacy & Google Play Compliance
 
-- **Privacy First**: Workout photos shared through Snaps are strictly private to accepted friends, signed with secure time-limited URLs, and expire automatically after 24 hours. No public photo feeds or gallery uploads are permitted.
-- **Medical Disclaimer**: Vyayama provides general lifestyle, fitness, and wellness reminders. It is **not** a medical device and does not offer medical advice, diagnosis, or prescription dosages. Users with pre-existing cardiovascular, musculoskeletal, or metabolic conditions should consult a physician before starting any exercise regimen.
+- **Hardware-Backed Session Security**: Supabase session tokens and refresh tokens are encrypted at rest via `SecureAuthStorage` using Android KeyStore (AES-256) and iOS Keychain. Plaintext caching is strictly eliminated.
+- **Row Level Security (RLS)**: Every single table in the Supabase PostgreSQL database enforces strict RLS policies. Users can never query, update, or delete records belonging to other users.
+- **Ephemeral Exercise Snaps**: Workout photos are stored in private storage buckets requiring short-lived signed URLs and automatically expire within 24 hours.
+- **Two-Tier Account Deletion**: Fully compliant with Google Play Data Safety policies. Tapping **Delete Account** in Settings:
+  1. Purges all uploaded photos from Supabase Storage via the client SDK.
+  2. Executes an atomic database transaction (`delete_my_account()`) that safely reassigns team ownership, cascades record deletions across all personal tables, and removes the auth account.
+- **No Third-Party Trackers**: Vyayama contains **zero advertising SDKs**, zero third-party telemetry brokers, and does not sell or monetize personal or health data.
+
+---
+
+## 📄 Medical Disclaimer
+
+> **Important**: Vyayama is designed exclusively as a lifestyle, habit-building, and wellness companion. It is **not** a licensed medical device and does not provide medical diagnosis, treatment, or clinical prescriptions. Users with cardiovascular conditions, chronic joint injuries, pregnancy, or metabolic disorders must consult a qualified physician or healthcare provider before undertaking any new physical training program.
 
 ---
 
