@@ -13,34 +13,22 @@ def contrast(hex1, hex2):
 
 def run_checks():
     checks = [
-        # Dark Mode Text & Backgrounds
-        ("Dark mode: onPrimary on primary (#15171C on #FF6B2C)", "#15171C", "#FF6B2C", 4.5),
-        ("Dark mode: primary text on background (#F4F5F7 on #0F1115)", "#F4F5F7", "#0F1115", 4.5),
-        ("Dark mode: primary text on surface (#F4F5F7 on #1A1D24)", "#F4F5F7", "#1A1D24", 4.5),
-        ("Dark mode: primary text on raised (#F4F5F7 on #232730)", "#F4F5F7", "#232730", 4.5),
-        ("Dark mode: secondary text on background (#A9AFBC on #0F1115)", "#A9AFBC", "#0F1115", 4.5),
-        ("Dark mode: secondary text on surface (#A9AFBC on #1A1D24)", "#A9AFBC", "#1A1D24", 4.5),
-        ("Dark mode: secondary text on raised (#A9AFBC on #232730)", "#A9AFBC", "#232730", 4.5),
-        ("Dark mode: accent on background (#3DA9FC on #0F1115)", "#3DA9FC", "#0F1115", 4.5),
-        ("Dark mode: accent on surface (#3DA9FC on #1A1D24)", "#3DA9FC", "#1A1D24", 4.5),
-        ("Dark mode: accent on raised (#3DA9FC on #232730)", "#3DA9FC", "#232730", 4.5),
-        ("Dark mode: primary UI graphical element on surface (#FF6B2C on #1A1D24)", "#FF6B2C", "#1A1D24", 3.0),
-        
-        # Light Mode Text & Backgrounds
-        ("Light mode: onPrimary on primary (#15171C on #FF6B2C)", "#15171C", "#FF6B2C", 4.5),
-        ("Light mode: primary text on background (#15171C on #FAF8F5)", "#15171C", "#FAF8F5", 4.5),
-        ("Light mode: primary text on surface (#15171C on #FFFFFF)", "#15171C", "#FFFFFF", 4.5),
-        ("Light mode: primary text on raised (#15171C on #F0EEEA)", "#15171C", "#F0EEEA", 4.5),
-        ("Light mode: secondary text on background (#5C6370 on #FAF8F5)", "#5C6370", "#FAF8F5", 4.5),
-        ("Light mode: secondary text on surface (#5C6370 on #FFFFFF)", "#5C6370", "#FFFFFF", 4.5),
-        ("Light mode: secondary text on raised (#5C6370 on #F0EEEA)", "#5C6370", "#F0EEEA", 4.5),
-        ("Light mode: primary accessible text on background (#B83E08 on #FAF8F5)", "#B83E08", "#FAF8F5", 4.5),
-        ("Light mode: accent accessible text on background (#0D72B8 on #FAF8F5)", "#0D72B8", "#FAF8F5", 4.5),
+        # Nature & Wellness Green Theme
+        ("White text on Forest Green button (#FFFFFF on #14532D)", "#FFFFFF", "#14532D", 4.5),
+        ("Dark mode: Primary text on dark background (#F7F8F2 on #151D17)", "#F7F8F2", "#151D17", 4.5),
+        ("Dark mode: Primary text on dark surface (#F7F8F2 on #202820)", "#F7F8F2", "#202820", 4.5),
+        ("Dark mode: Secondary text on dark background (#A6B7A6 on #151D17)", "#A6B7A6", "#151D17", 4.5),
+        ("Dark mode: Lime Green accent on dark background (#8BCF45 on #151D17)", "#8BCF45", "#151D17", 4.5),
+        ("Dark mode: Lime Green accent on dark surface (#8BCF45 on #202820)", "#8BCF45", "#202820", 4.5),
+        ("Light mode: Charcoal Green text on Off-White background (#202820 on #F7F8F2)", "#202820", "#F7F8F2", 4.5),
+        ("Light mode: Charcoal Green text on White card surface (#202820 on #FFFFFF)", "#202820", "#FFFFFF", 4.5),
+        ("Light mode: Forest Green primary on Off-White background (#14532D on #F7F8F2)", "#14532D", "#F7F8F2", 4.5),
+        ("Light mode: Deep Green secondary on Off-White background (#2E7D32 on #F7F8F2)", "#2E7D32", "#F7F8F2", 4.5),
     ]
 
     all_pass = True
     print("=" * 80)
-    print("WCAG AA Contrast Verification")
+    print("Vyayama Nature & Wellness Green Theme - Contrast Verification")
     print("=" * 80)
     for name, c1, c2, req in checks:
         ratio = contrast(c1, c2)

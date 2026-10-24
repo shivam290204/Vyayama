@@ -614,7 +614,7 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: AppPalette.primaryOrange,
+      color: AppPalette.deepGreen,
       actions: actions,
     );
 
@@ -918,7 +918,7 @@ class NotificationService {
           ? AudioAttributesUsage.alarm
           : AudioAttributesUsage.notification,
       ticker: title,
-      color: AppPalette.primaryOrange,
+      color: AppPalette.deepGreen,
       actions: actions,
     );
 
@@ -1000,7 +1000,7 @@ class NotificationService {
       vibrationPattern: _alarmVibrationPattern,
       audioAttributesUsage: AudioAttributesUsage.alarm,
       ticker: title,
-      color: AppPalette.primaryOrange,
+      color: AppPalette.deepGreen,
       actions: actions,
     );
 
