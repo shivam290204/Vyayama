@@ -1,6 +1,20 @@
-/// Base URL of user deep links and QR codes: https://vyayama.app/u/{id_or_username}
-const String kProfileBaseUrl = 'https://vyayama.app/u/';
-const String kInviteBaseUrl = 'https://fitbuddy.app/invite/';
+/// Configuration placeholder for public web invite and profile deep links.
+///
+/// NOTE: Before shipping in production, you MUST own and configure your custom domain
+/// (e.g. 'https://your-domain.com') and host the associated Android Digital Asset Links
+/// (assetlinks.json) and Apple App Site Association (apple-app-site-association).
+const String kDefaultInviteBaseUrl = 'https://invite.vyayama.example/invite/';
+const String kDefaultProfileBaseUrl = 'https://invite.vyayama.example/u/';
+
+const String kProfileBaseUrl = String.fromEnvironment(
+  'PROFILE_BASE_URL',
+  defaultValue: kDefaultProfileBaseUrl,
+);
+
+const String kInviteBaseUrl = String.fromEnvironment(
+  'INVITE_BASE_URL',
+  defaultValue: kDefaultInviteBaseUrl,
+);
 
 /// Builds the shareable deep link for [identifier] (either username or user UUID).
 String buildProfileLink(String identifier) =>
@@ -14,9 +28,9 @@ String buildInviteLink(String username) =>
 /// deep link, or pasted text.
 ///
 /// Accepts:
-/// - https://vyayama.app/u/{identifier}
+/// - Any domain with /u/{identifier}
 /// - vyayama://u/{identifier}
-/// - https://fitbuddy.app/invite/{username}
+/// - Any domain with /invite/{username}
 /// - /u/{identifier}
 /// - @username
 /// - bare identifier / UUID
@@ -24,12 +38,12 @@ String? parseProfileIdentifier(String raw) {
   var value = raw.trim();
   if (value.isEmpty) return null;
 
-  // Check for https://vyayama.app/u/ or /u/
+  // Check for /u/
   final uIdx = value.toLowerCase().indexOf('/u/');
   if (uIdx >= 0) {
     value = value.substring(uIdx + 3);
   } else {
-    // Check for legacy /invite/
+    // Check for /invite/
     final invIdx = value.toLowerCase().indexOf('/invite/');
     if (invIdx >= 0) {
       value = value.substring(invIdx + 8);

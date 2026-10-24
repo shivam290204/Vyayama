@@ -62,11 +62,11 @@ void main() {
 
     test('Invite link generator and parser', () {
       final link = buildInviteLink('priya.yoga');
-      expect(link, 'https://fitbuddy.app/invite/priya.yoga');
+      expect(link, '$kInviteBaseUrl${Uri.encodeComponent('priya.yoga')}');
 
-      expect(parseInviteUsername('https://fitbuddy.app/invite/priya.yoga'), 'priya.yoga');
-      expect(parseInviteUsername('https://fitbuddy.app/invite/priya.yoga?ref=qr'), 'priya.yoga');
-      expect(parseInviteUsername('https://fitbuddy.app/invite/priya.yoga#section'), 'priya.yoga');
+      expect(parseInviteUsername('$kInviteBaseUrl${Uri.encodeComponent('priya.yoga')}'), 'priya.yoga');
+      expect(parseInviteUsername('$kInviteBaseUrl${Uri.encodeComponent('priya.yoga')}?ref=qr'), 'priya.yoga');
+      expect(parseInviteUsername('$kInviteBaseUrl${Uri.encodeComponent('priya.yoga')}#section'), 'priya.yoga');
       expect(parseInviteUsername('@priya.yoga'), 'priya.yoga');
       expect(parseInviteUsername('priya.yoga'), 'priya.yoga');
       expect(parseInviteUsername('   @priya.yoga   '), 'priya.yoga');

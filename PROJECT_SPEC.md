@@ -1,6 +1,16 @@
-# PROJECT_SPEC.md — Fitness Companion App (working name: "Vyayama")
+# PROJECT_SPEC.md — Vyayama (Fitness & Wellness Companion)
 
 > **For the AI agent:** This is the single source of truth for the project. Read it fully before every task. Build **one milestone at a time** (see Section 14). Do not build features from later milestones unless asked. After each milestone, update Section 15 (Progress Log).
+
+> [!IMPORTANT]
+> **Permanent Application ID & Package Architecture:**
+> - **Product & User-Facing Brand Name**: **Vyayama** (used across Play Store, App Store, launcher icons, web, UI strings, and documentation).
+> - **Android Application ID & Namespace**: `com.vyayama.fitbuddy`
+> - **iOS Bundle Identifier**: `com.vyayama.fitbuddy`
+> - **Deep Link Scheme**: `io.vyayama.fitbuddy`
+> - **Internal Dart Package Name**: `fitbuddy` (compiler tooling only, not user-facing).
+> 
+> The application ID `com.vyayama.fitbuddy` is **permanently locked** for Google Play and App Store releases. After the first Google Play Console or Apple App Store upload, this ID must **never be changed**, as store listings, Google OAuth client credentials, and Supabase redirect URLs are strictly bound to it.
 
 ---
 
@@ -99,7 +109,7 @@ The threshold for evaluating a switch from bundled SVGs/Lottie to remote assets 
 ## 4. Project Structure
 
 ```
-fitbuddy/
+vyayama/
 ├── PROJECT_SPEC.md
 ├── pubspec.yaml
 ├── .env.example

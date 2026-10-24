@@ -22,13 +22,20 @@ class _Account {
 }
 
 /// In-memory [AuthRepository].
-/// Demo login: `demo@fitbuddy.app` / `fitbuddy123`.
+/// Demo login: `demo@vyayama.app` / `vyayama123`.
 class MockAuthRepository implements AuthRepository {
   MockAuthRepository() {
+    _accounts['demo@vyayama.app'] = _Account(
+      id: kDemoUserId,
+      name: 'Vyayama Demo',
+      email: 'demo@vyayama.app',
+      password: 'vyayama123',
+    );
+    // Legacy alias support
     _accounts['demo@fitbuddy.app'] = _Account(
       id: kDemoUserId,
-      name: 'Demo Buddy',
-      email: 'demo@fitbuddy.app',
+      name: 'Vyayama Demo',
+      email: 'demo@vyayama.app',
       password: 'fitbuddy123',
     );
   }

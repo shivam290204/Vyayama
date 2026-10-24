@@ -59,27 +59,27 @@ void main() {
   });
 
   group('Deep Links and QR Code Identifiers', () {
-    test('buildProfileLink generates canonical https://vyayama.app/u/ URLs', () {
-      expect(buildProfileLink('shivam_29'), 'https://vyayama.app/u/shivam_29');
-      expect(buildProfileLink('@shivam_29'), 'https://vyayama.app/u/shivam_29');
+    test('buildProfileLink generates canonical profile URLs', () {
+      expect(buildProfileLink('shivam_29'), '${kProfileBaseUrl}shivam_29');
+      expect(buildProfileLink('@shivam_29'), '${kProfileBaseUrl}shivam_29');
       expect(
         buildProfileLink('550e8400-e29b-41d4-a716-446655440000'),
-        'https://vyayama.app/u/550e8400-e29b-41d4-a716-446655440000',
+        '${kProfileBaseUrl}550e8400-e29b-41d4-a716-446655440000',
       );
     });
 
     test('parseProfileIdentifier handles multiple URL and handle formats', () {
       expect(
-        parseProfileIdentifier('https://vyayama.app/u/shivam_29'),
+        parseProfileIdentifier('${kProfileBaseUrl}shivam_29'),
         'shivam_29',
       );
       expect(
-        parseProfileIdentifier('https://vyayama.app/u/550e8400-e29b-41d4-a716-446655440000?ref=qr'),
+        parseProfileIdentifier('${kProfileBaseUrl}550e8400-e29b-41d4-a716-446655440000?ref=qr'),
         '550e8400-e29b-41d4-a716-446655440000',
       );
       expect(parseProfileIdentifier('vyayama://u/alex'), 'alex');
       expect(parseProfileIdentifier('/u/alex'), 'alex');
-      expect(parseProfileIdentifier('https://fitbuddy.app/invite/priya.yoga'), 'priya.yoga');
+      expect(parseProfileIdentifier('${kInviteBaseUrl}priya.yoga'), 'priya.yoga');
       expect(parseProfileIdentifier('@alex_fit'), 'alex_fit');
       expect(parseProfileIdentifier('alex_fit'), 'alex_fit');
       expect(parseProfileIdentifier('   '), isNull);

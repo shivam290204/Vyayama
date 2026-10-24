@@ -196,7 +196,7 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 ## 📂 Project Directory Structure
 
 ```text
-FitBuddy/
+vyayama/
 ├── android/                  # Native Android host configuration (Target API 36, Keystore)
 ├── assets/
 │   ├── audio/                # Set completion chimes and countdown audio

@@ -268,7 +268,7 @@ class _NotificationDiagnosticsScreenState
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
-                          'FitBuddy PiP Active',
+                          'Vyayama PiP Active',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
