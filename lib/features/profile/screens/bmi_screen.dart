@@ -109,7 +109,6 @@ class BmiScreen extends ConsumerWidget {
     final heightStr = profile.heightCm != null
         ? UnitConversion.formatHeight(profile.heightCm!, unit)
         : 'Not set';
-    final ageStr = profile.age != null ? '${profile.age} yrs' : 'Not set';
 
     return Card(
       elevation: 0,
@@ -140,18 +139,26 @@ class BmiScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton.icon(
+                FilledButton.icon(
                   onPressed: () => BmiCard.showEditDialog(context, ref, profile, unit),
-                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  icon: const Icon(Icons.edit_rounded, size: 15),
                   label: const Text('Edit height & weight'),
-                  style: TextButton.styleFrom(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    textStyle: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Divider(
               height: 1,
               color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
@@ -163,13 +170,24 @@ class BmiScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildMetricItem(theme, 'Weight', weightStr, Icons.scale_rounded),
+                    Expanded(
+                      child: _buildMetricItem(
+                        theme,
+                        'Weight',
+                        weightStr,
+                        Icons.scale_rounded,
+                      ),
+                    ),
                     _buildMetricDivider(theme),
-                    _buildMetricItem(theme, 'Height', heightStr, Icons.height_rounded),
-                    _buildMetricDivider(theme),
-                    _buildMetricItem(theme, 'Age', ageStr, Icons.cake_outlined),
+                    Expanded(
+                      child: _buildMetricItem(
+                        theme,
+                        'Height',
+                        heightStr,
+                        Icons.height_rounded,
+                      ),
+                    ),
                   ],
                 ),
               ),
