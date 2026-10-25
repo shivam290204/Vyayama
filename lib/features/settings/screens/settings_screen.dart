@@ -2,6 +2,7 @@ import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/settings/widgets/account_section.dart';
+import 'package:fitbuddy/features/settings/widgets/connected_health_section.dart';
 import 'package:fitbuddy/features/settings/widgets/notifications_section.dart';
 import 'package:fitbuddy/features/settings/widgets/privacy_section.dart';
 import 'package:fitbuddy/features/settings/widgets/sound_section.dart';
@@ -74,6 +75,8 @@ class SettingsScreen extends StatelessWidget {
                 UnitsSection(),
                 gap,
                 NotificationsSection(),
+                gap,
+                const ConnectedHealthSection(),
                 gap,
                 PrivacySection(),
                 gap,

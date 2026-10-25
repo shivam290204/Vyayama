@@ -437,8 +437,9 @@ class StepTrackingService with WidgetsBindingObserver {
     // 2. Load latest verified steps from local offline cache
     await _loadTodayCache(nowOverride: now);
 
-    // 3. Fallback only: if device completely lacks hardware sensor, check Health Connect
-    if (!isSensorActive.value && HealthService.instance.isSupported) {
+    // 3. Fallback or user-enabled external health sync
+    final isHealthSyncOn = await HealthService.instance.isSyncEnabled();
+    if ((!isSensorActive.value || isHealthSyncOn) && HealthService.instance.isSupported) {
       await syncWithHealthService(currentTime: now);
     }
 
