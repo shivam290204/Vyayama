@@ -85,7 +85,5 @@
 	<string>Vyayama tracks your daily steps and physical activity to calculate streaks and goals.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Vyayama reads your step count and active calories to keep your fitness dashboard updated.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Vyayama writes your completed workouts and active calories to Apple Health.</string>
 </dict>
 </plist>

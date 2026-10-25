@@ -10,6 +10,7 @@ import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/app_sound_service.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/push_notification_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
@@ -134,6 +135,7 @@ class _AppShellState extends ConsumerState<AppShell>
         _knownIncomingRequests = -1;
         _knownUnviewedSnaps = -1;
         BackgroundSyncService.instance.syncCurrentUserId(next);
+        PushNotificationService.instance.syncCurrentUserId(next);
       }
     });
 

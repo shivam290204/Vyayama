@@ -19,6 +19,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   ChartMetric _metric = ChartMetric.steps;
+  bool _isSyncing = false;
 
   @override
   void initState() {
@@ -27,16 +28,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
-    await StepTrackingService.instance.refresh();
-    ref.invalidate(recentStatsProvider);
-    await ref.read(recentStatsProvider.future);
+    if (_isSyncing) return;
+    setState(() => _isSyncing = true);
+    try {
+      await StepTrackingService.instance.refresh();
+      ref.invalidate(recentStatsProvider);
+      await ref.read(recentStatsProvider.future);
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
+    }
   }
 
   Future<void> _promptActivityRecognition(BuildContext context) async {
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.directions_walk, size: 36, color: Theme.of(ctx).colorScheme.primary),
+        icon: Icon(Icons.directions_walk,
+            size: 36, color: Theme.of(ctx).colorScheme.primary),
         title: const Text('Physical Activity Tracking'),
         content: const Text(
           'Vyayama uses on-device hardware sensors (Step Counter) to measure your daily steps, active time, and movement consistency.\n\n'
@@ -131,7 +139,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.refresh, color: Colors.orange),
-                label: const Text('Reset Today to 0 Steps', style: TextStyle(color: Colors.orange)),
+                label: const Text('Reset Today to 0 Steps',
+                    style: TextStyle(color: Colors.orange)),
                 onPressed: () async {
                   Navigator.pop(ctx);
                   await StepTrackingService.instance.resetTodaySteps();
@@ -150,7 +159,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Today\'s steps reset to 0! Walk around to test live counting.'),
+                        content: Text(
+                            'Today\'s steps reset to 0! Walk around to test live counting.'),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -192,9 +202,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: const Text('Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Sync Steps',
-            onPressed: _refresh,
+            icon: _isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync),
+            tooltip: 'Sync steps and health data',
+            onPressed: _isSyncing ? null : _refresh,
           ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
@@ -286,22 +302,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           valueListenable: StepTrackingService.instance.pedestrianStatus,
           builder: (context, movement, _) {
             final isMoving = movement == 'Walking';
-            final isSensorReady = StepTrackingService.instance.isSensorActive.value;
+            final isSensorReady =
+                StepTrackingService.instance.isSensorActive.value;
             return Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.circle,
                   size: 8,
-                  color: isMoving ? Colors.greenAccent : (isSensorReady ? Colors.lightGreen : scheme.outline),
+                  color: isMoving
+                      ? Colors.greenAccent
+                      : (isSensorReady ? Colors.lightGreen : scheme.outline),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   isMoving
                       ? '🚶 Movement detected • Walking'
-                      : (isSensorReady ? 'Live sensor active • Walk or run to count' : 'Sensor idle • Tap Sync to refresh'),
+                      : (isSensorReady
+                          ? 'Live sensor active • Walk or run to count'
+                          : 'Sensor idle • Tap Sync to refresh'),
                   style: text.bodySmall?.copyWith(
-                    color: isMoving ? Colors.greenAccent : scheme.onSurfaceVariant,
+                    color:
+                        isMoving ? Colors.greenAccent : scheme.onSurfaceVariant,
                     fontWeight: isMoving ? FontWeight.w600 : FontWeight.normal,
                     fontSize: 12,
                   ),

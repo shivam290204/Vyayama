@@ -1382,6 +1382,62 @@ class NotificationService {
     }
   }
 
+  /// Displays an immediate high-priority notification with custom audio for streak events.
+  Future<void> showStreakNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    if (!isSupportedPlatform) return;
+    await initialize();
+    if (!_isInitialized) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      socialNotificationChannelId,
+      'Social & Snaps',
+      channelDescription: 'Notifications for incoming friend requests and snaps',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('notification'),
+      enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.notification,
+      category: AndroidNotificationCategory.social,
+      channelShowBadge: true,
+      visibility: NotificationVisibility.public,
+      ticker: 'Streak notification',
+      color: AppPalette.deepGreen,
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'notification.mp3',
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    final id = 820000 + (title.hashCode.abs() % 10000);
+    final payload = jsonEncode(data ?? {'type': 'streak_at_risk'});
+
+    try {
+      await _plugin.show(
+        id,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing streak notification: $e');
+    }
+  }
+
   static const int stepNotificationId = 999999;
 
   /// Updates or displays live step progress notification.

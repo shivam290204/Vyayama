@@ -91,6 +91,16 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
             ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
           });
           return;
+        } else if (type == 'streak_at_risk' || type == 'your_turn') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(goRouterProvider).push(AppRoutes.snapsCamera);
+          });
+          return;
+        } else if (type == 'streak_completed' || type == 'streak_milestone') {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(goRouterProvider).push(AppRoutes.snapsInbox);
+          });
+          return;
         } else if (type == 'step_tracker') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(goRouterProvider).push(AppRoutes.dashboard);

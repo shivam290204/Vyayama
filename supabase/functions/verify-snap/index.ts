@@ -133,7 +133,7 @@ async function sendPush(
   body: string,
   data: Record<string, string> = {},
 ) {
-  const raw = Deno.env.get("FCM_SERVICE_ACCOUNT");
+  const raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT") ?? Deno.env.get("FCM_SERVICE_ACCOUNT");
   if (!raw || userIds.length === 0) return;
   try {
     const sa = JSON.parse(raw);

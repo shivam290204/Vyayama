@@ -9,6 +9,7 @@ import 'package:fitbuddy/app.dart';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
+import 'package:fitbuddy/core/services/push_notification_service.dart';
 import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/core/widgets/app_not_configured_screen.dart';
@@ -74,6 +75,13 @@ Future<void> main() async {
     debugPrint('BackgroundSyncService.initialize error: $e');
   }
 
+  // Initialize Firebase Cloud Messaging for instant push notifications
+  try {
+    await PushNotificationService.instance.initialize();
+  } catch (e) {
+    debugPrint('PushNotificationService.initialize error: $e');
+  }
+
   final prefs = await SharedPreferences.getInstance();
 
   if (Env.isSupabaseConfigured) {
@@ -81,6 +89,7 @@ Future<void> main() async {
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       if (currentUid != null && currentUid.isNotEmpty) {
         await BackgroundSyncService.instance.syncCurrentUserId(currentUid);
+        await PushNotificationService.instance.syncCurrentUserId(currentUid);
       }
     } catch (e) {
       debugPrint('BackgroundSyncService.syncCurrentUserId error: $e');

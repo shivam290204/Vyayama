@@ -57,6 +57,8 @@ key.properties
 *.jks
 *.bak
 .keystore_backup/
+*service-account*.json
+*firebase-adminsdk*.json
 
 # Compiled binaries & artifacts
 *.apk

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
+import 'package:fitbuddy/core/services/push_notification_service.dart';
 import 'package:fitbuddy/core/services/secure_auth_storage.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
@@ -190,6 +191,9 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     _clearCachedUser();
+    try {
+      await PushNotificationService.instance.unregisterDeviceToken();
+    } catch (_) {}
     try {
       await _client.signOut();
     } catch (e) {

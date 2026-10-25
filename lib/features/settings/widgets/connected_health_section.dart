@@ -49,7 +49,8 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Connected to ${service.serviceName}! Steps and calories are now synchronized.'),
+            content: Text(
+                'Connected to ${service.serviceName}. Steps and calories can now sync when available.'),
           ),
         );
       } else {
@@ -59,7 +60,8 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not connect to ${service.serviceName}. Please grant permissions in system settings.'),
+            content: Text(
+                'Could not connect to ${service.serviceName}. Please grant permissions in system settings.'),
           ),
         );
       }
@@ -81,10 +83,16 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
   Future<void> _manualSync() async {
     setState(() => _isSyncing = true);
     try {
-      await StepTrackingService.instance.syncWithHealthService();
+      final synced = await StepTrackingService.instance.syncWithHealthService();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Health data synchronized successfully.')),
+        SnackBar(
+          content: Text(
+            synced
+                ? 'Steps and active calories synchronized successfully.'
+                : 'No health data found. Check app permissions in ${HealthService.instance.serviceName}.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -104,7 +112,8 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
 
     return SettingsSection(
       title: 'Connected Health Services',
-      subtitle: 'Sync smartwatch steps and activity data with your device.',
+      subtitle:
+          'Connect Health Connect or Apple Health to sync steps and active calories.',
       child: isSupported
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -141,13 +150,15 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
                           const SizedBox(height: 2),
                           Text(
                             _isConnected
-                                ? 'Active • Synced with Wear OS, Apple Watch & health apps'
-                                : 'Sync steps from smartwatches & health apps',
+                                ? 'Connected • Steps and active calories can sync'
+                                : 'Sync steps and calories from your health apps',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: _isConnected
                                   ? context.colors.success
                                   : theme.colorScheme.onSurfaceVariant,
-                              fontWeight: _isConnected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: _isConnected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
                         ],
@@ -189,11 +200,12 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
             )
           : Row(
               children: [
-                Icon(Icons.info_outline, color: theme.colorScheme.onSurfaceVariant),
+                Icon(Icons.info_outline,
+                    color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
-                    'Health Connect / Apple Health sync is supported on Android and iOS devices.',
+                    'Health Connect on Android and Apple Health on iOS are supported.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

@@ -92,7 +92,7 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 
 ### 2. Tracking Dashboard & Activity Rings
 - **Concentric Activity Rings**: Smooth animated rings visualizing **Steps**, **Active Calories (kcal)**, and **Active Time (minutes)**.
-- **Health Connect & Apple HealthKit**: Reads native steps and calories from on-device hardware sensors, Google Health Connect (Android 14–16), and Apple HealthKit (iOS).
+- **Health Connect & Apple HealthKit**: Connect from Settings or sync from the Dashboard. Step and active-calorie totals use the higher of the device and health-app values, rather than adding overlapping sources together.
 - **Mifflin-St Jeor TDEE Engine**: Calculates personalized calorie and hydration baselines according to age, gender, height, weight, and fitness goal.
 
 ### 3. Goal-Based & Custom Workout Engine

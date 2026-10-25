@@ -48,7 +48,8 @@ class StepTrackingService with WidgetsBindingObserver {
 
   final ValueNotifier<bool> hasPermission = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isSensorActive = ValueNotifier<bool>(false);
-  final ValueNotifier<String> pedestrianStatus = ValueNotifier<String>('Stationary');
+  final ValueNotifier<String> pedestrianStatus =
+      ValueNotifier<String>('Stationary');
 
   bool _isListening = false;
   bool _hasObserver = false;
@@ -56,7 +57,10 @@ class StepTrackingService with WidgetsBindingObserver {
   bool _isNativeStreamActive = false;
 
   int _todaySteps = 0;
-  int get todaySteps => _todaySteps;
+  int _healthStepsToday = 0;
+  int _healthCaloriesToday = 0;
+  String? _statsDate;
+  int get todaySteps => math.max(_todaySteps, _healthStepsToday);
 
   int? _lastRawSensorSteps;
   int? get lastRawSensorSteps => _lastRawSensorSteps;
@@ -64,8 +68,9 @@ class StepTrackingService with WidgetsBindingObserver {
   DateTime? _lastProcessedEventTime;
   DateTime? get lastProcessedEventTime => _lastProcessedEventTime;
 
-  int get todayCalories => (_todaySteps * 0.04).round();
-  int get todayActiveMinutes => (_todaySteps / 100).ceil();
+  int get todayCalories =>
+      math.max((_todaySteps * 0.04).round(), _healthCaloriesToday);
+  int get todayActiveMinutes => (todaySteps / 100).ceil();
 
   /// Serialized asynchronous FIFO queue ensuring each hardware event finishes completely
   /// before the next event updates baseline, totals, or persistent storage.
@@ -90,7 +95,8 @@ class StepTrackingService with WidgetsBindingObserver {
       await _initHardwareSensorStreams();
     } else {
       hasPermission.value = false;
-      debugPrint('StepTrackingService: Physical activity permission not granted yet. Operating in fallback mode.');
+      debugPrint(
+          'StepTrackingService: Physical activity permission not granted yet. Operating in fallback mode.');
     }
 
     // 4. Reconcile any native readings recorded while Flutter was starting
@@ -152,7 +158,8 @@ class StepTrackingService with WidgetsBindingObserver {
 
     final isGranted = await checkPermission();
     if (!isGranted) {
-      debugPrint('StepTrackingService: Cannot listen to hardware sensors without permission');
+      debugPrint(
+          'StepTrackingService: Cannot listen to hardware sensors without permission');
       isSensorActive.value = false;
       _isListening = false;
       return;
@@ -161,14 +168,14 @@ class StepTrackingService with WidgetsBindingObserver {
     // 1. Try Native Android EventChannel first (direct SensorManager listener with batching)
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
-        _nativeEventSubscription = _nativeEventChannel
-            .receiveBroadcastStream()
-            .listen(
+        _nativeEventSubscription =
+            _nativeEventChannel.receiveBroadcastStream().listen(
           (dynamic event) {
             _onNativeSensorEvent(event);
           },
           onError: (error) {
-            debugPrint('StepTrackingService: Native event channel error: $error');
+            debugPrint(
+                'StepTrackingService: Native event channel error: $error');
             _isNativeStreamActive = false;
             _fallbackToPedometerPlugin();
           },
@@ -178,7 +185,8 @@ class StepTrackingService with WidgetsBindingObserver {
         _isNativeStreamActive = true;
         _isListening = true;
         isSensorActive.value = true;
-        debugPrint('StepTrackingService: Native Android SensorManager stream active');
+        debugPrint(
+            'StepTrackingService: Native Android SensorManager stream active');
       } catch (e) {
         debugPrint('StepTrackingService: Native stream attach exception: $e');
         _fallbackToPedometerPlugin();
@@ -221,7 +229,8 @@ class StepTrackingService with WidgetsBindingObserver {
           }
         },
         onError: (error) {
-          debugPrint('StepTrackingService: Pedometer plugin stream error: $error');
+          debugPrint(
+              'StepTrackingService: Pedometer plugin stream error: $error');
           _onPedometerError(error);
         },
         cancelOnError: false,
@@ -230,7 +239,8 @@ class StepTrackingService with WidgetsBindingObserver {
       isSensorActive.value = true;
       debugPrint('StepTrackingService: Pedometer plugin stream active');
     } catch (e) {
-      debugPrint('StepTrackingService: Failed to fallback to pedometer plugin: $e');
+      debugPrint(
+          'StepTrackingService: Failed to fallback to pedometer plugin: $e');
       _isListening = false;
       isSensorActive.value = false;
     }
@@ -281,7 +291,7 @@ class StepTrackingService with WidgetsBindingObserver {
         completer.complete(result);
       } catch (e, stack) {
         debugPrint('StepTrackingService: Queue processing error: $e\n$stack');
-        completer.complete(_todaySteps);
+        completer.complete(todaySteps);
       }
     });
     return completer.future;
@@ -295,7 +305,7 @@ class StepTrackingService with WidgetsBindingObserver {
         final result = await processDetectorPulse(eventTime: eventTime);
         completer.complete(result);
       } catch (e) {
-        completer.complete(_todaySteps);
+        completer.complete(todaySteps);
       }
     });
     return completer.future;
@@ -342,7 +352,8 @@ class StepTrackingService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint('StepTrackingService: App resumed, reconnecting sensors and refreshing stats');
+      debugPrint(
+          'StepTrackingService: App resumed, reconnecting sensors and refreshing stats');
       checkPermission().then((granted) {
         if (granted) {
           _reconnectSensorStream();
@@ -378,7 +389,8 @@ class StepTrackingService with WidgetsBindingObserver {
   Future<Map<String, dynamic>?> getLatestHardwareReading() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
     try {
-      final res = await _nativeChannel.invokeMapMethod<String, dynamic>('getLatestHardwareReading');
+      final res = await _nativeChannel
+          .invokeMapMethod<String, dynamic>('getLatestHardwareReading');
       return res;
     } catch (_) {
       return null;
@@ -392,7 +404,11 @@ class StepTrackingService with WidgetsBindingObserver {
     final tsMs = (reading['timestampMs'] as num?)?.toInt();
     final sensorType = reading['sensorType'] as String?;
 
-    if (raw != null && raw > 0 && tsMs != null && tsMs > 0 && sensorType == 'counter') {
+    if (raw != null &&
+        raw > 0 &&
+        tsMs != null &&
+        tsMs > 0 &&
+        sensorType == 'counter') {
       final eventTime = DateTime.fromMillisecondsSinceEpoch(tsMs);
       await _queueStepCount(raw, eventTime: eventTime);
     }
@@ -404,22 +420,25 @@ class StepTrackingService with WidgetsBindingObserver {
       return {
         'platform': defaultTargetPlatform.name,
         'isWeb': kIsWeb,
-        'todaySteps': _todaySteps,
+        'todaySteps': todaySteps,
         'isSensorActive': isSensorActive.value,
       };
     }
     try {
-      final res = await _nativeChannel.invokeMapMethod<String, dynamic>('getSensorDiagnostics');
-      final diag = res != null ? Map<String, dynamic>.from(res) : <String, dynamic>{};
-      diag['todaySteps'] = _todaySteps;
+      final res = await _nativeChannel
+          .invokeMapMethod<String, dynamic>('getSensorDiagnostics');
+      final diag =
+          res != null ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      diag['todaySteps'] = todaySteps;
       diag['isSensorActive'] = isSensorActive.value;
       diag['lastRawSensorSteps'] = _lastRawSensorSteps;
-      diag['lastProcessedEventTime'] = _lastProcessedEventTime?.toIso8601String();
+      diag['lastProcessedEventTime'] =
+          _lastProcessedEventTime?.toIso8601String();
       return diag;
     } catch (e) {
       return {
         'error': e.toString(),
-        'todaySteps': _todaySteps,
+        'todaySteps': todaySteps,
         'isSensorActive': isSensorActive.value,
       };
     }
@@ -437,9 +456,9 @@ class StepTrackingService with WidgetsBindingObserver {
     // 2. Load latest verified steps from local offline cache
     await _loadTodayCache(nowOverride: now);
 
-    // 3. Fallback or user-enabled external health sync
+    // Respect the user's health-sync setting even when the phone sensor is unavailable.
     final isHealthSyncOn = await HealthService.instance.isSyncEnabled();
-    if ((!isSensorActive.value || isHealthSyncOn) && HealthService.instance.isSupported) {
+    if (isHealthSyncOn && HealthService.instance.isSupported) {
       await syncWithHealthService(currentTime: now);
     }
 
@@ -453,22 +472,78 @@ class StepTrackingService with WidgetsBindingObserver {
   }
 
   /// Explicit sync with Health Connect or Apple Health as an external source.
-  Future<DailyStats> syncWithHealthService({DateTime? currentTime}) async {
+  Future<bool> syncWithHealthService({DateTime? currentTime}) async {
     try {
       if (HealthService.instance.isSupported) {
         final healthSteps = await HealthService.instance.getStepsToday();
-        if (healthSteps != null && healthSteps > _todaySteps) {
-          _todaySteps = healthSteps;
-          final prefs = await SharedPreferences.getInstance();
-          final todayKeyStr = dayKey(currentTime ?? DateTime.now());
-          await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
-          _emitCurrentStats(currentTime: currentTime);
-        }
+        final healthCalories =
+            await HealthService.instance.getActiveCaloriesToday();
+        if (healthSteps == null && healthCalories == null) return false;
+        await _applyHealthData(
+          steps: healthSteps,
+          calories: healthCalories,
+          currentTime: currentTime,
+        );
+        unawaited(syncPendingStatsToCloud());
+        return true;
       }
     } catch (e) {
-      debugPrint('StepTrackingService: Optional health sync note: $e');
+      debugPrint('StepTrackingService: Health sync failed: $e');
     }
-    return getTodayStats(currentTime: currentTime);
+    return false;
+  }
+
+  Future<void> _applyHealthData({
+    int? steps,
+    int? calories,
+    DateTime? currentTime,
+  }) async {
+    final now = currentTime ?? DateTime.now();
+    final todayKeyStr = dayKey(now);
+    final prefs = await SharedPreferences.getInstance();
+
+    _activateDate(prefs, now);
+    if (steps != null && steps >= 0) {
+      _healthStepsToday = steps;
+      await prefs.setInt('today_health_steps_$todayKeyStr', steps);
+    }
+    if (calories != null && calories >= 0) {
+      _healthCaloriesToday = calories;
+      await prefs.setInt('today_health_calories_$todayKeyStr', calories);
+    }
+
+    await _saveStepTotals(prefs, now);
+    await LocalDailyStatsStorage.instance.save(
+      DailyStats(
+        date: now,
+        steps: todaySteps,
+        calories: todayCalories,
+        activeMinutes: todayActiveMinutes,
+      ),
+    );
+    _emitCurrentStats(forceSync: true, currentTime: now);
+  }
+
+  Future<void> _saveStepTotals(
+    SharedPreferences prefs,
+    DateTime date,
+  ) async {
+    final dateKey = dayKey(date);
+    await prefs.setInt('today_device_steps_$dateKey', _todaySteps);
+    await prefs.setInt('today_steps_$dateKey', todaySteps);
+  }
+
+  void _activateDate(SharedPreferences prefs, DateTime date) {
+    final dateKey = dayKey(date);
+    if (_statsDate == dateKey) return;
+
+    _todaySteps = prefs.getInt('today_device_steps_$dateKey') ??
+        prefs.getInt('today_steps_$dateKey') ??
+        0;
+    _healthStepsToday = prefs.getInt('today_health_steps_$dateKey') ?? 0;
+    _healthCaloriesToday =
+        prefs.getInt('today_health_calories_$dateKey') ?? 0;
+    _statsDate = dateKey;
   }
 
   Future<void> _loadTodayCache({DateTime? nowOverride}) async {
@@ -476,9 +551,12 @@ class StepTrackingService with WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       final now = nowOverride ?? DateTime.now();
       final todayKeyStr = dayKey(now);
-      var cachedSteps = prefs.getInt('today_steps_$todayKeyStr');
+      final cachedDeviceSteps = prefs.getInt('today_device_steps_$todayKeyStr');
+      var cachedSteps =
+          cachedDeviceSteps ?? prefs.getInt('today_steps_$todayKeyStr');
 
-      if (cachedSteps == null || cachedSteps == 0) {
+      if (cachedDeviceSteps == null &&
+          (cachedSteps == null || cachedSteps == 0)) {
         final local = await LocalDailyStatsStorage.instance.get(now);
         if (local != null && local.steps > 0) {
           cachedSteps = local.steps;
@@ -486,10 +564,18 @@ class StepTrackingService with WidgetsBindingObserver {
         }
       }
 
-      final loaded = cachedSteps ?? 0;
-      if (loaded > _todaySteps || _todaySteps == 0) {
-        _todaySteps = loaded;
+      final loadedDeviceSteps = cachedSteps ?? 0;
+      if (_statsDate != todayKeyStr) {
+        _todaySteps = loadedDeviceSteps;
+        _healthStepsToday =
+            prefs.getInt('today_health_steps_$todayKeyStr') ?? 0;
+        _healthCaloriesToday =
+            prefs.getInt('today_health_calories_$todayKeyStr') ?? 0;
+        _statsDate = todayKeyStr;
+      } else if (loadedDeviceSteps > _todaySteps) {
+        _todaySteps = loadedDeviceSteps;
       }
+      await _saveStepTotals(prefs, now);
       _emitCurrentStats(currentTime: now);
     } catch (_) {}
   }
@@ -512,28 +598,33 @@ class StepTrackingService with WidgetsBindingObserver {
     SharedPreferences? overridePrefs,
     int? overrideBootTimeMs,
   }) async {
-    if (raw < 0) return _todaySteps;
+    if (raw < 0) return todaySteps;
     final prefs = overridePrefs ?? await SharedPreferences.getInstance();
     final now = eventTime ?? DateTime.now();
     final todayKeyStr = dayKey(now);
+    _activateDate(prefs, now);
 
     // Filter out-of-order events
     if (eventTime != null && _lastProcessedEventTime != null) {
       if (eventTime.isBefore(_lastProcessedEventTime!)) {
         debugPrint(
             'StepTrackingService: Discarded out-of-order reading ($eventTime before $_lastProcessedEventTime)');
-        return _todaySteps;
+        return todaySteps;
       }
     }
 
     final storedDate = prefs.getString('global_last_hardware_date');
     final storedLastRaw = prefs.getInt('global_last_hardware_steps');
-    int currentDaySteps = prefs.getInt('today_steps_$todayKeyStr') ?? _todaySteps;
+    int currentDaySteps = prefs.getInt('today_device_steps_$todayKeyStr') ??
+        prefs.getInt('today_steps_$todayKeyStr') ??
+        _todaySteps;
 
     // Fast-path: duplicate event on the same day with same raw reading
-    if (storedDate == todayKeyStr && storedLastRaw != null && storedLastRaw == raw) {
+    if (storedDate == todayKeyStr &&
+        storedLastRaw != null &&
+        storedLastRaw == raw) {
       _lastProcessedEventTime = now;
-      return _todaySteps;
+      return todaySteps;
     }
 
     // Case 1: First hardware reading established on this device/install
@@ -544,21 +635,23 @@ class StepTrackingService with WidgetsBindingObserver {
       // Check if device booted today
       final bootTimeMs = overrideBootTimeMs ?? await getDeviceBootTimeMs();
       final todayStart = DateTime(now.year, now.month, now.day);
-      if (bootTimeMs != null && bootTimeMs >= todayStart.millisecondsSinceEpoch) {
+      if (bootTimeMs != null &&
+          bootTimeMs >= todayStart.millisecondsSinceEpoch) {
         // Device booted today, so the hardware step counter started from 0 today.
         // Therefore, ALL raw steps since boot occurred today!
         currentDaySteps = math.max(currentDaySteps, raw);
       }
 
       _todaySteps = currentDaySteps;
+      _statsDate = todayKeyStr;
       isSensorActive.value = true;
       await prefs.setInt('global_last_hardware_steps', raw);
       await prefs.setString('global_last_hardware_date', todayKeyStr);
-      await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+      await _saveStepTotals(prefs, now);
       debugPrint(
           'StepTrackingService: Initial hardware baseline set at $raw steps (today: $_todaySteps)');
       _emitCurrentStats(currentTime: now);
-      return _todaySteps;
+      return todaySteps;
     }
 
     // Case 2: Midnight rollover (Date changed)
@@ -598,11 +691,14 @@ class StepTrackingService with WidgetsBindingObserver {
       if (overnightDelta < 0 || overnightDelta > 50000) {
         debugPrint(
             'StepTrackingService: Anomalous overnight delta $overnightDelta ignored (raw=$raw, last=$storedLastRaw)');
-        return _todaySteps;
+        return todaySteps;
       }
 
       // New day starts fresh with overnight delta
-      final existingToday = prefs.getInt('today_steps_$todayKeyStr') ?? 0;
+      final existingToday =
+          prefs.getInt('today_device_steps_$todayKeyStr') ??
+              prefs.getInt('today_steps_$todayKeyStr') ??
+              0;
       currentDaySteps = existingToday + overnightDelta;
     } else {
       // Case 3: Same day accumulation
@@ -612,7 +708,7 @@ class StepTrackingService with WidgetsBindingObserver {
         if ((storedLastRaw - raw) < 100 && raw > 1000) {
           debugPrint(
               'StepTrackingService: Ignored minor sensor jitter ($raw < last $storedLastRaw)');
-          return _todaySteps;
+          return todaySteps;
         }
         // Device was rebooted: hardware counter reset to 0
         debugPrint(
@@ -628,11 +724,12 @@ class StepTrackingService with WidgetsBindingObserver {
       } else if (delta > 20000) {
         debugPrint(
             'StepTrackingService: Anomalous delta $delta ignored (raw=$raw, last=$storedLastRaw)');
-        return _todaySteps;
+        return todaySteps;
       }
     }
 
     _todaySteps = currentDaySteps;
+    _statsDate = todayKeyStr;
     _lastRawSensorSteps = raw;
     _lastProcessedEventTime = now;
     isSensorActive.value = true;
@@ -640,19 +737,20 @@ class StepTrackingService with WidgetsBindingObserver {
     // Persist all tracking state locally (100% offline)
     await prefs.setInt('global_last_hardware_steps', raw);
     await prefs.setString('global_last_hardware_date', todayKeyStr);
-    await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+    await _saveStepTotals(prefs, now);
 
     final stats = DailyStats(
       date: now,
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
     await LocalDailyStatsStorage.instance.save(stats);
 
-    debugPrint('StepTrackingService: Processed raw=$raw, todaySteps=$_todaySteps');
+    debugPrint(
+        'StepTrackingService: Processed raw=$raw, todaySteps=$todaySteps');
     _emitCurrentStats(currentTime: now);
-    return _todaySteps;
+    return todaySteps;
   }
 
   /// Increments today steps by 1 for hardware that only supports `TYPE_STEP_DETECTOR`.
@@ -664,12 +762,15 @@ class StepTrackingService with WidgetsBindingObserver {
     final prefs = overridePrefs ?? await SharedPreferences.getInstance();
     final now = eventTime ?? DateTime.now();
     final todayKeyStr = dayKey(now);
+    _activateDate(prefs, now);
 
     final storedDate = prefs.getString('global_last_hardware_date');
     if (storedDate != null && storedDate != todayKeyStr) {
       // Midnight rollover
-      final yesterdaySteps = prefs.getInt('today_steps_$storedDate') ?? _todaySteps;
-      final yesterdayDate = DateTime.tryParse(storedDate) ?? DateTime(now.year, now.month, now.day - 1);
+      final yesterdaySteps =
+          prefs.getInt('today_steps_$storedDate') ?? _todaySteps;
+      final yesterdayDate = DateTime.tryParse(storedDate) ??
+          DateTime(now.year, now.month, now.day - 1);
       await LocalDailyStatsStorage.instance.save(
         DailyStats(
           date: yesterdayDate,
@@ -684,19 +785,20 @@ class StepTrackingService with WidgetsBindingObserver {
       _todaySteps += 1;
     }
 
+    _statsDate = todayKeyStr;
     _lastProcessedEventTime = now;
     isSensorActive.value = true;
     await prefs.setString('global_last_hardware_date', todayKeyStr);
-    await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+    await _saveStepTotals(prefs, now);
     final stats = DailyStats(
       date: now,
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
     await LocalDailyStatsStorage.instance.save(stats);
     _emitCurrentStats(currentTime: now);
-    return _todaySteps;
+    return todaySteps;
   }
 
   DateTime? _lastNotificationUpdateTime;
@@ -706,7 +808,7 @@ class StepTrackingService with WidgetsBindingObserver {
     final now = currentTime ?? DateTime.now();
     final stats = DailyStats(
       date: now,
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
@@ -719,13 +821,13 @@ class StepTrackingService with WidgetsBindingObserver {
 
     if (forceSync ||
         timeSinceLastNotif.inSeconds >= 2 ||
-        (_todaySteps - _lastNotifiedSteps).abs() >= 5) {
+        (todaySteps - _lastNotifiedSteps).abs() >= 5) {
       _lastNotificationUpdateTime = now;
-      _lastNotifiedSteps = _todaySteps;
+      _lastNotifiedSteps = todaySteps;
 
       // Keep persistent lockscreen notification updated so live steps show at all times
       unawaited(NotificationService.instance.updateStepTrackingNotification(
-        steps: _todaySteps,
+        steps: todaySteps,
         target: 10000,
         calories: todayCalories,
         activeMinutes: todayActiveMinutes,
@@ -738,12 +840,14 @@ class StepTrackingService with WidgetsBindingObserver {
     if (count <= 0) return;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
+    _activateDate(prefs, now);
     final todayKeyStr = dayKey(now);
     _todaySteps += count;
-    await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+    _statsDate = todayKeyStr;
+    await _saveStepTotals(prefs, now);
     await LocalDailyStatsStorage.instance.save(DailyStats(
       date: now,
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     ));
@@ -755,12 +859,14 @@ class StepTrackingService with WidgetsBindingObserver {
     if (count < 0) return;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
+    _activateDate(prefs, now);
     final todayKeyStr = dayKey(now);
     _todaySteps = count;
-    await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
+    _statsDate = todayKeyStr;
+    await _saveStepTotals(prefs, now);
     await LocalDailyStatsStorage.instance.save(DailyStats(
       date: now,
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     ));
@@ -768,12 +874,18 @@ class StepTrackingService with WidgetsBindingObserver {
   }
 
   /// Resets today's step count back to 0 so the user can test physical walking from zero.
-  Future<void> resetTodaySteps({DateTime? currentTime, SharedPreferences? overridePrefs}) async {
+  Future<void> resetTodaySteps(
+      {DateTime? currentTime, SharedPreferences? overridePrefs}) async {
     final prefs = overridePrefs ?? await SharedPreferences.getInstance();
     final now = currentTime ?? DateTime.now();
     final todayKeyStr = dayKey(now);
     _todaySteps = 0;
-    await prefs.setInt('today_steps_$todayKeyStr', 0);
+    _healthStepsToday = 0;
+    _healthCaloriesToday = 0;
+    _statsDate = todayKeyStr;
+    await prefs.setInt('today_health_steps_$todayKeyStr', 0);
+    await prefs.setInt('today_health_calories_$todayKeyStr', 0);
+    await _saveStepTotals(prefs, now);
     if (_lastRawSensorSteps != null) {
       await prefs.setInt('global_last_hardware_steps', _lastRawSensorSteps!);
       await prefs.setString('global_last_hardware_date', todayKeyStr);
@@ -816,7 +928,7 @@ class StepTrackingService with WidgetsBindingObserver {
   DailyStats getTodayStats({DateTime? currentTime}) {
     return DailyStats(
       date: currentTime ?? DateTime.now(),
-      steps: _todaySteps,
+      steps: todaySteps,
       calories: todayCalories,
       activeMinutes: todayActiveMinutes,
     );
@@ -846,6 +958,9 @@ class StepTrackingService with WidgetsBindingObserver {
   @visibleForTesting
   void resetForTesting() {
     _todaySteps = 0;
+    _healthStepsToday = 0;
+    _healthCaloriesToday = 0;
+    _statsDate = null;
     _lastRawSensorSteps = null;
     _lastProcessedEventTime = null;
     _lastNotificationUpdateTime = null;
