@@ -12,6 +12,7 @@ import 'package:fitbuddy/features/auth/widgets/auth_scaffold.dart';
 import 'package:fitbuddy/features/auth/widgets/button_spinner.dart';
 import 'package:fitbuddy/features/auth/widgets/password_field.dart';
 import 'package:fitbuddy/features/auth/widgets/password_strength_meter.dart';
+import 'package:fitbuddy/features/settings/widgets/privacy_policy_sheet.dart';
 
 /// Sign-up with name, email, password strength hint and a terms checkbox.
 class SignupScreen extends ConsumerStatefulWidget {
@@ -133,9 +134,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           _agreed = value ?? false;
                           if (_agreed) _showTermsError = false;
                         }),
-                title: const Text(
-                  'I agree to the Terms and Privacy Policy, and I understand '
-                  'Vyayama gives general wellness information, not medical advice.',
+                title: Text.rich(
+                  TextSpan(
+                    text: 'I agree to the ',
+                    style: theme.textTheme.bodyMedium,
+                    children: [
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: GestureDetector(
+                          onTap: () => PrivacyPolicySheet.show(context),
+                          child: Text(
+                            'Terms, Community Standards & Privacy Policy',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            ', and understand photos must not contain objectionable or unsafe content, and Vyayama gives wellness information, not medical advice.',
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (_showTermsError)

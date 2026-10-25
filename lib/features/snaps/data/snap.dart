@@ -2,7 +2,14 @@ import 'package:fitbuddy/features/snaps/data/activity_type.dart';
 import 'package:flutter/foundation.dart';
 
 /// `snaps.verification_status`.
-enum VerificationStatus { pending, verified, rejected }
+enum VerificationStatus {
+  pending,
+  retrying,
+  verified,
+  rejected,
+  appealed,
+  expired,
+}
 
 VerificationStatus _statusFrom(String? v) => VerificationStatus.values.firstWhere(
       (e) => e.name == v,
@@ -97,6 +104,12 @@ class Snap {
         createdAt: createdAt,
         expiresAt: expiresAt,
       );
+  /// Whether the photo is delivered to friends (verified or appealed).
+  bool get isDelivered =>
+      verificationStatus == VerificationStatus.verified ||
+      verificationStatus == VerificationStatus.appealed;
+
+  bool get isLive => isDelivered && expiresAt.isAfter(DateTime.now());
 }
 
 /// A snap as seen by a recipient (joins `snap_recipients` and the sender).
@@ -169,6 +182,15 @@ class VerificationResult {
   factory VerificationResult.pending({String? reason}) =>
       VerificationResult._(VerificationStatus.pending, reason: reason);
 
+  factory VerificationResult.retrying({String? reason}) =>
+      VerificationResult._(VerificationStatus.retrying, reason: reason);
+
+  factory VerificationResult.appealed({String? activity}) =>
+      VerificationResult._(VerificationStatus.appealed, activity: activity);
+
+  factory VerificationResult.expired({String? reason}) =>
+      VerificationResult._(VerificationStatus.expired, reason: reason);
+
   final VerificationStatus status;
   final String? reason;
   final String? activity;
@@ -177,6 +199,12 @@ class VerificationResult {
   bool get isVerified => status == VerificationStatus.verified;
   bool get isPending => status == VerificationStatus.pending;
   bool get isRejected => status == VerificationStatus.rejected;
+  bool get isRetrying => status == VerificationStatus.retrying;
+  bool get isAppealed => status == VerificationStatus.appealed;
+  bool get isExpired => status == VerificationStatus.expired;
+
+  /// Whether the photo was delivered to friends (verified or appealed).
+  bool get isDelivered => isVerified || isAppealed;
 }
 
 /// A photo captured by the in-app camera (never from the gallery).

@@ -42,6 +42,12 @@ class VerificationOverlay extends StatelessWidget {
           'Your friends can see it for 24 hours.',
           <Widget>[FilledButton(onPressed: onDone, child: const Text('Done'))],
         ),
+      SendPhase.retrying => (
+          Icon(Icons.schedule, size: 72, color: scheme.primary),
+          'Uploaded! ⏳',
+          state.message ?? 'Verification is queued and will finish shortly.',
+          <Widget>[FilledButton(onPressed: onDone, child: const Text('Done'))],
+        ),
       SendPhase.rejected => (
           Icon(Icons.refresh, size: 72, color: scheme.tertiary),
           'Hmm, that one didn\'t pass',

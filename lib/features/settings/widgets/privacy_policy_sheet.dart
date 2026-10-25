@@ -90,20 +90,28 @@ class PrivacyPolicySheet extends StatelessWidget {
                 ),
                 _section(
                   theme,
-                  '3. Storage & Encryption',
+                  '3. Storage, Retention & Third-Party AI',
                   '• Auth tokens and sensitive credentials are encrypted using hardware-backed Android KeyStore / iOS Keychain.\n'
                   '• Cloud data is protected by Supabase Row Level Security (RLS) so only you can access your private records.\n'
-                  '• Snaps are ephemeral and automatically deleted within 24 hours.',
+                  '• Snaps are automatically deleted from Vyayama within 24 hours.\n'
+                  '• AI vision models (e.g. Anthropic API) process photos solely for real-time exercise verification, are never trained on your images, and may retain API requests for up to 30 days solely for safety and abuse prevention before deletion.',
                 ),
                 _section(
                   theme,
-                  '4. Your Rights & Account Deletion',
+                  '4. Community Standards & Moderation',
+                  '• Photos must comply with Community Standards (no nudity, violence, weapons, hate speech, or harassment).\n'
+                  '• You can report objectionable content or block users directly from any snap or profile.\n'
+                  '• Reports are reviewed by human moderators in accordance with community standards. Blocking immediately sequesters the user from contacting you.',
+                ),
+                _section(
+                  theme,
+                  '5. Your Rights & Account Deletion',
                   '• You can permanently delete your account and all associated personal and health data at any time under Settings → Account → Delete Account.\n'
                   '• Deletion permanently removes all database rows, workout logs, and uploaded files from our servers.',
                 ),
                 _section(
                   theme,
-                  '5. Contact & Inquiries',
+                  '6. Contact & Inquiries',
                   'For questions about our data practices or to request external account deletion, reach out to privacy@vyayama.app.',
                 ),
                 const SizedBox(height: AppSpacing.xl),

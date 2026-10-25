@@ -27,12 +27,6 @@ class HealthService {
   @visibleForTesting
   String? serviceNameOverride;
 
-  @visibleForTesting
-  Future<int?> Function()? stepsTodayOverride;
-
-  @visibleForTesting
-  Future<int?> Function()? activeCaloriesTodayOverride;
-
   /// Whether the current platform supports HealthKit or Health Connect.
   bool get isSupported {
     if (isSupportedOverride != null) return isSupportedOverride!;
@@ -53,8 +47,6 @@ class HealthService {
   void resetForTesting() {
     isSupportedOverride = null;
     serviceNameOverride = null;
-    stepsTodayOverride = null;
-    activeCaloriesTodayOverride = null;
   }
 
   /// Checks whether health sync has been enabled by the user in settings.
@@ -130,7 +122,6 @@ class HealthService {
 
   /// Returns total steps walked today, or null if health data is unavailable.
   Future<int?> getStepsToday() async {
-    if (stepsTodayOverride != null) return stepsTodayOverride!();
     if (!isSupported) return null;
     await _ensureConfigured();
 
@@ -147,9 +138,6 @@ class HealthService {
 
   /// Returns active energy burned today (kcal), or null if unavailable.
   Future<int?> getActiveCaloriesToday() async {
-    if (activeCaloriesTodayOverride != null) {
-      return activeCaloriesTodayOverride!();
-    }
     if (!isSupported) return null;
     await _ensureConfigured();
 

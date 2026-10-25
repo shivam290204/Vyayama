@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Where a send is in its life.
-enum SendPhase { idle, sending, verifying, verified, rejected, failed }
+enum SendPhase { idle, sending, verifying, verified, retrying, rejected, failed }
 
 /// State shown by the verification overlay.
 @immutable
@@ -15,7 +15,7 @@ class SendSnapState {
 
   final SendPhase phase;
 
-  /// Friendly reason for `rejected` or `failed`.
+  /// Friendly reason for `rejected`, `retrying`, or `failed`.
   final String? message;
 }
 
@@ -52,13 +52,24 @@ class SendSnapController extends Notifier<SendSnapState> {
           .submitSnap(draft: draft, imageBytes: bytes);
       state = const SendSnapState(phase: SendPhase.verifying);
       final service = ref.read(snapVerificationServiceProvider);
-      final results = await Future.wait(snaps.map((s) => service.verify(s.id)));
-      final rejected = results.where((r) => !r.isVerified).toList();
+      final results = <VerificationResult>[];
+      for (final s in snaps) {
+        results.add(await service.verify(s.id));
+      }
+      final rejected = results.where((r) => r.isRejected).toList();
+      final retrying = results.where((r) => r.isRetrying || r.isPending).toList();
+
       if (rejected.isNotEmpty) {
         state = SendSnapState(
           phase: SendPhase.rejected,
           message: rejected.first.reason ?? kFriendlyRejection,
         );
+      } else if (retrying.isNotEmpty) {
+        state = SendSnapState(
+          phase: SendPhase.retrying,
+          message: retrying.first.reason ?? 'Photo uploaded. Verification queued and will complete shortly.',
+        );
+        ref.read(capturedPhotoProvider.notifier).set(null);
       } else {
         state = const SendSnapState(phase: SendPhase.verified);
         ref.read(capturedPhotoProvider.notifier).set(null);

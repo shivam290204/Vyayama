@@ -70,35 +70,56 @@ abstract final class SnapStreakCalculator {
   /// Applies a snap sent by [sender] to [streak].
   ///
   /// Rejected, pending and Friends Feed snaps never count.
+  ///
+  /// Streak Grace Window:
+  /// If [snapCreatedAtUtc] was captured on the previous local day (yesterday)
+  /// and [nowUtc] is within the 6-hour morning grace window (local time <= 06:00:00),
+  /// the snap is credited to yesterday rather than today.
   static StreakUpdate applySnap({
     required SnapStreak streak,
     required StreakSide sender,
     required DateTime nowUtc,
     bool verified = true,
     bool isStory = false,
+    DateTime? snapCreatedAtUtc,
   }) {
     if (!verified || isStory) {
       return StreakUpdate(streak: streak, event: StreakEvent.ignored);
     }
     final today = localDate(nowUtc, streak.timezone);
-    var s = sender == StreakSide.a
-        ? streak.copyWith(lastASnapDate: today)
-        : streak.copyWith(lastBSnapDate: today);
+    var effectiveDate = today;
 
-    final bothSent = s.lastASnapDate == today && s.lastBSnapDate == today;
+    // Grace Window check:
+    if (snapCreatedAtUtc != null) {
+      final snapDate = localDate(snapCreatedAtUtc, streak.timezone);
+      final yesterday = today.subtract(const Duration(days: 1));
+      if (snapDate == yesterday) {
+        final loc = _location(streak.timezone);
+        final nowLocal = tz.TZDateTime.from(nowUtc.toUtc(), loc);
+        if (nowLocal.hour < 6 || (nowLocal.hour == 6 && nowLocal.minute == 0 && nowLocal.second == 0)) {
+          effectiveDate = snapDate;
+        }
+      }
+    }
+
+    var s = sender == StreakSide.a
+        ? streak.copyWith(lastASnapDate: effectiveDate)
+        : streak.copyWith(lastBSnapDate: effectiveDate);
+
+    final bothSent = s.lastASnapDate == effectiveDate && s.lastBSnapDate == effectiveDate;
     if (!bothSent) {
       return StreakUpdate(streak: s, event: StreakEvent.nudgeFriend);
     }
-    if (s.lastCompletedDate == today) {
+    if (s.lastCompletedDate == effectiveDate) {
       return StreakUpdate(streak: s, event: StreakEvent.alreadyCompleted);
     }
-    final yesterday = today.subtract(const Duration(days: 1));
-    final continues = s.lastCompletedDate == yesterday;
+    final previousDay = effectiveDate.subtract(const Duration(days: 1));
+    final continues = s.lastCompletedDate == previousDay;
     final next = continues ? s.current + 1 : 1;
     s = s.copyWith(
       current: next,
       longest: math.max(s.longest, next),
-      lastCompletedDate: today,
+      lastCompletedDate: effectiveDate,
     );
     return StreakUpdate(
       streak: s,

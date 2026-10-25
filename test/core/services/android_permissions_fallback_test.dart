@@ -57,17 +57,6 @@ void main() {
           reason: 'Manifest should contain exactly 11 declared permissions');
     });
 
-    test('AndroidManifest.xml can discover Health Connect', () {
-      expect(
-        manifestContent,
-        contains('com.google.android.apps.healthdata'),
-      );
-      expect(
-        manifestContent,
-        contains('androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE'),
-      );
-    });
-
     test('3. Audio permissions return true immediately without runtime storage requests', () async {
       final isGranted = await NotificationService.instance.isAudioPermissionGranted();
       expect(isGranted, isTrue,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:fitbuddy/features/snaps/data/activity_type.dart';
@@ -62,15 +63,90 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
           return VerificationResult.rejected(
             reason: (data['reason'] as String?) ?? kFriendlyRejection,
           );
+        } else if (status == 'retrying') {
+          return VerificationResult.retrying(
+            reason: (data['reason'] as String?) ??
+                (data['message'] as String?) ??
+                'Verification queued for processing.',
+          );
+        } else if (status == 'appealed') {
+          return VerificationResult.appealed(
+            activity: data['activity'] as String?,
+          );
+        } else if (status == 'expired') {
+          return VerificationResult.expired(
+            reason: (data['reason'] as String?) ?? 'Verification window expired.',
+          );
         }
       }
-      return VerificationResult.pending(
+      return VerificationResult.retrying(
         reason: 'Verification is currently in progress.',
       );
     } catch (e) {
-      debugPrint('verify-snap Edge function unavailable ($e). Snap remains pending until verified by backend.');
-      return VerificationResult.pending(
-        reason: 'Verification will complete once connection to verification service is restored.',
+      debugPrint('verify-snap Edge function error ($e). Snap queued for retry.');
+      String? serverReason;
+      if (e is FunctionException) {
+        if (e.details is Map) {
+          final d = e.details as Map;
+          serverReason = (d['reason'] as String?) ??
+              (d['message'] as String?) ??
+              (d['error'] as String?);
+        } else if (e.details is String) {
+          try {
+            final parsed = jsonDecode(e.details as String);
+            if (parsed is Map) {
+              serverReason = (parsed['reason'] as String?) ??
+                  (parsed['message'] as String?) ??
+                  (parsed['error'] as String?);
+            }
+          } catch (_) {
+            final raw = (e.details as String).trim();
+            if (raw.isNotEmpty && raw.length < 200) {
+              serverReason = raw;
+            }
+          }
+        }
+      }
+      return VerificationResult.retrying(
+        reason: serverReason ??
+            'Verification queued and will complete shortly.',
+      );
+    }
+  }
+
+  @override
+  Future<VerificationResult> appeal(String snapId) async {
+    try {
+      final res = await _client.functions.invoke(
+        'verify-snap',
+        body: {'snap_id': snapId, 'action': 'appeal'},
+      );
+
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        final status = data['status'] as String?;
+        if (status == 'appealed') {
+          return VerificationResult.appealed(
+            activity: data['activity'] as String?,
+          );
+        } else if (status == 'rejected') {
+          return VerificationResult.rejected(
+            reason: (data['reason'] as String?) ?? 'This photo cannot be appealed as it did not pass safety moderation.',
+          );
+        }
+      }
+      // Direct RPC fallback if function returns non-JSON or RPC is preferred
+      final rpcRes = await _client.rpc('appeal_snap', params: {'p_snap_id': snapId});
+      if (rpcRes is Map && (rpcRes['success'] == true || rpcRes['status'] == 'appealed')) {
+        return VerificationResult.appealed();
+      }
+      return VerificationResult.rejected(
+        reason: 'Appeal could not be processed at this time.',
+      );
+    } catch (e) {
+      debugPrint('appeal error: $e');
+      return VerificationResult.rejected(
+        reason: 'Unable to process appeal right now. Please check your connection.',
       );
     }
   }
@@ -243,7 +319,7 @@ class SupabaseSnapRepository implements SnapRepository {
           .from('snap_recipients')
           .select('*, snap:snaps!inner(*, sender:profiles!sender_id(id, username, name, avatar_url))')
           .eq('recipient_id', _userId)
-          .eq('snap.verification_status', 'verified')
+          .inFilter('snap.verification_status', const ['verified', 'appealed'])
           .order('snap(created_at)', ascending: false);
 
       final list = <ReceivedSnap>[];
@@ -313,7 +389,7 @@ class SupabaseSnapRepository implements SnapRepository {
           .from('snaps')
           .select('*, sender:profiles!sender_id(id, username, name, avatar_url)')
           .eq('is_story', true)
-          .eq('verification_status', 'verified')
+          .inFilter('verification_status', const ['verified', 'appealed'])
           .order('created_at', ascending: false);
 
       final list = <ReceivedSnap>[];
@@ -462,14 +538,31 @@ class SupabaseSnapRepository implements SnapRepository {
   @override
   Future<void> reportSnap(String snapId, String reason) async {
     try {
-      await _client.from('reports').insert({
-        'reporter_id': _userId,
-        'snap_id': snapId,
-        'reason': reason,
-        'status': 'open',
-      });
+      final res = await _client.functions.invoke(
+        'verify-snap',
+        body: {'snap_id': snapId, 'action': 'report', 'reason': reason},
+      );
+      if (res.status != 200) {
+        // Fallback to direct DB insert
+        await _client.from('reports').insert({
+          'reporter_id': _userId,
+          'snap_id': snapId,
+          'reason': reason,
+          'status': 'open',
+        });
+      }
     } catch (e) {
-      debugPrint('reportSnap error: $e');
+      debugPrint('reportSnap function error: $e, falling back to direct table insert');
+      try {
+        await _client.from('reports').insert({
+          'reporter_id': _userId,
+          'snap_id': snapId,
+          'reason': reason,
+          'status': 'open',
+        });
+      } catch (dbErr) {
+        debugPrint('reportSnap direct insert error: $dbErr');
+      }
     }
   }
 

@@ -5,7 +5,8 @@ import 'package:fitbuddy/features/schedule/day_key.dart';
 
 /// Storage for daily activity numbers.
 ///
-/// Implementations can store local activity or sync it with Supabase.
+/// Antigravity will add a Supabase implementation and a `health_service`
+/// that calls [upsert] with values from Health Connect or HealthKit.
 abstract class DailyStatsRepository {
   /// Stored rows from [from] to [to], both inclusive. Days without a row
   /// may be missing from the result.

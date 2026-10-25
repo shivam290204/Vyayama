@@ -116,7 +116,7 @@ class MockSnapRepository implements SnapRepository {
       rejectionReason: result.reason,
     );
     _sent[id] = updated;
-    if (result.isVerified && updated.isStory) {
+    if (result.isDelivered && updated.isStory) {
       _received.add(ReceivedSnap(
         snap: updated,
         senderName: kMockUserNames[currentUserId]!,
@@ -126,7 +126,7 @@ class MockSnapRepository implements SnapRepository {
   }
 
   bool _live(ReceivedSnap r) =>
-      r.snap.verificationStatus == VerificationStatus.verified &&
+      r.snap.isDelivered &&
       r.snap.expiresAt.isAfter(clock().toUtc());
 
   @override
@@ -168,9 +168,12 @@ class MockSnapRepository implements SnapRepository {
     _update(snapId, (r) => r.copyWith(reaction: reaction));
   }
 
+  final List<Map<String, String>> reportedSnaps = [];
+
   @override
   Future<void> reportSnap(String snapId, String reason) async {
     await _latency();
+    reportedSnaps.add({'snap_id': snapId, 'reason': reason});
   }
 }
 

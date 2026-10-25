@@ -50,20 +50,32 @@ We collect and use your data strictly for legitimate health and fitness features
 - **Transmission Security:**
   - All communication between Vyayama and our backend infrastructure is encrypted in transit using Transport Layer Security (TLS / HTTPS). Cleartext network traffic is prohibited.
 - **Automatic Ephemeral Storage:**
-  - Workout snaps and images are automatically expired and deleted within 24 hours of posting.
+  - Workout snaps and images are automatically deleted from Vyayama servers within 24 hours of posting via an automated hourly cleanup job.
 
 ---
 
-## 4. Third-Party Services & Processors
+## 4. Third-Party Services, Processors & AI Verification
 
 Vyayama utilizes trusted infrastructure providers under strict confidentiality agreements:
 - **Supabase (Backend Infrastructure):** Cloud PostgreSQL database, Row Level Security, authentication, and secure private object storage.
 - **Google Play Services / Android Health APIs:** On-device hardware sensor access (`SensorManager`) and optional Google Health Connect / Google Sign-In integration.
-- **AI Verification Service:** Ephemeral, server-side vision classification to confirm photos reflect physical exercise. Images processed by vision models are used solely for real-time classification and are never used to train generalized AI models.
+- **AI Exercise Verification Service:**
+  - **Nature of Verification:** Photo verification is strictly an automated "looks like exercise" classification designed to encourage workout consistency and social accountability. It does NOT constitute proof of physical exertion, athletic effort, or biometric identification.
+  - **Provider Terms & Retention:** Images are processed via encrypted API calls by our vision model provider (e.g. Anthropic Claude API or Google Gemini API). Per the providers' commercial API terms, customer inputs and outputs are **never used to train generalized AI models**. Commercial API requests may be retained by the model provider for up to 30 days solely for trust, safety, and abuse-prevention purposes before deletion.
+  - **On-Device Label Hint:** On-device image labeling (via Google ML Kit) is processed locally on your phone as an advisory hint. Labels evaluated on-device are never logged or shared externally.
 
 ---
 
-## 5. Permissions, On-Device Step Counting & How to Revoke
+## 5. Community Standards, User-Generated Content & Moderation
+
+Vyayama fosters a supportive, positive community for fitness and wellness:
+- **Prohibited Content:** Photos containing nudity, sexually suggestive imagery, violence, weapons, hate speech, harassment, minors in unsafe situations, or copyrighted/non-exercise material are strictly prohibited under our Community Standards.
+- **User Reporting & Blocking:** Every snap and user profile includes tools to report objectionable content and immediately block abusive users. Blocking a user immediately prevents them from sending snaps, seeing stories, or interacting with your profile.
+- **Moderation Process:** Reports are reviewed by human moderators in accordance with our community standards. While we strive to process reports in a timely manner, we do not promise an instantaneous response time. Blocked users are sequestered immediately upon your action.
+
+---
+
+## 6. Permissions, On-Device Step Counting & How to Revoke
 
 Vyayama requests minimal runtime permissions strictly when corresponding features are actively utilized, with comprehensive fallback handling:
 - **Physical Activity Recognition (`android.permission.ACTIVITY_RECOGNITION`):**
@@ -85,7 +97,7 @@ You can grant or revoke any optional permission at any time via: **Settings → 
 
 ---
 
-## 6. Data Retention & Your Rights (Account Deletion)
+## 7. Data Retention & Your Rights (Account Deletion)
 
 You have full ownership of your data at all times:
 - **Access & Correction:** You can view and edit your profile details, BMI records, and health conditions at any time directly in the app.
@@ -96,19 +108,19 @@ You have full ownership of your data at all times:
 
 ---
 
-## 7. Children's Privacy
+## 8. Children's Privacy
 
 Vyayama is designed for general audiences and does not knowingly collect personal information from children under 13 years of age (or under 16 in certain jurisdictions). If you become aware that a child has provided us with personal information without parental consent, please contact us and we will promptly delete the data.
 
 ---
 
-## 8. Updates to This Policy
+## 9. Updates to This Policy
 
 We may update this Privacy Policy from time to time to reflect improvements or regulatory changes. When updates occur, the "Last Updated" date at the top will be revised. Significant changes will be announced within the application.
 
 ---
 
-## 9. Contact Us
+## 10. Contact Us
 
 If you have questions, concerns, or requests regarding this Privacy Policy or your personal information, please contact our privacy team at:
 

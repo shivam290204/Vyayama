@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/friends/widgets/async_body.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
@@ -37,35 +38,39 @@ class _SnapViewScreenState extends ConsumerState<SnapViewScreen> {
       ..invalidate(inboxProvider);
   }
 
-  Future<void> _report() async {
-    const reasons = [
-      'Inappropriate content',
-      'Not exercise related',
-      'Bullying or harassment',
-      'Something else',
-    ];
-    final reason = await showDialog<String>(
+  Future<void> _report(ReceivedSnap item) async {
+    final result = await showDialog<_ReportDialogResult>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Report this snap'),
-        children: [
-          for (final r in reasons)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, r),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(r),
-              ),
-            ),
-        ],
-      ),
+      builder: (ctx) => _ReportDialog(senderName: item.senderName),
     );
-    if (reason == null) return;
-    await ref.read(snapRepositoryProvider).reportSnap(widget.snapId, reason);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thanks for letting us know.')),
-      );
+    if (result == null) return;
+
+    await ref.read(snapRepositoryProvider).reportSnap(widget.snapId, result.reason);
+
+    if (result.blockUser) {
+      await ref.read(friendRepositoryProvider).blockUser(item.snap.senderId);
+      invalidateFriendData(ref);
+      ref.invalidate(inboxProvider);
+      ref.invalidate(feedProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report submitted. ${item.senderName} has been blocked.')),
+        );
+        final router = GoRouter.maybeOf(context);
+        if (router != null) {
+          router.go(AppRoutes.snapsInbox);
+        } else {
+          Navigator.maybePop(context);
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thanks for letting us know. Our moderation team will review this photo.'),
+          ),
+        );
+      }
     }
   }
 
@@ -79,7 +84,7 @@ class _SnapViewScreenState extends ConsumerState<SnapViewScreen> {
           IconButton(
             tooltip: 'Report snap',
             icon: const Icon(Icons.flag_outlined),
-            onPressed: value.valueOrNull == null ? null : _report,
+            onPressed: value.valueOrNull == null ? null : () => _report(value.valueOrNull!),
           ),
         ],
       ),
@@ -94,6 +99,96 @@ class _SnapViewScreenState extends ConsumerState<SnapViewScreen> {
         onEmptyAction: () => context.go(AppRoutes.snapsInbox),
         data: (item) => _Body(item: item!, onReact: _react),
       ),
+    );
+  }
+}
+
+class _ReportDialogResult {
+  const _ReportDialogResult({required this.reason, required this.blockUser});
+  final String reason;
+  final bool blockUser;
+}
+
+class _ReportDialog extends StatefulWidget {
+  const _ReportDialog({required this.senderName});
+  final String senderName;
+
+  @override
+  State<_ReportDialog> createState() => _ReportDialogState();
+}
+
+class _ReportDialogState extends State<_ReportDialog> {
+  static const _reasons = [
+    'Inappropriate or adult content',
+    'Violence or dangerous activity',
+    'Bullying or harassment',
+    'Not exercise related',
+    'Spam or misleading',
+    'Something else',
+  ];
+
+  String? _selectedReason;
+  bool _blockUser = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Report this snap'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select a reason for this report:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            for (final r in _reasons)
+              ListTile(
+                title: Text(r),
+                leading: Icon(
+                  _selectedReason == r
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                  color: _selectedReason == r
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onTap: () => setState(() => _selectedReason = r),
+              ),
+            const Divider(height: 24),
+            CheckboxListTile(
+              title: Text('Also block ${widget.senderName}'),
+              subtitle: const Text("They won't be able to send you snaps or view your profile."),
+              value: _blockUser,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (val) => setState(() => _blockUser = val ?? false),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _selectedReason == null
+              ? null
+              : () => Navigator.pop(
+                    context,
+                    _ReportDialogResult(
+                      reason: _selectedReason!,
+                      blockUser: _blockUser,
+                    ),
+                  ),
+          child: const Text('Submit Report'),
+        ),
+      ],
     );
   }
 }

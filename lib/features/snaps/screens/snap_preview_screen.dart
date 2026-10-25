@@ -5,7 +5,6 @@ import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/features/friends/widgets/async_body.dart';
 import 'package:fitbuddy/features/snaps/data/activity_type.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
-import 'package:fitbuddy/features/snaps/data/snap_verification_service.dart';
 import 'package:fitbuddy/features/snaps/providers.dart';
 import 'package:fitbuddy/features/snaps/send_snap_controller.dart';
 import 'package:fitbuddy/features/snaps/widgets/activity_chips.dart';
@@ -73,7 +72,7 @@ class _SnapPreviewScreenState extends ConsumerState<SnapPreviewScreen> {
     if (photo == null || activity == null) return;
     final hint = await ref.read(snapPreCheckProvider).check(photo.path);
     if (!mounted) return;
-    if (hint.outcome == PreCheckOutcome.noExerciseFound) {
+    if (hint.isUnlikely) {
       final sendAnyway = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -97,6 +96,7 @@ class _SnapPreviewScreenState extends ConsumerState<SnapPreviewScreen> {
       }
     }
     final composed = await _composeStickers();
+    if (!mounted) return;
     final caption = _caption.text.trim();
     await ref.read(sendSnapControllerProvider.notifier).send(
           photo: photo,
