@@ -77,3 +77,4 @@ assets/exercises_originals/
 # Supabase CLI temp files
 supabase/.temp/
 
+android/app/google-service.json
