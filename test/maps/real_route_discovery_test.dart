@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
 import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
 import 'package:fitbuddy/features/maps/data/services/real_route_discovery_service.dart';
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
@@ -59,13 +60,33 @@ class _FakeValhalla extends ValhallaService {
   }
 }
 
+// ─── Stub Nominatim ─────────────────────────────────────────────────────────
+
+class _FakeNominatim extends NominatimService {
+  _FakeNominatim(this._places, {this.exceptionToThrow});
+  final List<OverpassPlace> _places;
+  final Exception? exceptionToThrow;
+
+  @override
+  Future<List<OverpassPlace>> findNearbyPlaces({
+    required LatLng center,
+    required double radiusMeters,
+  }) async {
+    if (exceptionToThrow != null) {
+      throw exceptionToThrow!;
+    }
+    return _places;
+  }
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 class _RealServiceStub extends RealRouteDiscoveryService {
   _RealServiceStub({
     required OverpassService overpass,
     required ValhallaService valhalla,
-  }) : super(overpass: overpass, valhalla: valhalla);
+    required NominatimService nominatim,
+  }) : super(overpass: overpass, valhalla: valhalla, nominatim: nominatim);
 }
 
 _RealServiceStub _makeService({
@@ -73,6 +94,8 @@ _RealServiceStub _makeService({
   required ValhallaRoute? valhallaRoute,
   Exception? overpassError,
   Exception? valhallaError,
+  List<OverpassPlace>? nominatimPlaces,
+  Exception? nominatimError,
   ValhallaRoute? Function(LatLng, List<LatLng>)? routeResolver,
 }) =>
     _RealServiceStub(
@@ -81,6 +104,10 @@ _RealServiceStub _makeService({
         valhallaRoute,
         exceptionToThrow: valhallaError,
         routeResolver: routeResolver,
+      ),
+      nominatim: _FakeNominatim(
+        nominatimPlaces ?? const [],
+        exceptionToThrow: nominatimError,
       ),
     );
 
@@ -304,6 +331,60 @@ void main() {
         () => engine.discoverRoutes(center: _center),
         throwsA(isA<OverpassServiceException>()),
       );
+    });
+
+    test('8b. Falls back to Nominatim place discovery when Overpass encounters server error', () async {
+      final p1 = _park(101, 'Municipal Park', 28.7147, 77.1736);
+      final p2 = _park(102, "Children's Park", 28.7099, 77.1597);
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [],
+          overpassError: const OverpassServiceException('504 Gateway Timeout'),
+          nominatimPlaces: [p1, p2],
+          valhallaRoute: _genuineLoopRoute,
+        ),
+      );
+
+      final routes = await engine.discoverRoutes(center: const LatLng(28.7145, 77.1682));
+      expect(routes, isNotEmpty);
+      expect(routes.first.isLoop, isTrue);
+      expect(routes.first.name, equals("Municipal Park & Children's Park Loop"));
+    });
+
+    test('8c. NominatimService.parseNominatimPlaces parses OSM places accurately', () {
+      const sampleJson = '''
+[
+  {
+    "osm_id": 78445871,
+    "lat": "28.7099046",
+    "lon": "77.1597206",
+    "class": "leisure",
+    "type": "park",
+    "name": "Children's Park",
+    "display_name": "Children's Park, Shalimar Bagh, Delhi, India"
+  },
+  {
+    "osm_id": 78449429,
+    "lat": "28.7098824",
+    "lon": "77.1543891",
+    "class": "leisure",
+    "type": "park",
+    "name": "",
+    "display_name": "Shalimar Bagh, Keshavpuram, Delhi, India"
+  }
+]
+''';
+      final places = NominatimService.parseNominatimPlaces(sampleJson);
+      expect(places, hasLength(2));
+      expect(places[0].id, equals(78445871));
+      expect(places[0].name, equals("Children's Park"));
+      expect(places[0].isNamed, isTrue);
+      expect(places[0].lat, closeTo(28.7099, 0.0001));
+
+      expect(places[1].id, equals(78449429));
+      expect(places[1].name, equals('Shalimar Bagh Park'));
+      expect(places[1].isNamed, isFalse);
     });
 
     test('9. ValhallaService throws ValhallaRoutingException on routing engine failure', () async {

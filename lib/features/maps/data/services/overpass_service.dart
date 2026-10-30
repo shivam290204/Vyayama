@@ -67,18 +67,28 @@ class OverpassPlace {
 
 /// Queries the OpenStreetMap Overpass API for real nearby geographic features.
 ///
-/// Uses the public Overpass API or a configurable endpoint.
+/// Uses public Overpass API mirrors with automatic failover.
 /// Implements TTL caching and request throttling to avoid excessive server requests.
 class OverpassService {
   OverpassService({
     RouteCache? cache,
     String? endpoint,
+    List<String>? endpoints,
   })  : _cache = cache ?? RouteCache.instance,
-        _endpoint = endpoint ?? 'https://overpass-api.de/api/interpreter';
+        _endpoints = endpoints ??
+            (endpoint != null
+                ? [endpoint]
+                : defaultEndpoints);
 
-  final String _endpoint;
+  static const List<String> defaultEndpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+  ];
+
+  final List<String> _endpoints;
   static const String _userAgent = 'Vyayama/1.0 (com.vyayama.fitbuddy)';
-  static const Duration _timeout = Duration(seconds: 15);
+  static const Duration _timeout = Duration(seconds: 6);
   static const int _maxResults = 50;
 
   final RouteCache _cache;
@@ -106,59 +116,81 @@ class OverpassService {
     final lon = center.longitude;
     final r = radiusMeters.round();
 
-    // Overpass QL: includes named and unnamed parks, recreation grounds,
+    // Overpass QL: index-accelerated exact tag matching for parks, recreation grounds,
     // walking paths, footways, pedestrian roads, tracks, and hiking relations.
     final query = '''
-[out:json][timeout:15];
+[out:json][timeout:6];
 (
-  node["leisure"~"^(park|recreation_ground|nature_reserve)\$"](around:$r,$lat,$lon);
-  way["leisure"~"^(park|recreation_ground|nature_reserve)\$"](around:$r,$lat,$lon);
-  way["highway"~"^(footway|path|pedestrian|track)\$"](around:$r,$lat,$lon);
-  relation["route"~"^(hiking|foot)\$"](around:$r,$lat,$lon);
+  node["leisure"="park"](around:$r,$lat,$lon);
+  way["leisure"="park"](around:$r,$lat,$lon);
+  node["leisure"="recreation_ground"](around:$r,$lat,$lon);
+  way["leisure"="recreation_ground"](around:$r,$lat,$lon);
+  node["leisure"="nature_reserve"](around:$r,$lat,$lon);
+  way["leisure"="nature_reserve"](around:$r,$lat,$lon);
+  way["leisure"="garden"](around:$r,$lat,$lon);
+  way["highway"="footway"](around:$r,$lat,$lon);
+  way["highway"="pedestrian"](around:$r,$lat,$lon);
+  way["highway"="path"](around:$r,$lat,$lon);
+  way["highway"="track"](around:$r,$lat,$lon);
+  relation["route"="hiking"](around:$r,$lat,$lon);
+  relation["route"="foot"](around:$r,$lat,$lon);
 );
 out center $_maxResults;
 ''';
 
-    HttpClient? client;
-    try {
-      client = HttpClient()..userAgent = _userAgent;
-      final uri = Uri.parse(_endpoint);
-      final request = await client.postUrl(uri).timeout(_timeout);
-      request.headers.set(
-          HttpHeaders.contentTypeHeader, 'application/x-www-form-urlencoded');
-      request.write('data=${Uri.encodeComponent(query)}');
-      final response = await request.close().timeout(_timeout);
+    RouteDiscoveryException? lastException;
 
-      if (response.statusCode == 429) {
-        throw const RouteRateLimitException();
+    for (final ep in _endpoints) {
+      HttpClient? client;
+      try {
+        client = HttpClient()..userAgent = _userAgent;
+        final uri = Uri.parse(ep);
+        final request = await client.postUrl(uri).timeout(_timeout);
+        request.headers.set(
+            HttpHeaders.contentTypeHeader, 'application/x-www-form-urlencoded');
+        request.write('data=${Uri.encodeComponent(query)}');
+        final response = await request.close().timeout(_timeout);
+
+        if (response.statusCode == 429) {
+          lastException = const RouteRateLimitException();
+          continue;
+        }
+
+        if (response.statusCode >= 500) {
+          lastException = OverpassServiceException(
+              'OpenStreetMap service returned server error (${response.statusCode}).');
+          continue;
+        }
+
+        if (response.statusCode != 200) {
+          lastException = OverpassServiceException(
+              'OpenStreetMap service returned unexpected status (${response.statusCode}).');
+          continue;
+        }
+
+        final body = await response.transform(utf8.decoder).join();
+        final places = parseOverpassResponse(body);
+        _cache.set(cacheKey, places);
+        return places;
+      } on SocketException catch (_) {
+        lastException = const RouteNetworkException();
+      } on TimeoutException catch (_) {
+        lastException = const RouteNetworkException(
+            'Connection to OpenStreetMap service timed out. Please try again.');
+      } on RouteDiscoveryException catch (e) {
+        lastException = e;
+      } catch (e) {
+        lastException =
+            OverpassServiceException('Failed to process OpenStreetMap data: $e');
+      } finally {
+        client?.close();
       }
-
-      if (response.statusCode >= 500) {
-        throw OverpassServiceException(
-            'OpenStreetMap service returned server error (${response.statusCode}).');
-      }
-
-      if (response.statusCode != 200) {
-        throw OverpassServiceException(
-            'OpenStreetMap service returned unexpected status (${response.statusCode}).');
-      }
-
-      final body = await response.transform(utf8.decoder).join();
-      final places = parseOverpassResponse(body);
-      _cache.set(cacheKey, places);
-      return places;
-    } on SocketException catch (_) {
-      throw const RouteNetworkException();
-    } on TimeoutException catch (_) {
-      throw const RouteNetworkException(
-          'Connection to OpenStreetMap service timed out. Please try again.');
-    } on RouteDiscoveryException {
-      rethrow;
-    } catch (e) {
-      throw OverpassServiceException('Failed to process OpenStreetMap data: $e');
-    } finally {
-      client?.close();
     }
+
+    if (lastException != null) {
+      throw lastException;
+    }
+    return [];
   }
 
   /// Parses Overpass JSON response into a list of [OverpassPlace] objects.

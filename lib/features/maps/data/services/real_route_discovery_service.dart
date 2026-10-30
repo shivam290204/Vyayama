@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
 import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
+import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
@@ -19,11 +21,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   RealRouteDiscoveryService({
     OverpassService? overpass,
     ValhallaService? valhalla,
+    NominatimService? nominatim,
   })  : _overpass = overpass ?? OverpassService(),
-        _valhalla = valhalla ?? ValhallaService();
+        _valhalla = valhalla ?? ValhallaService(),
+        _nominatim = nominatim ?? NominatimService();
 
   final OverpassService _overpass;
   final ValhallaService _valhalla;
+  final NominatimService _nominatim;
 
   static const int _maxRoutes = 4;
   static const double _maxSearchRadiusMeters = 5000;
@@ -36,12 +41,44 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   }) async {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
-    // 1. Query OSM Overpass for nearby mapped features (parks, trails, paths)
-    // OverpassService throws RouteDiscoveryException on 429, 5xx, or network failure
-    final places = await _overpass.findNearbyPlaces(
-      center: center,
-      radiusMeters: radiusMeters,
-    );
+    // 1. Query OSM Overpass for nearby mapped features (parks, trails, paths).
+    // If Overpass is unavailable (server busy, 5xx, timeout, 429), fall back to
+    // real OpenStreetMap feature discovery via Nominatim before surfacing errors.
+    List<OverpassPlace> places = [];
+    Object? overpassFailure;
+
+    try {
+      places = await _overpass.findNearbyPlaces(
+        center: center,
+        radiusMeters: radiusMeters,
+      );
+    } catch (e) {
+      overpassFailure = e;
+    }
+
+    // Fall back to Nominatim real place discovery if Overpass failed or found 0 places
+    if (places.isEmpty) {
+      try {
+        final nominatimPlaces = await _nominatim.findNearbyPlaces(
+          center: center,
+          radiusMeters: radiusMeters,
+        );
+        if (nominatimPlaces.isNotEmpty) {
+          places = nominatimPlaces;
+          overpassFailure = null; // Discovered genuine OSM places via fallback!
+        }
+      } catch (_) {
+        // Fallback failed as well
+      }
+    }
+
+    if (overpassFailure != null && places.isEmpty) {
+      if (overpassFailure is RouteDiscoveryException) {
+        throw overpassFailure;
+      }
+      throw OverpassServiceException(
+          'Failed to discover routes: $overpassFailure');
+    }
 
     if (places.isEmpty) return [];
 

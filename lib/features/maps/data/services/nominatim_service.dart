@@ -2,6 +2,8 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
 import 'package:latlong2/latlong.dart';
 
 /// A geocoded place result from Nominatim.
@@ -109,5 +111,124 @@ class NominatimService {
       }
     }
     _lastRequestTime = DateTime.now();
+  }
+
+  /// Discovers real OpenStreetMap places (parks, gardens, recreation grounds)
+  /// within [radiusMeters] around [center].
+  Future<List<OverpassPlace>> findNearbyPlaces({
+    required LatLng center,
+    required double radiusMeters,
+  }) async {
+    // Lat/lon bounding box calculation:
+    // 1 deg latitude ≈ 111,000 meters
+    final latDelta = radiusMeters / 111000.0;
+    final cosLat = math.cos(center.latitudeInRad);
+    final lonDelta =
+        radiusMeters / (111000.0 * (cosLat.abs() > 0.01 ? cosLat.abs() : 1.0));
+
+    final minLon = center.longitude - lonDelta;
+    final maxLon = center.longitude + lonDelta;
+    final minLat = center.latitude - latDelta;
+    final maxLat = center.latitude + latDelta;
+    final viewbox =
+        '${minLon.toStringAsFixed(5)},${maxLat.toStringAsFixed(5)},${maxLon.toStringAsFixed(5)},${minLat.toStringAsFixed(5)}';
+
+    await _throttle();
+
+    final categories = ['park', 'garden', 'recreation_ground'];
+    final allPlaces = <OverpassPlace>[];
+    final seenIds = <int>{};
+
+    HttpClient? client;
+    try {
+      client = HttpClient()..userAgent = _userAgent;
+
+      for (final query in categories) {
+        final uri = Uri.parse(_endpoint).replace(queryParameters: {
+          'q': query,
+          'format': 'json',
+          'bounded': '1',
+          'viewbox': viewbox,
+          'limit': '10',
+          'addressdetails': '1',
+        });
+
+        final request = await client.getUrl(uri).timeout(_timeout);
+        request.headers.set('Accept-Language', 'en');
+        final response = await request.close().timeout(_timeout);
+
+        if (response.statusCode != 200) continue;
+
+        final body = await response.transform(utf8.decoder).join();
+        final places = parseNominatimPlaces(body, query);
+        for (final p in places) {
+          if (seenIds.add(p.id)) {
+            allPlaces.add(p);
+          }
+        }
+        if (allPlaces.length >= 8) break;
+      }
+      return allPlaces;
+    } catch (_) {
+      return allPlaces;
+    } finally {
+      client?.close();
+    }
+  }
+
+  /// Parses Nominatim search JSON response into a list of [OverpassPlace] objects.
+  static List<OverpassPlace> parseNominatimPlaces(
+    String body, [
+    String defaultType = 'park',
+  ]) {
+    try {
+      final list = jsonDecode(body) as List<dynamic>;
+      final results = <OverpassPlace>[];
+      for (final item in list) {
+        final m = item as Map<String, dynamic>;
+        final id = (m['osm_id'] ?? m['place_id'] as num?)?.toInt() ?? 0;
+        final latStr = m['lat'] as String?;
+        final lonStr = m['lon'] as String?;
+        if (latStr == null || lonStr == null) continue;
+        final lat = double.tryParse(latStr);
+        final lon = double.tryParse(lonStr);
+        if (lat == null || lon == null) continue;
+
+        final rawName = m['name'] as String? ?? '';
+        final displayName = m['display_name'] as String? ?? '';
+        final isNamed = rawName.trim().isNotEmpty;
+
+        String name;
+        if (isNamed) {
+          name = rawName.trim();
+        } else {
+          final parts = displayName.split(',');
+          if (parts.isNotEmpty && parts.first.trim().isNotEmpty) {
+            final locality = parts.first.trim();
+            name = '$locality Park';
+          } else {
+            name = 'Mapped Park';
+          }
+        }
+
+        final type = (m['type'] as String?) ?? defaultType;
+        final tags = <String, String>{
+          'leisure': type,
+          if (isNamed) 'name': name,
+        };
+
+        results.add(OverpassPlace(
+          id: id,
+          name: name,
+          lat: lat,
+          lon: lon,
+          tags: tags,
+          isNamed: isNamed,
+        ));
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
   }
 }
