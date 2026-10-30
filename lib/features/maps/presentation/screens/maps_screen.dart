@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/route_detail_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/saved_routes_screen.dart';
@@ -12,6 +12,8 @@ import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Main interactive Maps and Outdoor Route Discovery screen.
 class MapsScreen extends ConsumerStatefulWidget {
@@ -27,14 +29,6 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
   Timer? _mapMoveDebounce;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchInitialLocation();
-    });
-  }
-
-  @override
   void dispose() {
     _mapMoveDebounce?.cancel();
     super.dispose();
@@ -45,29 +39,29 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
     _mapMoveDebounce?.cancel();
     _mapMoveDebounce = Timer(const Duration(milliseconds: 900), () {
       if (!mounted) return;
-      final currentCenter = ref.read(selectedMapCenterProvider);
+      final currentCenter = ref.read(selectedMapCenterProvider) ??
+          ref.read(userLocationStateProvider).position;
       final newCenter = camera.center;
-      if (haversineDistance(currentCenter, newCenter) > 350) {
+      if (currentCenter == null ||
+          haversineDistance(currentCenter, newCenter) > 350) {
         ref.read(selectedMapCenterProvider.notifier).state = newCenter;
       }
     });
   }
 
-  Future<void> _fetchInitialLocation() async {
-    final location =
-        await ref.read(locationTrackingServiceProvider).getCurrentPosition();
-    if (location != null && mounted) {
-      ref.read(selectedMapCenterProvider.notifier).state = location;
-      _mapController.move(location, 14.5);
-    }
-  }
-
   void _recenterLocation() async {
-    final location =
-        await ref.read(locationTrackingServiceProvider).getCurrentPosition();
-    if (location != null && mounted) {
-      ref.read(selectedMapCenterProvider.notifier).state = location;
-      _mapController.move(location, 15.0);
+    // 1. Clear any manually selected map center pin so we follow live user GPS
+    ref.read(selectedMapCenterProvider.notifier).state = null;
+
+    final locState = ref.read(userLocationStateProvider);
+    if (locState.isAvailable) {
+      _mapController.move(locState.position!, 15.0);
+    } else {
+      await ref.read(userLocationNotifierProvider.notifier).refreshLocation();
+      final updated = ref.read(userLocationStateProvider);
+      if (updated.isAvailable && mounted) {
+        _mapController.move(updated.position!, 15.0);
+      }
     }
   }
 
@@ -103,12 +97,27 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final center = ref.watch(selectedMapCenterProvider);
-    final userLocAsync = ref.watch(userCurrentLocationProvider);
+    final locState = ref.watch(userLocationStateProvider);
+    final manualCenter = ref.watch(selectedMapCenterProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final userCoord = userLocAsync.asData?.value;
+    // Automatically animate camera to user location when first GPS fix is acquired
+    ref.listen<UserLocationState>(userLocationNotifierProvider, (prev, next) {
+      if (next.isAvailable && (prev == null || !prev.isAvailable)) {
+        final currentManual = ref.read(selectedMapCenterProvider);
+        if (currentManual == null) {
+          _mapController.move(next.position!, 14.5);
+        }
+      }
+    });
+
+    final effectiveCenter = manualCenter ??
+        locState.bestAvailablePosition ??
+        const LatLng(20.0, 0.0);
+    final initialZoom =
+        (manualCenter != null || locState.hasPosition) ? 14.5 : 2.5;
+
     final discoveredRoutes =
         ref.watch(discoveredRoutesProvider).asData?.value ?? [];
 
@@ -156,11 +165,11 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
       }
     }
 
-    // User Current Location Marker
-    if (userCoord != null) {
+    // User Current Location Marker (Strictly bound to actual GPS position)
+    if (locState.position != null) {
       markers.add(
         Marker(
-          point: userCoord,
+          point: locState.position!,
           width: 44,
           height: 44,
           child: Stack(
@@ -199,8 +208,8 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: center,
-              initialZoom: 14.5,
+              initialCenter: effectiveCenter,
+              initialZoom: initialZoom,
               minZoom: 3.0,
               maxZoom: 18.0,
               onPositionChanged: _onPositionChanged,

@@ -115,7 +115,7 @@ class _OutdoorSummaryScreenState extends ConsumerState<OutdoorSummaryScreen> {
         widget.activity.points.map((p) => p.toLatLng()).toList();
     final center = polylinePoints.isNotEmpty
         ? polylinePoints[polylinePoints.length ~/ 2]
-        : const LatLng(40.785091, -73.968285);
+        : const LatLng(20.0, 0.0);
 
     return Scaffold(
       appBar: AppBar(

@@ -30,7 +30,7 @@ class RouteDetailScreen extends ConsumerWidget {
     final polylinePoints = route.points.map((p) => p.toLatLng()).toList();
     final center = polylinePoints.isNotEmpty
         ? polylinePoints[polylinePoints.length ~/ 2]
-        : const LatLng(40.785091, -73.968285);
+        : const LatLng(20.0, 0.0);
 
     final savedRoutes = ref.watch(savedRoutesListProvider).asData?.value ?? [];
     final isSaved = savedRoutes.any((r) => r.id == route.id);

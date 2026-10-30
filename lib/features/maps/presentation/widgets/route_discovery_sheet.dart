@@ -2,11 +2,13 @@ import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_card.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 /// Draggable bottom sheet displaying nearby discoverable routes and quick record action.
 class RouteDiscoverySheet extends ConsumerWidget {
@@ -181,6 +183,138 @@ class RouteDiscoverySheet extends ConsumerWidget {
                 ),
                 data: (routes) {
                   if (routes.isEmpty) {
+                    final locState = ref.watch(userLocationStateProvider);
+                    final isManual = ref.watch(selectedMapCenterProvider) != null;
+
+                    if (!isManual && locState.isResolving) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Acquiring GPS location...',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Nearby routes will appear as soon as your location is resolved.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: textMuted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual && locState.hasPermissionIssue) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_off_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Permission Needed',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Enable location access to discover real walking, running, and hiking routes near you.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                if (locState.status ==
+                                    UserLocationStatus.permissionDeniedForever) {
+                                  Geolocator.openAppSettings();
+                                } else {
+                                  ref
+                                      .read(userLocationNotifierProvider.notifier)
+                                      .refreshLocation();
+                                }
+                              },
+                              icon: const Icon(Icons.near_me_rounded, size: 16),
+                              label: Text(
+                                locState.status ==
+                                        UserLocationStatus.permissionDeniedForever
+                                    ? 'Open App Settings'
+                                    : 'Grant Permission',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual &&
+                        locState.status == UserLocationStatus.serviceDisabled) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_disabled_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Services Disabled',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Please enable GPS on your device to discover nearby routes.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: Geolocator.openLocationSettings,
+                              icon:
+                                  const Icon(Icons.settings_rounded, size: 16),
+                              label: const Text('Open Location Settings'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     final hasActiveFilter = filter.activityType != null ||
                         filter.minDistanceKm != null ||
                         filter.maxDistanceKm != null ||

@@ -7,6 +7,21 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Detailed result of location permission and service checks.
+enum LocationPermissionResult {
+  /// Location service is enabled and permission is granted (while in use or always).
+  granted,
+
+  /// Permission was denied by the user.
+  denied,
+
+  /// Permission was permanently denied by the user (requires app settings).
+  deniedForever,
+
+  /// Location services (GPS hardware / setting) are disabled on the device.
+  serviceDisabled,
+}
+
 /// State snapshot for live GPS outdoor activity tracking.
 class TrackingState {
   const TrackingState({
@@ -101,30 +116,97 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   Timer? _durationTimer;
   DateTime? _activityStartTime;
 
-  /// Requests location permissions if needed.
-  Future<bool> checkAndRequestPermission() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return false;
+  Future<LatLng?>? _inFlightPositionQuery;
+  int _positionRequestGeneration = 0;
+
+  /// Monotonically increasing counter incremented every time a new live position request is started.
+  int get positionRequestGeneration => _positionRequestGeneration;
+
+  @visibleForTesting
+  Future<LocationPermissionResult> Function()? checkPermissionDetailedOverride;
+
+  @visibleForTesting
+  Future<LatLng?> Function()? getCurrentPositionOverride;
+
+  @visibleForTesting
+  Future<LatLng?> Function()? getLastKnownPositionOverride;
+
+  /// Performs a detailed check of location services and permissions.
+  Future<LocationPermissionResult> checkPermissionDetailed() async {
+    if (checkPermissionDetailedOverride != null) {
+      return checkPermissionDetailedOverride!();
     }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return false;
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return LocationPermissionResult.serviceDisabled;
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
-      return false;
-    }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return LocationPermissionResult.denied;
+        }
+      }
 
-    return true;
+      if (permission == LocationPermission.deniedForever) {
+        return LocationPermissionResult.deniedForever;
+      }
+
+      return LocationPermissionResult.granted;
+    } catch (e) {
+      debugPrint('[LocationTrackingService] Permission check error: $e');
+      return LocationPermissionResult.denied;
+    }
   }
 
-  /// Obtains current GPS position.
+  /// Requests location permissions if needed. Returns true if granted.
+  Future<bool> checkAndRequestPermission() async {
+    final result = await checkPermissionDetailed();
+    return result == LocationPermissionResult.granted;
+  }
+
+  /// Quickly retrieves the last known position from the OS cache without turning on GPS hardware.
+  Future<LatLng?> getLastKnownPosition() async {
+    if (getLastKnownPositionOverride != null) {
+      return getLastKnownPositionOverride!();
+    }
+
+    try {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos != null) {
+        return LatLng(pos.latitude, pos.longitude);
+      }
+    } catch (e) {
+      debugPrint('[LocationTrackingService] Error getting last known position: $e');
+    }
+    return null;
+  }
+
+  /// Obtains current GPS position with single in-flight deduplication.
+  /// Concurrent callers will await the same in-flight query rather than spawning duplicate GPS requests.
   Future<LatLng?> getCurrentPosition() async {
+    if (getCurrentPositionOverride != null) {
+      return getCurrentPositionOverride!();
+    }
+
+    if (_inFlightPositionQuery != null) {
+      return _inFlightPositionQuery!;
+    }
+
+    final future = _fetchPositionInternal();
+    _inFlightPositionQuery = future;
+    try {
+      return await future;
+    } finally {
+      _inFlightPositionQuery = null;
+    }
+  }
+
+  Future<LatLng?> _fetchPositionInternal() async {
+    _positionRequestGeneration++;
     try {
       final hasPerm = await checkAndRequestPermission();
       if (!hasPerm) return null;

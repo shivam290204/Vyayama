@@ -189,8 +189,8 @@ class _OutdoorRecordingScreenState
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: currentPos ?? const LatLng(40.785091, -73.968285),
-                      initialZoom: 15.5,
+                      initialCenter: currentPos ?? const LatLng(20.0, 0.0),
+                      initialZoom: currentPos != null ? 15.5 : 2.5,
                       minZoom: 3.0,
                       maxZoom: 18.0,
                     ),
