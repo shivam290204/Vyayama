@@ -1,8 +1,9 @@
-// lib/features/maps/data/services/valhalla_service.dart
-
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
+import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -13,11 +14,45 @@ class ValhallaRoute {
     required this.points,
     required this.distanceMeters,
     required this.durationSeconds,
+    this.isLoopOverride,
   });
 
   final List<LatLng> points;
   final double distanceMeters;
   final double durationSeconds;
+  final bool? isLoopOverride;
+
+  /// Analyzes the route geometry to determine if this is a genuine loop
+  /// or an out-and-back retraced path.
+  bool get isLoop {
+    if (isLoopOverride != null) return isLoopOverride!;
+    if (points.length < 10) return false;
+
+    // Must start and finish in the same general area (< 250m apart)
+    final start = points.first;
+    final end = points.last;
+    final endDistance = haversineDistance(start, end);
+    if (endDistance > 250) return false;
+
+    // Check if the outward half and return half retrace each other
+    final halfLen = points.length ~/ 2;
+    int retracedMatches = 0;
+    int samples = 0;
+
+    for (int i = 0; i < halfLen; i += 2) {
+      samples++;
+      final p1 = points[i];
+      final p2 = points[points.length - 1 - i];
+      if (haversineDistance(p1, p2) < 35.0) {
+        retracedMatches++;
+      }
+    }
+
+    if (samples == 0) return false;
+    final retraceRatio = retracedMatches / samples;
+    // If >70% of points are within 35m of the return leg, it's an out-and-back
+    return retraceRatio < 0.70;
+  }
 
   /// Converts Valhalla route points to GpsPoint list for SavedRoute.
   List<GpsPoint> toGpsPoints() {
@@ -35,32 +70,37 @@ class ValhallaRoute {
 
 /// Calls the Valhalla routing API to compute real pedestrian routes.
 ///
-/// Uses the public Valhalla demo server: https://valhalla1.openstreetmap.de
-/// Not suitable for high-volume production use.
-///
-/// Endpoints:
-///   POST https://valhalla1.openstreetmap.de/route
-///
-/// Costing: pedestrian (for walking, running, hiking)
+/// Uses the public Valhalla demo server or a configurable endpoint.
+/// Costing: pedestrian (for walking, running, hiking).
+/// Includes in-memory response caching and typed exception handling.
 class ValhallaService {
-  ValhallaService();
+  ValhallaService({
+    RouteCache? cache,
+    String? baseUrl,
+  })  : _cache = cache ?? RouteCache.instance,
+        _baseUrl = baseUrl ?? 'https://valhalla1.openstreetmap.de';
 
-  static const String _baseUrl = 'https://valhalla1.openstreetmap.de';
+  final RouteCache _cache;
+  final String _baseUrl;
   static const String _userAgent = 'Vyayama/1.0 (com.vyayama.fitbuddy)';
   static const String _clientId = 'vyayama';
   static const Duration _timeout = Duration(seconds: 20);
 
-  /// Requests a pedestrian route from [origin] through [waypoints] and back.
-  /// For a circular loop, the last waypoint = [origin].
+  /// Requests a pedestrian route from [origin] through [waypoints].
   ///
-  /// Returns null if routing fails or service is unavailable.
+  /// Throws [RouteRateLimitException] on HTTP 429.
+  /// Throws [ValhallaRoutingException] on server errors.
+  /// Throws [RouteNetworkException] on connectivity or timeout failure.
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
   }) async {
     if (waypoints.isEmpty) return null;
 
-    // Build Valhalla locations list
+    final cacheKey = _buildCacheKey(origin, waypoints);
+    final cached = _cache.get<ValhallaRoute>(cacheKey);
+    if (cached != null) return cached;
+
     final locations = <Map<String, dynamic>>[
       _location(origin),
       ...waypoints.map(_location),
@@ -78,9 +118,9 @@ class ValhallaService {
       'directions_options': {'units': 'km'},
     });
 
+    HttpClient? client;
     try {
-      final client = HttpClient();
-      client.userAgent = _userAgent;
+      client = HttpClient()..userAgent = _userAgent;
       final uri = Uri.parse('$_baseUrl/route');
       final request = await client.postUrl(uri).timeout(_timeout);
       request.headers
@@ -89,20 +129,47 @@ class ValhallaService {
       request.write(body);
       final response = await request.close().timeout(_timeout);
 
-      if (response.statusCode == 429 || response.statusCode >= 500) {
-        client.close();
-        return null;
+      if (response.statusCode == 429) {
+        throw const RouteRateLimitException();
+      }
+
+      if (response.statusCode >= 500) {
+        throw ValhallaRoutingException(
+            'Valhalla routing service returned server error (${response.statusCode}).');
+      }
+
+      if (response.statusCode != 200) {
+        throw ValhallaRoutingException(
+            'Routing service returned unexpected status (${response.statusCode}).');
       }
 
       final responseBody = await response.transform(utf8.decoder).join();
-      client.close();
-
-      if (response.statusCode != 200) return null;
-
-      return _parseRoute(responseBody);
-    } catch (_) {
-      return null;
+      final parsed = _parseRoute(responseBody);
+      if (parsed != null) {
+        _cache.set(cacheKey, parsed);
+      }
+      return parsed;
+    } on SocketException catch (_) {
+      throw const RouteNetworkException();
+    } on TimeoutException catch (_) {
+      throw const RouteNetworkException(
+          'Routing service request timed out. Please try again.');
+    } on RouteDiscoveryException {
+      rethrow;
+    } catch (e) {
+      throw ValhallaRoutingException('Routing failed: $e');
+    } finally {
+      client?.close();
     }
+  }
+
+  String _buildCacheKey(LatLng origin, List<LatLng> waypoints) {
+    final buffer = StringBuffer('valhalla_')
+      ..write('${origin.latitude.toStringAsFixed(4)},${origin.longitude.toStringAsFixed(4)}_');
+    for (final wp in waypoints) {
+      buffer.write('${wp.latitude.toStringAsFixed(4)},${wp.longitude.toStringAsFixed(4)}_');
+    }
+    return buffer.toString();
   }
 
   ValhallaRoute? _parseRoute(String body) {
@@ -115,7 +182,6 @@ class ValhallaService {
       final lengthKm = (summary?['length'] as num?)?.toDouble() ?? 0.0;
       final durationSec = (summary?['time'] as num?)?.toDouble() ?? 0.0;
 
-      // Decode encoded polyline from legs
       final legs = trip['legs'] as List<dynamic>? ?? [];
       final allPoints = <LatLng>[];
 
@@ -134,8 +200,8 @@ class ValhallaService {
         distanceMeters: lengthKm * 1000.0,
         durationSeconds: durationSec,
       );
-    } catch (_) {
-      return null;
+    } catch (e) {
+      throw ValhallaRoutingException('Failed to parse route response: $e');
     }
   }
 

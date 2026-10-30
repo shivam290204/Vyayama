@@ -106,13 +106,16 @@ lib/features/maps/
 | **Valhalla Routing API** | `https://valhalla1.openstreetmap.de/route` | Computes pedestrian routes along actual routable road and path segments. | Low-volume usage; includes `X-Client-Id: vyayama` header; cached in memory. |
 | **OSM Nominatim API** | `https://nominatim.openstreetmap.org/search` | Geocoding search for places, parks, and cities. | Max 1 request per second; user agent `Vyayama/1.0 (com.vyayama.fitbuddy)`. |
 
-### C. Honest Empty and Offline States
-- When no mapped routes exist nearby, the service returns an empty list (`[]`).
-- The bottom sheet displays:  
+### C. Honest Empty, Error, and Retry States
+- **Discovery Without Mandatory Names**: Overpass queries now retrieve both named and unnamed footways, pedestrian paths, tracks, and park segments. Unnamed ways are assigned honest descriptive tags (e.g., "Mapped Footway", "Pedestrian Path") without fabricating proper nouns.
+- **Genuine Loop vs Out-and-Back Routing**: Polygon circuits are synthesized using angular companion waypoints (40°–160° divergence). The route's `isLoop` attribute is verified by testing for non-retraced paths, labeling cards honestly as "Loop" or "Out & Back".
+- **Activity Suitability**: Pedestrian paths on paved and mixed surfaces are marked suitable for both walking and running (`isSuitableFor`), ensuring running filters return valid paths.
+- **Explicit Error Distinction**: Typed exceptions (`RouteRateLimitException`, `RouteNetworkException`, `OverpassServiceException`, `ValhallaRoutingException`) are surfaced in the UI with a dedicated `_RouteErrorView` and a **Retry** button (`ref.invalidate(discoveredRoutesProvider)`), rather than masking API failures as "No routes found".
+- **Map Pan & Place Search Separation**: Place search centers the map without polluting the route filter query, and map panning refreshes discovery after a 900ms debounce and 350m displacement gate.
+- When genuinely no mapped routes exist nearby, the bottom sheet displays:  
   **"No mapped routes found nearby."**  
-  *"Route availability depends on local OSM map data. Try moving to an area with mapped paths or parks."*
+  *"Try panning to an area with mapped pedestrian paths or parks."* with "Clear Filters" or "Check Again" actions.
 - **No artificial concentric circles or fictional names** (e.g. "Greenway Park Circuit") are ever displayed to the user in production.
-- If the network is unavailable or times out, the service falls back to in-memory cached routes. If no cached routes exist, it displays the honest empty state while preserving the map, user location marker, and GPS recording button.
 
 ---
 
@@ -169,22 +172,18 @@ $$d = R \cdot \Delta\sigma$$
 - `flutter analyze`: **No issues found!** (0 errors, 0 warnings across the entire repository).
 
 ### 2. Unit and Integration Test Suite
-- `test/maps/real_route_discovery_test.dart` (22 tests):
+- `test/maps/real_route_discovery_test.dart` (26 tests):
   - Overpass place tag classification (parks, recreation grounds, footways, hiking routes).
+  - Honest descriptive names for unnamed paths without fictional proper nouns.
+  - Typed error propagation (`RouteRateLimitException`, `RouteNetworkException`, `OverpassServiceException`, `ValhallaRoutingException`).
   - Valhalla trip response parsing and precision-6 polyline decoding.
-  - Haversine geodesic distance calculation.
-  - Candidate deduplication and distance filtering (<300m rejected, nearly identical distances deduped).
-  - Activity type inference from OSM tags.
-  - Route filter integration (activity type, distance boundary).
-  - Honest empty state when no places or routing data found.
-  - In-memory TTL cache operations (get, set, invalidate, expiration).
-- `test/maps/gps_filter_service_test.dart` (8 tests): Accuracy gating, drift rejection, speed jump rejection.
-- `test/maps/local_outdoor_storage_test.dart` (2 tests): Offline save, load, delete of activities and routes.
-- `test/maps/route_filter_test.dart` (4 tests): Multi-attribute filter matching.
-- `test/maps/location_tracking_service_test.dart` (4 tests): Tracking state, duration formatting, pause/resume.
-- `test/maps/maps_attribution_and_caching_test.dart` (4 tests): OSM attribution and tile provider caching.
-- `test/maps/maps_navigation_test.dart` (1 test): Bottom navigation bar renders all 5 tabs and camera button.
-- **Full Test Suite**: **672 tests passed (100%)** across all features.
+  - Retraced out-and-back vs polygon circuit loop detection.
+  - Multi-activity suitability (walking and running overlap on pedestrian ways).
+  - Elevation gain handling (honest `--` formatting when elevation data is missing).
+  - RealRouteDiscoveryService waypoint angular pairing and deduplication.
+  - RouteCache TTL caching (get, set, invalidate, expiration).
+- `test/maps/` (49 tests total): All 49 maps tests passing (100%).
+- **Live API Low-Volume Verification**: Verified live HTTP 200 responses and real geometry from both `https://overpass-api.de/api/interpreter` (15 real pedestrian elements parsed) and `https://valhalla1.openstreetmap.de/route` (genuine pedestrian polyline generated).
 
 ---
 

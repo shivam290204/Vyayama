@@ -22,7 +22,7 @@ class RouteFilter {
   final String searchQuery;
 
   bool matches(SavedRoute route) {
-    if (activityType != null && route.activityType != activityType) {
+    if (activityType != null && !route.isSuitableFor(activityType!)) {
       return false;
     }
     if (minDistanceKm != null && route.distanceKm < minDistanceKm!) {
@@ -73,4 +73,3 @@ class RouteFilter {
         searchQuery: searchQuery ?? this.searchQuery,
       );
 }
-

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
+import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/route_detail_screen.dart';
@@ -22,12 +24,32 @@ class MapsScreen extends ConsumerStatefulWidget {
 class _MapsScreenState extends ConsumerState<MapsScreen> {
   final MapController _mapController = MapController();
   SavedRoute? _selectedRoute;
+  Timer? _mapMoveDebounce;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchInitialLocation();
+    });
+  }
+
+  @override
+  void dispose() {
+    _mapMoveDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onPositionChanged(MapCamera camera, bool hasGesture) {
+    if (!hasGesture) return;
+    _mapMoveDebounce?.cancel();
+    _mapMoveDebounce = Timer(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      final currentCenter = ref.read(selectedMapCenterProvider);
+      final newCenter = camera.center;
+      if (haversineDistance(currentCenter, newCenter) > 350) {
+        ref.read(selectedMapCenterProvider.notifier).state = newCenter;
+      }
     });
   }
 
@@ -181,6 +203,7 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
               initialZoom: 14.5,
               minZoom: 3.0,
               maxZoom: 18.0,
+              onPositionChanged: _onPositionChanged,
             ),
             children: [
               TileLayer(

@@ -80,7 +80,9 @@ class RouteCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${route.activityType.label} • ${route.surfaceType.name.toUpperCase()}',
+                          route.surfaceType == RouteSurface.unknown
+                              ? '${route.activityType.label} • ${route.isLoop ? 'Loop' : 'Out & Back'}'
+                              : '${route.activityType.label} • ${route.surfaceType.name.toUpperCase()} • ${route.isLoop ? 'Loop' : 'Out & Back'}',
                           style: TextStyle(
                             color: textMuted,
                             fontSize: 12,
@@ -121,7 +123,7 @@ class RouteCard extends StatelessWidget {
                   ),
                   _MetricItem(
                     label: 'Elevation',
-                    value: '+${route.elevationGainMeters.round()}m',
+                    value: route.formattedElevation,
                     icon: Icons.terrain_rounded,
                     color: AppPalette.activityCalories,
                   ),

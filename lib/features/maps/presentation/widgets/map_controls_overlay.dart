@@ -36,11 +36,6 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
 
   Future<void> _onSearchSubmitted(String query) async {
     final trimmed = query.trim();
-    // Update route name filter for any non-empty query
-    ref.read(activeRouteFilterProvider.notifier).update(
-          (current) => current.copyWith(searchQuery: trimmed),
-        );
-
     if (trimmed.isEmpty) return;
 
     if (_isSearching) return;
@@ -60,20 +55,103 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
         return;
       }
 
-      final first = results.first;
-      ref.read(selectedMapCenterProvider.notifier).state = first.latLng;
-      widget.mapController.move(first.latLng, 14.5);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Moved to: ${first.shortName}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      if (results.length == 1) {
+        _selectPlace(results.first);
+      } else {
+        _showPlacePickerSheet(results);
       }
     } finally {
       if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  void _showPlacePickerSheet(List<NominatimResult> places) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardBg =
+        isDark ? AppPalette.darkSurface : AppPalette.lightSurface;
+    final textPrimary =
+        isDark ? AppPalette.darkText : AppPalette.lightText;
+    final textMuted =
+        isDark ? AppPalette.darkTextMuted : AppPalette.lightTextMuted;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Select a Location',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: places.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, index) {
+                      final place = places[index];
+                      return ListTile(
+                        leading: const Icon(Icons.location_on_rounded,
+                            color: AppPalette.forestGreen),
+                        title: Text(
+                          place.shortName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          place.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: textMuted, fontSize: 12),
+                        ),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _selectPlace(place);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _selectPlace(NominatimResult place) {
+    _searchCtrl.text = place.shortName;
+    ref.read(selectedMapCenterProvider.notifier).state = place.latLng;
+    widget.mapController.move(place.latLng, 14.5);
+    ref.invalidate(discoveredRoutesProvider);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Moved to: ${place.shortName}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -125,7 +203,7 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                     child: TextField(
                       controller: _searchCtrl,
                       textInputAction: TextInputAction.search,
-                      onSubmitted: _onSearchSubmitted,
+                      onSubmitted: (q) => _onSearchSubmitted(q),
                       style: TextStyle(
                         color: textPrimary,
                         fontSize: 14,
@@ -140,47 +218,39 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                       ),
                     ),
                   ),
-                  if (_searchCtrl.text.isNotEmpty)
+                  if (_isSearching)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2.0),
+                      ),
+                    )
+                  else if (_searchCtrl.text.isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 18),
                       color: textMuted,
                       onPressed: () {
                         _searchCtrl.clear();
-                        _onSearchSubmitted('');
                       },
                     ),
-                  // Filter trigger button — replaced with progress when searching
+                  // Filter trigger button
                   Container(
                     margin: const EdgeInsets.only(right: 6),
-                    child: _isSearching
-                        ? Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: isDark
-                                    ? AppPalette.limeGreen
-                                    : AppPalette.forestGreen,
-                              ),
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.tune_rounded, size: 20),
-                            color: isDark
-                                ? AppPalette.limeGreen
-                                : AppPalette.forestGreen,
-                            tooltip: 'Filter Routes',
-                            onPressed: () {
-                              showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: Colors.transparent,
-                                builder: (_) => const RouteFilterSheet(),
-                              );
-                            },
-                          ),
+                    child: IconButton(
+                      icon: const Icon(Icons.tune_rounded, size: 20),
+                      color: isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
+                      tooltip: 'Filter Routes',
+                      onPressed: () {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const RouteFilterSheet(),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -312,4 +382,3 @@ class _MapFloatingButton extends StatelessWidget {
     );
   }
 }
-

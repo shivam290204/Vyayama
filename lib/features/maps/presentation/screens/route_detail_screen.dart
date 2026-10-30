@@ -163,7 +163,9 @@ class RouteDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${route.activityType.label} • ${route.surfaceType.name.toUpperCase()} SURFACE',
+                        route.surfaceType == RouteSurface.unknown
+                            ? '${route.activityType.label} • ${route.isLoop ? 'LOOP' : 'OUT & BACK'}'
+                            : '${route.activityType.label} • ${route.surfaceType.name.toUpperCase()} SURFACE • ${route.isLoop ? 'LOOP' : 'OUT & BACK'}',
                         style: TextStyle(
                           fontSize: 12,
                           color: textMuted,
@@ -191,7 +193,7 @@ class RouteDetailScreen extends ConsumerWidget {
                           ),
                           _DetailMetric(
                             label: 'ELEVATION',
-                            value: '+${route.elevationGainMeters.round()}m',
+                            value: route.formattedElevation,
                             icon: Icons.terrain_rounded,
                             color: AppPalette.activityCalories,
                           ),
