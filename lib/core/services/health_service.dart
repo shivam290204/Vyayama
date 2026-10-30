@@ -27,6 +27,15 @@ class HealthService {
   @visibleForTesting
   String? serviceNameOverride;
 
+  @visibleForTesting
+  bool? isHealthConnectAvailableOverride;
+
+  @visibleForTesting
+  bool? requestPermissionsOverride;
+
+  @visibleForTesting
+  int? stepsTodayOverride;
+
   /// Whether the current platform supports HealthKit or Health Connect.
   bool get isSupported {
     if (isSupportedOverride != null) return isSupportedOverride!;
@@ -47,6 +56,9 @@ class HealthService {
   void resetForTesting() {
     isSupportedOverride = null;
     serviceNameOverride = null;
+    isHealthConnectAvailableOverride = null;
+    requestPermissionsOverride = null;
+    stepsTodayOverride = null;
   }
 
   /// Checks whether health sync has been enabled by the user in settings.
@@ -98,6 +110,7 @@ class HealthService {
 
   /// Whether Google Health Connect is available on this Android device.
   Future<bool> isHealthConnectAvailable() async {
+    if (isHealthConnectAvailableOverride != null) return isHealthConnectAvailableOverride!;
     if (kIsWeb || !Platform.isAndroid) return true;
     try {
       return await _health.isHealthConnectAvailable();
@@ -128,12 +141,19 @@ class HealthService {
 
   /// Requests permission to read steps and active energy from the health provider.
   Future<bool> requestPermissions() async {
+    if (requestPermissionsOverride != null) return requestPermissionsOverride!;
     if (!isSupported) return false;
     await _ensureConfigured();
 
     try {
+      final alreadyGranted = await _health.hasPermissions(_types);
+      if (alreadyGranted == true) return true;
+
       final granted = await _health.requestAuthorization(_types);
-      return granted;
+      if (granted) return true;
+
+      final verified = await _health.hasPermissions(_types);
+      return verified ?? false;
     } catch (e) {
       debugPrint('Health authorization request failed: $e');
       return false;
@@ -142,6 +162,7 @@ class HealthService {
 
   /// Returns total steps walked today, or null if health data is unavailable.
   Future<int?> getStepsToday() async {
+    if (stepsTodayOverride != null) return stepsTodayOverride;
     if (!isSupported) return null;
     await _ensureConfigured();
 

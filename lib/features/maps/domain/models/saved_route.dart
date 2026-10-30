@@ -307,7 +307,7 @@ class SavedRoute {
           : null,
       isLoop: resolvedIsLoop,
       isDifficultyEstimated:
-          json['is_difficulty_estimated'] as bool? ?? false,
+          json['is_difficulty_estimated'] as bool? ?? true,
     );
   }
 }

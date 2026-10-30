@@ -320,6 +320,42 @@ void main() {
         throwsA(isA<ValhallaRoutingException>()),
       );
     });
+
+    test('9b. Multi-waypoint routing propagates RouteRateLimitException without retrying fallback', () async {
+      final p1 = _park(1, 'Hyde Park', 51.507, -0.095);
+      final p2 = _park(2, 'Kensington Gardens', 51.503, -0.085);
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [p1, p2],
+          valhallaRoute: null,
+          valhallaError: const RouteRateLimitException(),
+        ),
+      );
+
+      expect(
+        () => engine.discoverRoutes(center: _center),
+        throwsA(isA<RouteRateLimitException>()),
+      );
+    });
+
+    test('9c. Multi-waypoint routing propagates RouteNetworkException without retrying fallback', () async {
+      final p1 = _park(1, 'Hyde Park', 51.507, -0.095);
+      final p2 = _park(2, 'Kensington Gardens', 51.503, -0.085);
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [p1, p2],
+          valhallaRoute: null,
+          valhallaError: const RouteNetworkException(),
+        ),
+      );
+
+      expect(
+        () => engine.discoverRoutes(center: _center),
+        throwsA(isA<RouteNetworkException>()),
+      );
+    });
   });
 
   // 3. Valhalla polyline decoder & geometry loop analysis ──────────────────────
@@ -397,7 +433,6 @@ void main() {
         tags: const {'leisure': 'park'},
       );
 
-      // Simulates Valhalla returning a retraced path even though two waypoints were given
       final engine = RouteDiscoveryEngine(
         realService: _makeService(
           places: [p1, p2],
@@ -409,6 +444,58 @@ void main() {
       expect(routes, isNotEmpty);
       expect(routes.first.isLoop, isFalse);
       expect(routes.first.name, contains('Out & Back'));
+      expect(routes.first.name, isNot(endsWith('Loop')));
+    });
+
+    test('14b. Route classified as Out & Back with two named places never ends in Loop', () async {
+      final p1 = _park(1, 'Regents Park', 51.507, -0.095);
+      final p2 = _park(2, 'Primrose Hill', 51.508, -0.085);
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [p1, p2],
+          valhallaRoute: _retracedOutAndBackRoute, // Returns isLoop = false
+        ),
+      );
+
+      final routes = await engine.discoverRoutes(center: _center);
+      expect(routes, isNotEmpty);
+      expect(routes.first.isLoop, isFalse);
+      expect(routes.first.name, equals('Regents Park & Primrose Hill Out & Back'));
+      expect(routes.first.name.endsWith('Loop'), isFalse);
+    });
+
+    test('14c. Fallback to single waypoint does not include unused second location in name or ID', () async {
+      final p1 = _park(10, 'Greenwich Park', 51.507, -0.095);
+      final p2 = _park(20, 'Blackheath Common', 51.503, -0.085);
+
+      final singleWaypointRoute = ValhallaRoute(
+        points: _retracedOutAndBackRoute.points,
+        distanceMeters: 2000,
+        durationSeconds: 1500,
+      );
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [p1, p2],
+          valhallaRoute: null,
+          routeResolver: (origin, waypoints) {
+            // Multi-point fails (returns null), single waypoint succeeds
+            if (waypoints.length > 2) return null;
+            return singleWaypointRoute;
+          },
+        ),
+      );
+
+      final routes = await engine.discoverRoutes(center: _center);
+      expect(routes, isNotEmpty);
+      final route = routes.first;
+
+      // Must not include p2 (Blackheath Common) anywhere
+      expect(route.name, equals('Greenwich Park Out & Back'));
+      expect(route.name.contains('Blackheath Common'), isFalse);
+      expect(route.id, equals('osm_10_0'));
+      expect(route.description.contains('Blackheath Common'), isFalse);
     });
   });
 
@@ -523,7 +610,6 @@ void main() {
     });
 
     test('22. Allows multiple unnamed routes with identical display names when geometry differs', () async {
-      // Two distinct footways in different directions (North and South)
       final footwayNorth = OverpassPlace(
         id: 201,
         name: 'Mapped Footway',
@@ -577,7 +663,6 @@ void main() {
       );
 
       final routes = await engine.discoverRoutes(center: _center);
-      // Both routes must be preserved despite identical display names
       expect(routes, hasLength(2));
       expect(routes[0].name, equals(routes[1].name));
     });
@@ -643,7 +728,7 @@ void main() {
   // 7. Backward compatibility with older stored routes ───────────────────────
 
   group('Backward compatibility with older SavedRoute JSON', () {
-    test('25. Old saved-route JSON without is_loop is not automatically labelled as verified loop', () {
+    test('25. Old saved-route JSON missing is_difficulty_estimated retains estimated classification', () {
       final oldJsonWithoutIsLoop = {
         'id': 'legacy_route_001',
         'name': 'Old Track',
@@ -651,7 +736,7 @@ void main() {
         'distance_meters': 2000.0,
         'estimated_duration_sec': 1400,
         'difficulty': 'easy',
-        'points': <dynamic>[], // No points
+        'points': <dynamic>[],
         'description': 'Legacy walk',
       };
 
@@ -659,7 +744,26 @@ void main() {
       expect(route.id, equals('legacy_route_001'));
       expect(route.isLoop, isFalse, reason: 'Old routes without is_loop must default to false');
       expect(route.surfaceType, equals(RouteSurface.unknown));
+      // Missing is_difficulty_estimated defaults to true to preserve estimated classification
+      expect(route.isDifficultyEstimated, isTrue);
+      expect(route.formattedDifficulty, equals('Est. Easy'));
+    });
+
+    test('25b. SavedRoute JSON with explicit is_difficulty_estimated=false retains verified rating', () {
+      final verifiedJson = {
+        'id': 'verified_route_001',
+        'name': 'Verified Alpine Ridge',
+        'activity_type': 'hike',
+        'distance_meters': 12000.0,
+        'estimated_duration_sec': 10000,
+        'difficulty': 'hard',
+        'is_difficulty_estimated': false,
+        'points': <dynamic>[],
+      };
+
+      final route = SavedRoute.fromJson(verifiedJson);
       expect(route.isDifficultyEstimated, isFalse);
+      expect(route.formattedDifficulty, equals('Hard'));
     });
 
     test('26. Old saved-route JSON without surface_type parses safely without error', () {

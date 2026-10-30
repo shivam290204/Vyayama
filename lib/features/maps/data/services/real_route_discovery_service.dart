@@ -59,32 +59,29 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       // Try finding a complementary second waypoint to create a genuine loop
       final p2 = _findLoopCompanion(center, p1, candidates);
 
-      final pairKey = '${p1.id}:${p2?.id ?? 0}';
-      final reversePairKey = '${p2?.id ?? 0}:${p1.id}';
-      if (seenOsmPairs.contains(pairKey) ||
-          seenOsmPairs.contains(reversePairKey)) {
-        continue;
-      }
-
       ValhallaRoute? routed;
+      OverpassPlace? actualSecondary;
 
       if (p2 != null) {
         // Multi-point loop: Center -> Waypoint 1 -> Waypoint 2 -> Center
-        try {
-          routed = await _valhalla.route(
-            origin: center,
-            waypoints: [p1.latLng, p2.latLng, center],
-          );
-        } catch (_) {
-          // Fall back to single waypoint out-and-back
-          routed = null;
+        // Propagate network errors, HTTP 429 and server errors correctly.
+        routed = await _valhalla.route(
+          origin: center,
+          waypoints: [p1.latLng, p2.latLng, center],
+        );
+        if (routed != null) {
+          actualSecondary = p2;
         }
       }
 
-      routed ??= await _valhalla.route(
-        origin: center,
-        waypoints: [p1.latLng, center],
-      );
+      // If multi-point was unroutable (null) or p2 was null, fall back to single waypoint
+      if (routed == null) {
+        routed = await _valhalla.route(
+          origin: center,
+          waypoints: [p1.latLng, center],
+        );
+        actualSecondary = null;
+      }
 
       if (routed == null) continue;
       if (routed.distanceMeters < 300) continue;
@@ -93,17 +90,25 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       // Deduplicate using geometric similarity & spatial overlap
       if (_isGeometricDuplicate(routed, routes)) continue;
 
+      // Check OSM element pairs (only using the actual waypoints used)
+      final pairKey = '${p1.id}:${actualSecondary?.id ?? 0}';
+      final reversePairKey = '${actualSecondary?.id ?? 0}:${p1.id}';
+      if (seenOsmPairs.contains(pairKey) ||
+          seenOsmPairs.contains(reversePairKey)) {
+        continue;
+      }
+
       // Loop status strictly derived from returned route geometry
       final isLoop = routed.isLoop;
-      final routeName = _determineRouteName(p1, p2, isLoop);
+      final routeName = _determineRouteName(p1, actualSecondary, isLoop);
 
       seenOsmPairs.add(pairKey);
 
       final route = _buildRoute(
-        id: 'osm_${p1.id}_${p2?.id ?? 0}',
+        id: 'osm_${p1.id}_${actualSecondary?.id ?? 0}',
         name: routeName,
         primaryPlace: p1,
-        secondaryPlace: p2,
+        secondaryPlace: actualSecondary,
         routed: routed,
         isLoop: isLoop,
       );
@@ -242,13 +247,18 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     OverpassPlace? p2,
     bool isLoop,
   ) {
-    if (p1.isNamed && p2 != null && p2.isNamed && p1.name != p2.name) {
-      return '${p1.name} & ${p2.name} Loop';
+    if (isLoop) {
+      if (p1.isNamed && p2 != null && p2.isNamed && p1.name != p2.name) {
+        return '${p1.name} & ${p2.name} Loop';
+      }
+      return '${p1.name} Loop';
+    } else {
+      // Out & Back route — must NEVER end in "Loop"
+      if (p1.isNamed && p2 != null && p2.isNamed && p1.name != p2.name) {
+        return '${p1.name} & ${p2.name} Out & Back';
+      }
+      return '${p1.name} Out & Back';
     }
-    if (p1.isNamed) {
-      return isLoop ? '${p1.name} Loop' : '${p1.name} Out & Back';
-    }
-    return isLoop ? '${p1.name} Loop' : '${p1.name} Out & Back';
   }
 
   SavedRoute _buildRoute({

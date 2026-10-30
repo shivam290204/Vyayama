@@ -17,9 +17,9 @@ void main() {
     HealthService.instance.resetForTesting();
   });
 
-  Widget buildTestWidget() {
+  Widget buildTestWidget({ThemeData? theme}) {
     return MaterialApp(
-      theme: AppTheme.dark(useGoogleFonts: false),
+      theme: theme ?? AppTheme.dark(useGoogleFonts: false),
       home: const Scaffold(
         body: SingleChildScrollView(
           child: ConnectedHealthSection(),
@@ -87,5 +87,74 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(HealthService.kHealthSyncEnabledKey), isFalse);
     expect(find.text('Disconnected from Apple Health.'), findsOneWidget);
+  });
+
+  testWidgets('displays error and settings action when Health Connect permission fails', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    HealthService.instance.isSupportedOverride = true;
+    HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.isHealthConnectAvailableOverride = true;
+    HealthService.instance.requestPermissionsOverride = false;
+
+    await tester.pumpWidget(buildTestWidget(
+      theme: ThemeData(platform: TargetPlatform.android),
+    ));
+    await tester.pumpAndSettle();
+
+    // Tap switch to connect
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not connect to Google Health Connect. Please grant permissions in system settings.'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+
+    final switchWidget = tester.widget<Switch>(find.byType(Switch));
+    expect(switchWidget.value, isFalse);
+  });
+
+  testWidgets('connects and enables sync when Health Connect permission succeeds', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    HealthService.instance.isSupportedOverride = true;
+    HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.isHealthConnectAvailableOverride = true;
+    HealthService.instance.requestPermissionsOverride = true;
+    HealthService.instance.stepsTodayOverride = 5000;
+
+    await tester.pumpWidget(buildTestWidget(
+      theme: ThemeData(platform: TargetPlatform.android),
+    ));
+    await tester.pumpAndSettle();
+
+    // Tap switch to connect
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connected to Google Health Connect! Steps and calories are now synchronized.'), findsOneWidget);
+    expect(find.text('Sync Now'), findsOneWidget);
+
+    final switchWidget = tester.widget<Switch>(find.byType(Switch));
+    expect(switchWidget.value, isTrue);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(HealthService.kHealthSyncEnabledKey), isTrue);
+  });
+
+  testWidgets('displays install prompt when Health Connect is not available on Android', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    HealthService.instance.isSupportedOverride = true;
+    HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.isHealthConnectAvailableOverride = false;
+
+    await tester.pumpWidget(buildTestWidget(
+      theme: ThemeData(platform: TargetPlatform.android),
+    ));
+    await tester.pumpAndSettle();
+
+    // Tap switch to connect
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Google Health Connect is not installed or requires an update.'), findsOneWidget);
+    expect(find.text('Install'), findsOneWidget);
   });
 }

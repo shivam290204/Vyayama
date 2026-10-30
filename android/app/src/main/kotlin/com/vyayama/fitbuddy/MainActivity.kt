@@ -12,12 +12,12 @@ import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.util.Rational
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "io.vyayama.fitbuddy/system_features"
     private var methodChannel: MethodChannel? = null
     private var autoEnterPipOnUserLeave: Boolean = false
