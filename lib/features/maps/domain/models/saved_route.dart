@@ -152,9 +152,9 @@ class SavedRoute {
 
   double get distanceKm => distanceMeters / 1000.0;
 
-  LatLng get startPoint => points.isNotEmpty
+  LatLng? get startPoint => points.isNotEmpty
       ? points.first.toLatLng()
-      : const LatLng(0, 0);
+      : null;
 
   String get formattedDistance => '${distanceKm.toStringAsFixed(1)} km';
 

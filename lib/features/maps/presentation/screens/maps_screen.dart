@@ -69,8 +69,8 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
     setState(() {
       _selectedRoute = route;
     });
-    if (route.points.isNotEmpty) {
-      _mapController.move(route.startPoint, 14.0);
+    if (route.startPoint != null) {
+      _mapController.move(route.startPoint!, 14.0);
     }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -143,10 +143,10 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
       );
 
       // Start marker for route
-      if (r.points.isNotEmpty) {
+      if (r.startPoint != null) {
         markers.add(
           Marker(
-            point: r.startPoint,
+            point: r.startPoint!,
             width: 32,
             height: 32,
             child: GestureDetector(

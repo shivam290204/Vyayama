@@ -7,7 +7,6 @@ import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
 
 /// Full-screen live GPS outdoor activity recording.
 class OutdoorRecordingScreen extends ConsumerStatefulWidget {
@@ -181,69 +180,106 @@ class _OutdoorRecordingScreenState
         ),
         body: Column(
           children: [
-            // 1. Live Map Viewport
+            // 1. Live Map Viewport or Acquiring Signal View
             Expanded(
               flex: 4,
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: currentPos ?? const LatLng(20.0, 0.0),
-                      initialZoom: currentPos != null ? 15.5 : 2.5,
-                      minZoom: 3.0,
-                      maxZoom: 18.0,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.vyayama.fitbuddy',
-                      ),
-                      RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            onTap: () => launchUrl(
-                              Uri.parse('https://openstreetmap.org/copyright'),
-                              mode: LaunchMode.externalApplication,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (polylinePoints.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: polylinePoints,
-                              strokeWidth: 5.0,
-                              color: AppPalette.limeGreen,
-                            ),
-                          ],
-                        ),
-                      if (currentPos != null)
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: currentPos,
-                              width: 36,
-                              height: 36,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppPalette.limeGreen,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 3.0),
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black38, blurRadius: 6),
-                                  ],
-                                ),
+              child: (currentPos == null && polylinePoints.isEmpty)
+                  ? Container(
+                      color: cardBg,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: AppPalette.forestGreen,
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Acquiring GPS Signal...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Stand in an open area for best accuracy.',
+                              style: TextStyle(fontSize: 13, color: textMuted),
+                            ),
                           ],
                         ),
-                    ],
-                  ),
-                ],
-              ),
+                      ),
+                    )
+                  : Stack(
+                      children: [
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: currentPos ?? polylinePoints.last,
+                            initialZoom: 15.5,
+                            minZoom: 3.0,
+                            maxZoom: 18.0,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.vyayama.fitbuddy',
+                            ),
+                            RichAttributionWidget(
+                              attributions: [
+                                TextSourceAttribution(
+                                  'OpenStreetMap contributors',
+                                  onTap: () => launchUrl(
+                                    Uri.parse('https://openstreetmap.org/copyright'),
+                                    mode: LaunchMode.externalApplication,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (polylinePoints.isNotEmpty)
+                              PolylineLayer(
+                                polylines: [
+                                  Polyline(
+                                    points: polylinePoints,
+                                    strokeWidth: 5.0,
+                                    color: AppPalette.limeGreen,
+                                  ),
+                                ],
+                              ),
+                            if (currentPos != null)
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: currentPos,
+                                    width: 36,
+                                    height: 36,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppPalette.limeGreen,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 3.0),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                              color: Colors.black38,
+                                              blurRadius: 6),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
             ),
 
             // 2. Metrics & Controls Dashboard

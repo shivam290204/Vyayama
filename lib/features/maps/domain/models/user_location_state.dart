@@ -11,6 +11,9 @@ enum UserLocationStatus {
   /// Valid, high-accuracy GPS fix acquired.
   available,
 
+  /// Location services or hardware are unavailable on this device.
+  unavailable,
+
   /// Device location hardware / service is switched off in system settings.
   serviceDisabled,
 
@@ -88,6 +91,9 @@ class UserLocationState {
       status == UserLocationStatus.permissionDenied ||
       status == UserLocationStatus.permissionDeniedForever;
 
+  /// Whether location hardware or services are completely unavailable.
+  bool get isUnavailable => status == UserLocationStatus.unavailable;
+
   UserLocationState copyWith({
     UserLocationStatus? status,
     LatLng? position,
@@ -148,3 +154,4 @@ class UserLocationState {
   String toString() =>
       'UserLocationState($status, pos: $position, lastKnown: $lastKnownPosition, err: $errorMessage)';
 }
+

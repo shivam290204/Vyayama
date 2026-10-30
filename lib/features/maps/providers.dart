@@ -70,7 +70,9 @@ class UserLocationNotifier extends StateNotifier<UserLocationState> {
   final LocationTrackingService _service;
 
   /// Acquires or refreshes the user's GPS position with deduplicated queries.
-  Future<void> refreshLocation() async {
+  /// When [requestIfNeeded] is false (default on startup), it does not trigger the OS
+  /// prompt automatically, allowing the app to show a plain-language disclosure first.
+  Future<void> refreshLocation({bool requestIfNeeded = false}) async {
     // Preserve any existing position as lastKnownPosition while refreshing
     state = state.copyWith(
       status: UserLocationStatus.waitingForSignal,
@@ -85,7 +87,9 @@ class UserLocationNotifier extends StateNotifier<UserLocationState> {
       }
     }
 
-    final perm = await _service.checkPermissionDetailed();
+    final perm = await _service.checkPermissionDetailed(
+      requestIfNeeded: requestIfNeeded,
+    );
     if (!mounted) return;
 
     switch (perm) {
@@ -93,6 +97,13 @@ class UserLocationNotifier extends StateNotifier<UserLocationState> {
         state = state.copyWith(
           status: UserLocationStatus.serviceDisabled,
           errorMessage: 'Location services are disabled on this device.',
+        );
+        return;
+      case LocationPermissionResult.unavailable:
+        state = state.copyWith(
+          status: UserLocationStatus.unavailable,
+          errorMessage:
+              'Location services or hardware are unavailable on this device.',
         );
         return;
       case LocationPermissionResult.denied:
@@ -136,6 +147,11 @@ class UserLocationNotifier extends StateNotifier<UserLocationState> {
         errorMessage: e.toString(),
       );
     }
+  }
+
+  /// Explicitly requests location permission after the user has seen the plain-language disclosure.
+  Future<void> requestPermission() async {
+    await refreshLocation(requestIfNeeded: true);
   }
 }
 

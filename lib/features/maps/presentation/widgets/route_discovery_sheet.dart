@@ -222,28 +222,28 @@ class RouteDiscoverySheet extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Column(
                           children: [
-                            Icon(Icons.location_off_rounded,
-                                size: 36, color: textMuted),
+                            Icon(Icons.location_on_outlined,
+                                size: 36, color: AppPalette.forestGreen),
                             const SizedBox(height: 8),
                             Text(
                               'Location Permission Needed',
                               style: TextStyle(
                                 color: textPrimary,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
+                                fontSize: 16,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
-                                'Enable location access to discover real walking, running, and hiking routes near you.',
+                                'Vyayama uses your device\'s location to discover real nearby walking, running, and hiking routes and track your outdoor workouts.\n\nYour location data stays private on your device and is never shared without your consent.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(color: textMuted, fontSize: 12),
+                                style: TextStyle(color: textMuted, fontSize: 13, height: 1.4),
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             FilledButton.icon(
                               style: FilledButton.styleFrom(
                                 backgroundColor: AppPalette.forestGreen,
@@ -256,7 +256,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                                 } else {
                                   ref
                                       .read(userLocationNotifierProvider.notifier)
-                                      .refreshLocation();
+                                      .requestPermission();
                                 }
                               },
                               icon: const Icon(Icons.near_me_rounded, size: 16),
@@ -264,7 +264,38 @@ class RouteDiscoverySheet extends ConsumerWidget {
                                 locState.status ==
                                         UserLocationStatus.permissionDeniedForever
                                     ? 'Open App Settings'
-                                    : 'Grant Permission',
+                                    : 'Allow Location Access',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual && locState.isUnavailable) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_off_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Unavailable',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Location hardware or services are not available on this device.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
                               ),
                             ),
                           ],

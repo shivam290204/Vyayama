@@ -20,6 +20,9 @@ enum LocationPermissionResult {
 
   /// Location services (GPS hardware / setting) are disabled on the device.
   serviceDisabled,
+
+  /// Location hardware, sensor or service is unavailable on this device.
+  unavailable,
 }
 
 /// State snapshot for live GPS outdoor activity tracking.
@@ -123,7 +126,8 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   int get positionRequestGeneration => _positionRequestGeneration;
 
   @visibleForTesting
-  Future<LocationPermissionResult> Function()? checkPermissionDetailedOverride;
+  Future<LocationPermissionResult> Function({bool requestIfNeeded})?
+      checkPermissionDetailedOverride;
 
   @visibleForTesting
   Future<LatLng?> Function()? getCurrentPositionOverride;
@@ -132,9 +136,15 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   Future<LatLng?> Function()? getLastKnownPositionOverride;
 
   /// Performs a detailed check of location services and permissions.
-  Future<LocationPermissionResult> checkPermissionDetailed() async {
+  /// When [requestIfNeeded] is false, does not invoke the system permission prompt
+  /// so the app can display a plain-language explanation to the user first.
+  Future<LocationPermissionResult> checkPermissionDetailed({
+    bool requestIfNeeded = true,
+  }) async {
     if (checkPermissionDetailedOverride != null) {
-      return checkPermissionDetailedOverride!();
+      return checkPermissionDetailedOverride!(
+        requestIfNeeded: requestIfNeeded,
+      );
     }
 
     try {
@@ -145,6 +155,9 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (!requestIfNeeded) {
+          return LocationPermissionResult.denied;
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           return LocationPermissionResult.denied;
@@ -158,7 +171,7 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
       return LocationPermissionResult.granted;
     } catch (e) {
       debugPrint('[LocationTrackingService] Permission check error: $e');
-      return LocationPermissionResult.denied;
+      return LocationPermissionResult.unavailable;
     }
   }
 

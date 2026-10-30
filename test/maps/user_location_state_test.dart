@@ -1,10 +1,17 @@
 import 'dart:async';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/route_detail_screen.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
@@ -75,6 +82,17 @@ void main() {
       expect(disabledState.hasPermissionIssue, isFalse);
     });
 
+    test('4b. Unavailable state detection', () {
+      const unavailState = UserLocationState(
+        status: UserLocationStatus.unavailable,
+        errorMessage: 'Location hardware unavailable',
+      );
+      expect(unavailState.isUnavailable, isTrue);
+      expect(unavailState.isAvailable, isFalse);
+      expect(unavailState.hasPosition, isFalse);
+      expect(unavailState.hasPermissionIssue, isFalse);
+    });
+
     test('5. Equality and copyWith', () {
       const s1 = UserLocationState(
         status: UserLocationStatus.available,
@@ -96,10 +114,8 @@ void main() {
   group('LocationTrackingService Deduplication & Generation Tests', () {
     test('6. Concurrent getCurrentPosition calls share single in-flight future', () async {
       final service = LocationTrackingService();
-      int executionCount = 0;
 
       service.getCurrentPositionOverride = () async {
-        executionCount++;
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return const LatLng(28.715, 77.170);
       };
@@ -161,7 +177,8 @@ void main() {
     test('9. Successfully acquires position and updates state to available', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =
-          () async => LocationPermissionResult.granted;
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.granted;
       service.getCurrentPositionOverride =
           () async => const LatLng(28.715, 77.170);
 
@@ -176,7 +193,8 @@ void main() {
     test('10. Transitions to serviceDisabled when location hardware is off', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =
-          () async => LocationPermissionResult.serviceDisabled;
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.serviceDisabled;
 
       final notifier = UserLocationNotifier(service);
       await pumpEventQueue();
@@ -189,7 +207,8 @@ void main() {
     test('11. Transitions to permissionDenied when permission is rejected', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =
-          () async => LocationPermissionResult.denied;
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.denied;
 
       final notifier = UserLocationNotifier(service);
       await pumpEventQueue();
@@ -201,7 +220,8 @@ void main() {
     test('12. Transitions to permissionDeniedForever when permanently denied', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =
-          () async => LocationPermissionResult.deniedForever;
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.deniedForever;
 
       final notifier = UserLocationNotifier(service);
       await pumpEventQueue();
@@ -214,7 +234,8 @@ void main() {
     test('13. Transitions to timedOut when GPS fix cannot be acquired', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =
-          () async => LocationPermissionResult.granted;
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.granted;
       service.getCurrentPositionOverride = () async => null;
 
       final notifier = UserLocationNotifier(service);
@@ -222,6 +243,66 @@ void main() {
 
       expect(notifier.state.status, equals(UserLocationStatus.timedOut));
       expect(notifier.state.position, isNull);
+    });
+
+    test('13b. Transitions to unavailable when location services cannot be initialized', () async {
+      final service = LocationTrackingService();
+      service.checkPermissionDetailedOverride =
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.unavailable;
+
+      final notifier = UserLocationNotifier(service);
+      await pumpEventQueue();
+
+      expect(notifier.state.status, equals(UserLocationStatus.unavailable));
+      expect(notifier.state.isUnavailable, isTrue);
+      expect(notifier.state.errorMessage, contains('unavailable'));
+    });
+
+    test('13c. Plain-language pre-permission disclosure flow', () async {
+      final service = LocationTrackingService();
+      bool requestedOsPrompt = false;
+
+      service.checkPermissionDetailedOverride =
+          ({bool requestIfNeeded = true}) async {
+        if (requestIfNeeded) {
+          requestedOsPrompt = true;
+          return LocationPermissionResult.granted;
+        }
+        return LocationPermissionResult.denied;
+      };
+      service.getCurrentPositionOverride =
+          () async => const LatLng(28.715, 77.170);
+
+      final notifier = UserLocationNotifier(service);
+      await pumpEventQueue();
+
+      // On startup with default requestIfNeeded: false, status is permissionDenied without OS prompt
+      expect(notifier.state.status, equals(UserLocationStatus.permissionDenied));
+      expect(requestedOsPrompt, isFalse,
+          reason: 'Must not invoke system permission prompt prior to user intent');
+
+      // User taps "Allow Location Access" after seeing disclosure
+      await notifier.requestPermission();
+      expect(requestedOsPrompt, isTrue);
+      expect(notifier.state.status, equals(UserLocationStatus.available));
+      expect(notifier.state.position, equals(const LatLng(28.715, 77.170)));
+    });
+
+    test('13d. SavedRoute.startPoint returns null when route points are empty', () {
+      final emptyRoute = SavedRoute(
+        id: 'r_empty',
+        name: 'Empty Route',
+        activityType: OutdoorActivityType.walking,
+        distanceMeters: 0,
+        estimatedDurationSeconds: 0,
+        difficulty: RouteDifficulty.easy,
+        points: const [],
+        isSavedByUser: false,
+        createdAt: DateTime.now(),
+      );
+      expect(emptyRoute.startPoint, isNull,
+          reason: 'Neutral coordinates (0,0) must never represent route start coordinates');
     });
   });
 
@@ -329,6 +410,88 @@ void main() {
       expect(container.read(effectiveMapCenterProvider), equals(userGps));
     });
   });
+
+  group('Empty State & Neutral Coordinate Protection Widget Tests', () {
+    testWidgets('17. RouteDetailScreen displays empty state when route points are empty',
+        (tester) async {
+      final emptyRoute = SavedRoute(
+        id: 'empty_route_1',
+        name: 'Empty Route',
+        activityType: OutdoorActivityType.walking,
+        distanceMeters: 0,
+        estimatedDurationSeconds: 0,
+        difficulty: RouteDifficulty.easy,
+        points: const [],
+        isSavedByUser: false,
+        createdAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: RouteDetailScreen(route: emptyRoute),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('No Route Geometry Available'), findsOneWidget);
+      expect(find.text('This route does not contain any map coordinates.'),
+          findsOneWidget);
+      expect(find.byType(FlutterMap), findsNothing);
+    });
+
+    testWidgets('18. OutdoorSummaryScreen displays empty state when activity points are empty',
+        (tester) async {
+      final emptyActivity = OutdoorActivity(
+        id: 'act_empty',
+        userId: 'test_user',
+        title: 'Empty Activity',
+        activityType: OutdoorActivityType.running,
+        status: OutdoorActivityStatus.completed,
+        startTime: DateTime.now().subtract(const Duration(minutes: 30)),
+        endTime: DateTime.now(),
+        durationSeconds: 1800,
+        distanceMeters: 0,
+        averagePaceSecondsPerKm: 0,
+        averageSpeedKmh: 0.0,
+        caloriesBurned: 100,
+        points: const [],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: OutdoorSummaryScreen(activity: emptyActivity),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('No GPS Path Recorded'), findsOneWidget);
+      expect(
+          find.text('No route coordinates were recorded for this workout.'),
+          findsOneWidget);
+      expect(find.byType(FlutterMap), findsNothing);
+    });
+
+    testWidgets('19. OutdoorRecordingScreen displays acquiring GPS state when location is null and points are empty',
+        (tester) async {
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: OutdoorRecordingScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Acquiring GPS Signal...'), findsOneWidget);
+      expect(find.text('Stand in an open area for best accuracy.'),
+          findsOneWidget);
+      expect(find.byType(FlutterMap), findsNothing);
+    });
+  });
 }
 
 class _TestDedupLocationService extends LocationTrackingService {
@@ -370,12 +533,14 @@ class _ControlledLocationNotifier extends UserLocationNotifier {
   }
 
   @override
-  Future<void> refreshLocation() async {}
+  Future<void> refreshLocation({bool requestIfNeeded = false}) async {}
 }
 
 class _DummyLocationService extends LocationTrackingService {
   @override
-  Future<LocationPermissionResult> checkPermissionDetailed() async =>
+  Future<LocationPermissionResult> checkPermissionDetailed({
+    bool requestIfNeeded = true,
+  }) async =>
       LocationPermissionResult.granted;
 
   @override
