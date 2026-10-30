@@ -96,6 +96,26 @@ class HealthService {
     } catch (_) {}
   }
 
+  /// Whether Google Health Connect is available on this Android device.
+  Future<bool> isHealthConnectAvailable() async {
+    if (kIsWeb || !Platform.isAndroid) return true;
+    try {
+      return await _health.isHealthConnectAvailable();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens the Play Store to install Google Health Connect.
+  Future<void> installHealthConnect() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _health.installHealthConnect();
+    } catch (e) {
+      debugPrint('installHealthConnect error: $e');
+    }
+  }
+
   Future<void> _ensureConfigured() async {
     if (_isConfigured || !isSupported) return;
     try {

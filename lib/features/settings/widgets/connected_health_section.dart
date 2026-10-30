@@ -41,6 +41,29 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
     final service = HealthService.instance;
 
     if (value) {
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        final isAvailable = await service.isHealthConnectAvailable();
+        if (!isAvailable) {
+          if (!mounted) return;
+          setState(() {
+            _isConnected = false;
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Google Health Connect is not installed or requires an update.',
+              ),
+              action: SnackBarAction(
+                label: 'Install',
+                onPressed: service.installHealthConnect,
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       final granted = await service.connect();
       if (!mounted) return;
       if (granted) {
