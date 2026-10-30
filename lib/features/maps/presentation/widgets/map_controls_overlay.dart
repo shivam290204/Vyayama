@@ -142,7 +142,9 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
   void _selectPlace(NominatimResult place) {
     _searchCtrl.text = place.shortName;
     ref.read(selectedMapCenterProvider.notifier).state = place.latLng;
-    widget.mapController.move(place.latLng, 14.5);
+    try {
+      widget.mapController.move(place.latLng, 14.5);
+    } catch (_) {}
     ref.invalidate(discoveredRoutesProvider);
 
     if (mounted) {
@@ -282,11 +284,13 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   borderColor: borderColor,
                   iconColor: textPrimary,
                   onPressed: () {
-                    final currentZoom = widget.mapController.camera.zoom;
-                    widget.mapController.move(
-                      widget.mapController.camera.center,
-                      currentZoom + 1,
-                    );
+                    try {
+                      final currentZoom = widget.mapController.camera.zoom;
+                      widget.mapController.move(
+                        widget.mapController.camera.center,
+                        currentZoom + 1,
+                      );
+                    } catch (_) {}
                   },
                 ),
                 const SizedBox(height: 10),
@@ -299,11 +303,13 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   borderColor: borderColor,
                   iconColor: textPrimary,
                   onPressed: () {
-                    final currentZoom = widget.mapController.camera.zoom;
-                    widget.mapController.move(
-                      widget.mapController.camera.center,
-                      currentZoom - 1,
-                    );
+                    try {
+                      final currentZoom = widget.mapController.camera.zoom;
+                      widget.mapController.move(
+                        widget.mapController.camera.center,
+                        currentZoom - 1,
+                      );
+                    } catch (_) {}
                   },
                 ),
                 const SizedBox(height: 10),
@@ -365,16 +371,19 @@ class _MapFloatingButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Center(
-            child: Badge(
-              isLabelVisible: badgeCount > 0,
-              label: Text('$badgeCount'),
-              backgroundColor: AppPalette.limeGreen,
-              textColor: AppPalette.charcoalGreen,
-              child: Icon(icon, color: iconColor, size: 20),
+        child: Tooltip(
+          message: tooltip,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: Center(
+              child: Badge(
+                isLabelVisible: badgeCount > 0,
+                label: Text('$badgeCount'),
+                backgroundColor: AppPalette.limeGreen,
+                textColor: AppPalette.charcoalGreen,
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
             ),
           ),
         ),

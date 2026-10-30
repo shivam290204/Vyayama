@@ -1,7 +1,7 @@
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -96,22 +96,8 @@ class RouteDetailScreen extends ConsumerWidget {
                       initialZoom: 14.5,
                     ),
                     children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.vyayama.fitbuddy',
-                      ),
-                      RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            onTap: () => launchUrl(
-                              Uri.parse('https://openstreetmap.org/copyright'),
-                              mode: LaunchMode.externalApplication,
-                            ),
-                          ),
-                        ],
-                      ),
+                      const AppMapTileLayer(),
+                      const AppMapAttribution(),
                       PolylineLayer(
                         polylines: [
                           Polyline(

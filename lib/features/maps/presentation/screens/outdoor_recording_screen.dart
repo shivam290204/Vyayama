@@ -1,8 +1,8 @@
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -23,6 +23,7 @@ class _OutdoorRecordingScreenState
     extends ConsumerState<OutdoorRecordingScreen> {
   late OutdoorActivityType _selectedType;
   final MapController _mapController = MapController();
+  bool _isMapReady = false;
 
   @override
   void initState() {
@@ -116,11 +117,13 @@ class _OutdoorRecordingScreenState
     final borderColor =
         isDark ? AppPalette.darkOutline : AppPalette.lightOutline;
 
-    // Follow live coordinates with map camera
+    // Follow live coordinates with map camera safely when map is ready
     final currentPos = trackingState?.currentPosition;
-    if (currentPos != null && hasStarted) {
+    if (currentPos != null && hasStarted && _isMapReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(currentPos, _mapController.camera.zoom);
+        try {
+          _mapController.move(currentPos, _mapController.camera.zoom);
+        } catch (_) {}
       });
     }
 
@@ -225,24 +228,15 @@ class _OutdoorRecordingScreenState
                             initialZoom: 15.5,
                             minZoom: 3.0,
                             maxZoom: 18.0,
+                            onMapReady: () {
+                              if (mounted) {
+                                setState(() => _isMapReady = true);
+                              }
+                            },
                           ),
                           children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.vyayama.fitbuddy',
-                            ),
-                            RichAttributionWidget(
-                              attributions: [
-                                TextSourceAttribution(
-                                  'OpenStreetMap contributors',
-                                  onTap: () => launchUrl(
-                                    Uri.parse('https://openstreetmap.org/copyright'),
-                                    mode: LaunchMode.externalApplication,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            const AppMapTileLayer(),
+                            const AppMapAttribution(),
                             if (polylinePoints.isNotEmpty)
                               PolylineLayer(
                                 polylines: [
