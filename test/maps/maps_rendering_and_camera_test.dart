@@ -25,7 +25,8 @@ void main() {
     test('1. MapTileConfig defaults to OpenStreetMap community endpoint and Vyayama user agent', () {
       expect(MapTileConfig.defaultTileUrl,
           equals('https://tile.openstreetmap.org/{z}/{x}/{y}.png'));
-      expect(MapTileConfig.defaultUserAgent, equals('com.vyayama.fitbuddy'));
+      expect(MapTileConfig.defaultUserAgent,
+          equals('Vyayama/1.0 (com.vyayama.fitbuddy)'));
       expect(MapTileConfig.tileUrl, equals(MapTileConfig.defaultTileUrl));
       expect(MapTileConfig.userAgent, equals(MapTileConfig.defaultUserAgent));
       expect(MapTileConfig.isUsingPublicCommunityEndpoint, isTrue);
@@ -66,6 +67,11 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      // Verify the actual outgoing native HTTP User-Agent header
+      final tileLayer = tester.widget<TileLayer>(find.byType(TileLayer));
+      expect(tileLayer.tileProvider.headers['User-Agent'],
+          equals('Vyayama/1.0 (com.vyayama.fitbuddy)'));
     });
   });
 

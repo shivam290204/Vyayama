@@ -25,12 +25,20 @@ class AppMapTileLayer extends StatelessWidget {
   Widget build(BuildContext context) {
     MapTileConfig.warnIfPublicTileServerInRelease();
 
+    final provider = tileProvider ??
+        NetworkTileProvider(
+          headers: {
+            'User-Agent': MapTileConfig.userAgent,
+          },
+          silenceExceptions: true,
+        );
+    provider.headers.putIfAbsent('User-Agent', () => MapTileConfig.userAgent);
+
     return TileLayer(
       urlTemplate: MapTileConfig.tileUrl,
       userAgentPackageName: MapTileConfig.userAgent,
       errorTileCallback: onError,
-      tileProvider:
-          tileProvider ?? NetworkTileProvider(silenceExceptions: true),
+      tileProvider: provider,
     );
   }
 }

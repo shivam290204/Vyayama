@@ -235,12 +235,12 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
                   decoration: BoxDecoration(
                     color: AppPalette.forestGreen,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
-                    boxShadow: const [
+                    border: Border.all(color: AppPalette.lightSurface, width: 2.5),
+                    boxShadow: [
                       BoxShadow(
-                        color: Colors.black38,
+                        color: AppPalette.charcoalGreen.withValues(alpha: 0.38),
                         blurRadius: 6,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),

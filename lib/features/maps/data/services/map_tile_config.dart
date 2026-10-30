@@ -13,7 +13,8 @@ class MapTileConfig {
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   /// Default application User-Agent compliant with OSM tile usage policy.
-  static const String defaultUserAgent = 'com.vyayama.fitbuddy';
+  static const String defaultUserAgent =
+      'Vyayama/1.0 (com.vyayama.fitbuddy)';
 
   /// Resolved tile URL template with `--dart-define` override support.
   static const String tileUrl = String.fromEnvironment(
@@ -55,3 +56,4 @@ class MapTileConfig {
     _hasWarnedInRelease = false;
   }
 }
+
