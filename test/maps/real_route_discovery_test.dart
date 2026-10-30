@@ -33,9 +33,16 @@ class _FakeOverpass extends OverpassService {
 // ─── Stub Valhalla ──────────────────────────────────────────────────────────
 
 class _FakeValhalla extends ValhallaService {
-  _FakeValhalla(this._route, {this.exceptionToThrow});
+  _FakeValhalla(
+    this._route, {
+    this.exceptionToThrow,
+    this.routeResolver,
+  });
+
   final ValhallaRoute? _route;
   final Exception? exceptionToThrow;
+  final ValhallaRoute? Function(LatLng origin, List<LatLng> waypoints)?
+      routeResolver;
 
   @override
   Future<ValhallaRoute?> route({
@@ -44,6 +51,9 @@ class _FakeValhalla extends ValhallaService {
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;
+    }
+    if (routeResolver != null) {
+      return routeResolver!(origin, waypoints);
     }
     return _route;
   }
@@ -63,38 +73,67 @@ _RealServiceStub _makeService({
   required ValhallaRoute? valhallaRoute,
   Exception? overpassError,
   Exception? valhallaError,
+  ValhallaRoute? Function(LatLng, List<LatLng>)? routeResolver,
 }) =>
     _RealServiceStub(
       overpass: _FakeOverpass(places, exceptionToThrow: overpassError),
-      valhalla: _FakeValhalla(valhallaRoute, exceptionToThrow: valhallaError),
+      valhalla: _FakeValhalla(
+        valhallaRoute,
+        exceptionToThrow: valhallaError,
+        routeResolver: routeResolver,
+      ),
     );
 
 // ─── Sample fixture data ─────────────────────────────────────────────────────
 
-const _center = LatLng(51.505, -0.09); // London
+const _center = LatLng(51.505, -0.090); // London
 
 OverpassPlace _park(int id, String name, double lat, double lon,
-        {bool isNamed = true}) =>
+        {bool isNamed = true, Map<String, String>? tags}) =>
     OverpassPlace(
       id: id,
       name: name,
       lat: lat,
       lon: lon,
-      tags: const {'leisure': 'park'},
+      tags: tags ?? const {'leisure': 'park'},
       isNamed: isNamed,
     );
 
-final _validRoute = ValhallaRoute(
+/// Genuine polygon loop circuit with wide lateral separation
+final _genuineLoopRoute = ValhallaRoute(
   points: [
-    const LatLng(51.505, -0.09),
-    const LatLng(51.506, -0.091),
-    const LatLng(51.507, -0.092),
-    const LatLng(51.508, -0.091),
-    const LatLng(51.505, -0.09),
+    const LatLng(51.505, -0.090),
+    const LatLng(51.507, -0.086),
+    const LatLng(51.509, -0.084),
+    const LatLng(51.512, -0.085),
+    const LatLng(51.514, -0.090),
+    const LatLng(51.512, -0.095),
+    const LatLng(51.509, -0.096),
+    const LatLng(51.507, -0.094),
+    const LatLng(51.506, -0.092),
+    const LatLng(51.505, -0.090),
   ],
   distanceMeters: 2800,
   durationSeconds: 1980,
-  isLoopOverride: true,
+);
+
+/// Retraced out-and-back route traversing the same street coordinates
+final _retracedOutAndBackRoute = ValhallaRoute(
+  points: [
+    const LatLng(51.505, -0.090),
+    const LatLng(51.507, -0.090),
+    const LatLng(51.509, -0.090),
+    const LatLng(51.511, -0.090),
+    const LatLng(51.513, -0.090),
+    const LatLng(51.515, -0.090),
+    const LatLng(51.513, -0.090),
+    const LatLng(51.511, -0.090),
+    const LatLng(51.509, -0.090),
+    const LatLng(51.507, -0.090),
+    const LatLng(51.505, -0.090),
+  ],
+  distanceMeters: 2200,
+  durationSeconds: 1600,
 );
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -283,9 +322,9 @@ void main() {
     });
   });
 
-  // 3. Valhalla polyline decoder & loop detection ─────────────────────────────
+  // 3. Valhalla polyline decoder & geometry loop analysis ──────────────────────
 
-  group('Valhalla polyline decoder & geometry analysis', () {
+  group('Valhalla polyline decoder & genuine loop geometry analysis', () {
     test('10. Parses valid trip JSON with correct distance and duration', () {
       final service = ValhallaService();
       const json = '''
@@ -306,55 +345,76 @@ void main() {
       expect(parsed.durationSeconds, closeTo(1980, 1));
     });
 
-    test('11. Detects retraced out-and-back route correctly', () {
-      // Outward leg: (0,0) -> (0,0.01) -> (0,0.02)
-      // Return leg: (0,0.02) -> (0,0.01) -> (0,0) [retraced along exact same coordinates]
-      final retracedPoints = [
-        const LatLng(51.500, -0.090),
-        const LatLng(51.502, -0.090),
-        const LatLng(51.504, -0.090),
-        const LatLng(51.506, -0.090),
-        const LatLng(51.508, -0.090),
-        const LatLng(51.508, -0.090),
-        const LatLng(51.506, -0.090),
-        const LatLng(51.504, -0.090),
-        const LatLng(51.502, -0.090),
-        const LatLng(51.500, -0.090),
-      ];
-      final route = ValhallaRoute(
-        points: retracedPoints,
-        distanceMeters: 1800,
-        durationSeconds: 1200,
+    test('11. Detects retraced out-and-back route correctly via geometry', () {
+      expect(
+        _retracedOutAndBackRoute.isLoop,
+        isFalse,
+        reason: 'Retraced out-and-back must not be labeled as loop',
       );
-      expect(route.isLoop, isFalse, reason: 'Retraced out-and-back must not be labeled as loop');
     });
 
-    test('12. Detects polygon circuit loop correctly', () {
-      // Distinct polygon circuit (divergent outbound and return)
-      final loopPoints = [
-        const LatLng(51.500, -0.090),
-        const LatLng(51.505, -0.080),
-        const LatLng(51.510, -0.085),
-        const LatLng(51.512, -0.095),
-        const LatLng(51.508, -0.105),
-        const LatLng(51.503, -0.100),
-        const LatLng(51.500, -0.090),
-        const LatLng(51.500, -0.090),
-        const LatLng(51.500, -0.090),
-        const LatLng(51.500, -0.090),
-      ];
-      final route = ValhallaRoute(
-        points: loopPoints,
-        distanceMeters: 3200,
-        durationSeconds: 2200,
+    test('12. Detects genuine polygon circuit loop correctly via geometry', () {
+      expect(
+        _genuineLoopRoute.isLoop,
+        isTrue,
+        reason: 'Divergent circular path must be verified as genuine loop',
       );
-      expect(route.isLoop, isTrue, reason: 'Divergent circular path must be labeled as loop');
+    });
+
+    test('13. Prevents incorrect loop classification when start and end do not close', () {
+      final openPath = ValhallaRoute(
+        points: [
+          const LatLng(51.505, -0.090),
+          const LatLng(51.507, -0.088),
+          const LatLng(51.509, -0.086),
+          const LatLng(51.511, -0.085),
+          const LatLng(51.513, -0.088),
+          const LatLng(51.515, -0.092),
+          const LatLng(51.517, -0.096),
+          const LatLng(51.519, -0.098),
+          const LatLng(51.521, -0.100),
+          const LatLng(51.523, -0.102),
+        ],
+        distanceMeters: 2500,
+        durationSeconds: 1800,
+      );
+      expect(openPath.isLoop, isFalse);
+    });
+
+    test('14. Production engine never marks route as loop when Valhalla returns retraced geometry', () async {
+      final p1 = OverpassPlace(
+        id: 1,
+        name: 'Hyde Park',
+        lat: 51.507,
+        lon: -0.095,
+        tags: const {'leisure': 'park'},
+      );
+      final p2 = OverpassPlace(
+        id: 2,
+        name: 'Kensington Gardens',
+        lat: 51.503,
+        lon: -0.085,
+        tags: const {'leisure': 'park'},
+      );
+
+      // Simulates Valhalla returning a retraced path even though two waypoints were given
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [p1, p2],
+          valhallaRoute: _retracedOutAndBackRoute,
+        ),
+      );
+
+      final routes = await engine.discoverRoutes(center: _center);
+      expect(routes, isNotEmpty);
+      expect(routes.first.isLoop, isFalse);
+      expect(routes.first.name, contains('Out & Back'));
     });
   });
 
   // 4. Activity type suitability & filtering ─────────────────────────────────
 
-  group('Activity type suitability and RouteFilter', () {
+  group('Activity type suitability and RouteFilter regression', () {
     const walkRoute = SavedRoute(
       id: 'w1',
       name: 'Paved Park Walk',
@@ -377,34 +437,34 @@ void main() {
       points: [],
     );
 
-    test('13. Paved walking route is suitable for both walking and running', () {
+    test('15. Paved walking route is suitable for both walking and running', () {
       expect(walkRoute.isSuitableFor(OutdoorActivityType.walking), isTrue);
       expect(walkRoute.isSuitableFor(OutdoorActivityType.running), isTrue);
       expect(walkRoute.isSuitableFor(OutdoorActivityType.hiking), isFalse);
     });
 
-    test('14. Rugged trail hike is not suitable for running', () {
+    test('16. Rugged trail hike is not suitable for running', () {
       expect(trailHike.isSuitableFor(OutdoorActivityType.hiking), isTrue);
       expect(trailHike.isSuitableFor(OutdoorActivityType.running), isFalse);
     });
 
-    test('15. RouteFilter with running includes paved pedestrian routes', () {
+    test('17. RouteFilter with running includes paved pedestrian routes', () {
       const runFilter = RouteFilter(activityType: OutdoorActivityType.running);
       expect(runFilter.matches(walkRoute), isTrue);
       expect(runFilter.matches(trailHike), isFalse);
     });
 
-    test('16. RouteFilter with hiking includes only genuine trail routes', () {
+    test('18. RouteFilter with hiking includes only genuine trail routes', () {
       const hikeFilter = RouteFilter(activityType: OutdoorActivityType.hiking);
       expect(hikeFilter.matches(trailHike), isTrue);
       expect(hikeFilter.matches(walkRoute), isFalse);
     });
   });
 
-  // 5. Missing metadata handling ─────────────────────────────────────────────
+  // 5. Metadata accuracy & estimated difficulty ──────────────────────────────
 
-  group('Missing geographic metadata handling', () {
-    test('17. Formats unavailable elevation as -- without claiming +0m flat', () {
+  group('Route metadata accuracy & estimate labeling', () {
+    test('19. Formats unavailable elevation as -- without claiming +0m flat', () {
       const route = SavedRoute(
         id: 'r_no_elev',
         name: 'City Footway',
@@ -423,12 +483,38 @@ void main() {
       expect(route.surfaceType, equals(RouteSurface.unknown));
       expect(route.elevationProfile, equals(RouteElevation.unknown));
     });
+
+    test('20. Clearly labels estimated difficulty vs verified OSM difficulty', () {
+      const estimatedRoute = SavedRoute(
+        id: 'r_est',
+        name: 'Neighborhood Walk',
+        activityType: OutdoorActivityType.walking,
+        distanceMeters: 2000,
+        estimatedDurationSeconds: 1400,
+        difficulty: RouteDifficulty.easy,
+        isDifficultyEstimated: true,
+        points: [],
+      );
+      const verifiedRoute = SavedRoute(
+        id: 'r_ver',
+        name: 'Alpine Path',
+        activityType: OutdoorActivityType.hiking,
+        distanceMeters: 8000,
+        estimatedDurationSeconds: 7000,
+        difficulty: RouteDifficulty.hard,
+        isDifficultyEstimated: false,
+        points: [],
+      );
+
+      expect(estimatedRoute.formattedDifficulty, equals('Est. Easy'));
+      expect(verifiedRoute.formattedDifficulty, equals('Hard'));
+    });
   });
 
-  // 6. Real discovery flow with stubs ────────────────────────────────────────
+  // 6. Real discovery flow with deduplication & unnamed paths ────────────────
 
-  group('RealRouteDiscoveryService with stubs', () {
-    test('18. Returns empty list when Overpass returns no places', () async {
+  group('RealRouteDiscoveryService deduplication and unnamed paths', () {
+    test('21. Returns empty list when Overpass returns no places', () async {
       final engine = RouteDiscoveryEngine(
         realService: _makeService(places: [], valhallaRoute: null),
       );
@@ -436,50 +522,108 @@ void main() {
       expect(routes, isEmpty);
     });
 
-    test('19. Generates named loop when companion waypoint is found', () async {
-      final p1 = OverpassPlace(
-        id: 1,
-        name: 'Hyde Park',
-        lat: 51.507,
-        lon: -0.095,
-        tags: const {'leisure': 'park'},
+    test('22. Allows multiple unnamed routes with identical display names when geometry differs', () async {
+      // Two distinct footways in different directions (North and South)
+      final footwayNorth = OverpassPlace(
+        id: 201,
+        name: 'Mapped Footway',
+        lat: 51.520,
+        lon: -0.090,
+        tags: const {'highway': 'footway'},
+        isNamed: false,
       );
-      final p2 = OverpassPlace(
-        id: 2,
-        name: 'Kensington Gardens',
-        lat: 51.503,
-        lon: -0.085,
-        tags: const {'leisure': 'park'},
+      final footwaySouth = OverpassPlace(
+        id: 202,
+        name: 'Mapped Footway',
+        lat: 51.490,
+        lon: -0.090,
+        tags: const {'highway': 'footway'},
+        isNamed: false,
+      );
+
+      final routeNorth = ValhallaRoute(
+        points: [
+          const LatLng(51.505, -0.090),
+          const LatLng(51.510, -0.090),
+          const LatLng(51.515, -0.090),
+          const LatLng(51.520, -0.090),
+          const LatLng(51.505, -0.090),
+        ],
+        distanceMeters: 3300,
+        durationSeconds: 2400,
+      );
+
+      final routeSouth = ValhallaRoute(
+        points: [
+          const LatLng(51.505, -0.090),
+          const LatLng(51.500, -0.090),
+          const LatLng(51.495, -0.090),
+          const LatLng(51.490, -0.090),
+          const LatLng(51.505, -0.090),
+        ],
+        distanceMeters: 3300,
+        durationSeconds: 2400,
+      );
+
+      final engine = RouteDiscoveryEngine(
+        realService: _makeService(
+          places: [footwayNorth, footwaySouth],
+          valhallaRoute: null,
+          routeResolver: (origin, waypoints) {
+            if (waypoints.first.latitude > 51.51) return routeNorth;
+            return routeSouth;
+          },
+        ),
+      );
+
+      final routes = await engine.discoverRoutes(center: _center);
+      // Both routes must be preserved despite identical display names
+      expect(routes, hasLength(2));
+      expect(routes[0].name, equals(routes[1].name));
+    });
+
+    test('23. Removes duplicate geometry in the same corridor with similar distance', () async {
+      final p1 = _park(301, 'Corridor A', 51.506, -0.091);
+      final p2 = _park(302, 'Corridor B', 51.506, -0.0915);
+
+      final duplicateRouteA = ValhallaRoute(
+        points: [
+          const LatLng(51.505, -0.090),
+          const LatLng(51.506, -0.091),
+          const LatLng(51.507, -0.092),
+          const LatLng(51.506, -0.091),
+          const LatLng(51.505, -0.090),
+        ],
+        distanceMeters: 1500,
+        durationSeconds: 1000,
+      );
+
+      final duplicateRouteB = ValhallaRoute(
+        points: [
+          const LatLng(51.505, -0.090),
+          const LatLng(51.506, -0.091),
+          const LatLng(51.507, -0.092),
+          const LatLng(51.506, -0.091),
+          const LatLng(51.505, -0.090),
+        ],
+        distanceMeters: 1510,
+        durationSeconds: 1010,
       );
 
       final engine = RouteDiscoveryEngine(
         realService: _makeService(
           places: [p1, p2],
-          valhallaRoute: _validRoute,
+          valhallaRoute: null,
+          routeResolver: (origin, waypoints) =>
+              waypoints.first.longitude == -0.091 ? duplicateRouteA : duplicateRouteB,
         ),
       );
 
       final routes = await engine.discoverRoutes(center: _center);
-      expect(routes, isNotEmpty);
-      expect(routes.first.isLoop, isTrue);
-      expect(routes.first.name, contains('Loop'));
+      expect(routes, hasLength(1), reason: 'Duplicate geometry must be deduplicated');
     });
 
-    test('20. Deduplicates routes with nearly identical distance', () async {
-      final engine = RouteDiscoveryEngine(
-        realService: _makeService(
-          places: [
-            _park(1, 'Park Alpha', 51.506, -0.091),
-            _park(2, 'Park Beta', 51.506, -0.092),
-          ],
-          valhallaRoute: _validRoute,
-        ),
-      );
-      final routes = await engine.discoverRoutes(center: _center);
-      expect(routes.length, lessThanOrEqualTo(1));
-    });
-
-    test('21. Filters routes shorter than 300 meters', () async {
+    test('24. Filters routes shorter than 300 meters', () async {
       const shortRoute = ValhallaRoute(
         points: [LatLng(51.505, -0.09), LatLng(51.506, -0.09)],
         distanceMeters: 120,
@@ -496,17 +640,56 @@ void main() {
     });
   });
 
-  // 7. RouteDiscoveryEngine test fixtures ────────────────────────────────────
+  // 7. Backward compatibility with older stored routes ───────────────────────
+
+  group('Backward compatibility with older SavedRoute JSON', () {
+    test('25. Old saved-route JSON without is_loop is not automatically labelled as verified loop', () {
+      final oldJsonWithoutIsLoop = {
+        'id': 'legacy_route_001',
+        'name': 'Old Track',
+        'activity_type': 'walk',
+        'distance_meters': 2000.0,
+        'estimated_duration_sec': 1400,
+        'difficulty': 'easy',
+        'points': <dynamic>[], // No points
+        'description': 'Legacy walk',
+      };
+
+      final route = SavedRoute.fromJson(oldJsonWithoutIsLoop);
+      expect(route.id, equals('legacy_route_001'));
+      expect(route.isLoop, isFalse, reason: 'Old routes without is_loop must default to false');
+      expect(route.surfaceType, equals(RouteSurface.unknown));
+      expect(route.isDifficultyEstimated, isFalse);
+    });
+
+    test('26. Old saved-route JSON without surface_type parses safely without error', () {
+      final oldJsonWithoutSurface = {
+        'id': 'legacy_route_002',
+        'name': 'Historic Park Circuit',
+        'activity_type': 'run',
+        'distance_meters': 5000.0,
+        'estimated_duration_sec': 1800,
+        'points': <dynamic>[],
+      };
+
+      final route = SavedRoute.fromJson(oldJsonWithoutSurface);
+      expect(route.id, equals('legacy_route_002'));
+      expect(route.surfaceType, equals(RouteSurface.unknown));
+      expect(route.activityType, equals(OutdoorActivityType.running));
+    });
+  });
+
+  // 8. RouteDiscoveryEngine test fixtures ────────────────────────────────────
 
   group('RouteDiscoveryEngine test fixtures', () {
-    test('22. generateTestRoutes returns synthetic routes for test use', () {
+    test('27. generateTestRoutes returns synthetic routes for test use', () {
       final engine = RouteDiscoveryEngine();
       final testRoutes = engine.generateTestRoutes(_center);
       expect(testRoutes, hasLength(2));
       expect(testRoutes.first.id, startsWith('test_route_'));
     });
 
-    test('23. Test routes have valid GPS points', () {
+    test('28. Test routes have valid GPS points', () {
       final engine = RouteDiscoveryEngine();
       final testRoutes = engine.generateTestRoutes(_center);
       for (final route in testRoutes) {
@@ -519,19 +702,19 @@ void main() {
     });
   });
 
-  // 8. RouteCache TTL caching ────────────────────────────────────────────────
+  // 9. RouteCache TTL caching ────────────────────────────────────────────────
 
   group('RouteCache TTL caching', () {
-    test('24. Returns null for missing key', () {
+    test('29. Returns null for missing key', () {
       expect(RouteCache.instance.get<List<int>>('missing'), isNull);
     });
 
-    test('25. Stores and retrieves value', () {
+    test('30. Stores and retrieves value', () {
       RouteCache.instance.set('k1', [10, 20, 30]);
       expect(RouteCache.instance.get<List<int>>('k1'), equals([10, 20, 30]));
     });
 
-    test('26. Invalidate removes key', () {
+    test('31. Invalidate removes key', () {
       RouteCache.instance.set('k2', 'hello');
       RouteCache.instance.invalidate('k2');
       expect(RouteCache.instance.get<String>('k2'), isNull);

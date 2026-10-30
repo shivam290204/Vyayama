@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
+import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -14,45 +15,15 @@ class ValhallaRoute {
     required this.points,
     required this.distanceMeters,
     required this.durationSeconds,
-    this.isLoopOverride,
   });
 
   final List<LatLng> points;
   final double distanceMeters;
   final double durationSeconds;
-  final bool? isLoopOverride;
 
-  /// Analyzes the route geometry to determine if this is a genuine loop
+  /// Analyzes the route geometry to determine if this is a genuine closed loop
   /// or an out-and-back retraced path.
-  bool get isLoop {
-    if (isLoopOverride != null) return isLoopOverride!;
-    if (points.length < 10) return false;
-
-    // Must start and finish in the same general area (< 250m apart)
-    final start = points.first;
-    final end = points.last;
-    final endDistance = haversineDistance(start, end);
-    if (endDistance > 250) return false;
-
-    // Check if the outward half and return half retrace each other
-    final halfLen = points.length ~/ 2;
-    int retracedMatches = 0;
-    int samples = 0;
-
-    for (int i = 0; i < halfLen; i += 2) {
-      samples++;
-      final p1 = points[i];
-      final p2 = points[points.length - 1 - i];
-      if (haversineDistance(p1, p2) < 35.0) {
-        retracedMatches++;
-      }
-    }
-
-    if (samples == 0) return false;
-    final retraceRatio = retracedMatches / samples;
-    // If >70% of points are within 35m of the return leg, it's an out-and-back
-    return retraceRatio < 0.70;
-  }
+  bool get isLoop => isClosedLoopGeometry(points, distanceMeters);
 
   /// Converts Valhalla route points to GpsPoint list for SavedRoute.
   List<GpsPoint> toGpsPoints() {

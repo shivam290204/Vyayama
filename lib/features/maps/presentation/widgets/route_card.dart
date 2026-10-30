@@ -127,7 +127,10 @@ class RouteCard extends StatelessWidget {
                     icon: Icons.terrain_rounded,
                     color: AppPalette.activityCalories,
                   ),
-                  _DifficultyBadge(difficulty: route.difficulty),
+                  _DifficultyBadge(
+                    difficulty: route.difficulty,
+                    isEstimated: route.isDifficultyEstimated,
+                  ),
                 ],
               ),
             ],
@@ -189,9 +192,13 @@ class _MetricItem extends StatelessWidget {
 }
 
 class _DifficultyBadge extends StatelessWidget {
-  const _DifficultyBadge({required this.difficulty});
+  const _DifficultyBadge({
+    required this.difficulty,
+    this.isEstimated = false,
+  });
 
   final RouteDifficulty difficulty;
+  final bool isEstimated;
 
   @override
   Widget build(BuildContext context) {
@@ -203,17 +210,17 @@ class _DifficultyBadge extends StatelessWidget {
       case RouteDifficulty.easy:
         bg = AppPalette.limeGreen.withValues(alpha: 0.16);
         fg = AppPalette.limeGreen;
-        label = 'Easy';
+        label = isEstimated ? 'Est. Easy' : 'Easy';
         break;
       case RouteDifficulty.moderate:
         bg = AppPalette.activityMinutes.withValues(alpha: 0.16);
         fg = AppPalette.activityMinutes;
-        label = 'Moderate';
+        label = isEstimated ? 'Est. Moderate' : 'Moderate';
         break;
       case RouteDifficulty.hard:
         bg = AppPalette.softCoral.withValues(alpha: 0.20);
         fg = AppPalette.deepCoral;
-        label = 'Hard';
+        label = isEstimated ? 'Est. Hard' : 'Hard';
         break;
     }
 

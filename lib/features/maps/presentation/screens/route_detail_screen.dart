@@ -151,7 +151,7 @@ class RouteDetailScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              route.difficulty.name.toUpperCase(),
+                              route.formattedDifficulty.toUpperCase(),
                               style: const TextStyle(
                                 color: AppPalette.limeGreen,
                                 fontWeight: FontWeight.w800,

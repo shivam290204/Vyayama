@@ -34,3 +34,4 @@ class ValhallaRoutingException extends RouteDiscoveryException {
     super.message = 'Pedestrian routing service is temporarily unavailable. Please try again shortly.',
   ]);
 }
+

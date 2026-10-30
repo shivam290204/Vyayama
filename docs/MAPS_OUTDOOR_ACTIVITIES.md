@@ -107,8 +107,11 @@ lib/features/maps/
 | **OSM Nominatim API** | `https://nominatim.openstreetmap.org/search` | Geocoding search for places, parks, and cities. | Max 1 request per second; user agent `Vyayama/1.0 (com.vyayama.fitbuddy)`. |
 
 ### C. Honest Empty, Error, and Retry States
-- **Discovery Without Mandatory Names**: Overpass queries now retrieve both named and unnamed footways, pedestrian paths, tracks, and park segments. Unnamed ways are assigned honest descriptive tags (e.g., "Mapped Footway", "Pedestrian Path") without fabricating proper nouns.
-- **Genuine Loop vs Out-and-Back Routing**: Polygon circuits are synthesized using angular companion waypoints (40°–160° divergence). The route's `isLoop` attribute is verified by testing for non-retraced paths, labeling cards honestly as "Loop" or "Out & Back".
+- **Discovery Without Mandatory Names**: Overpass queries retrieve both named and unnamed footways, pedestrian paths, tracks, and park segments. Unnamed ways are assigned honest descriptive tags (e.g., "Mapped Footway", "Pedestrian Path") without fabricating proper nouns. Multiple unnamed routes with identical labels in distinct geographic corridors are preserved.
+- **Strict Geometry-Based Loop Detection**: Loop verification is computed entirely from actual polyline coordinates (`isClosedLoopGeometry`) analyzing endpoint closure (<200m), turnaround divergence, and lateral separation (requiring divergent paths with $\ge 45\text{m}$ max separation and $<60\%$ retraced samples). Retraced out-and-back paths are never mislabeled as loops even when multiple waypoints were used.
+- **Deduplication by Geometry & Corridor**: Routes are deduplicated by OSM element pairs and geographic corridor overlap (requiring both $<150\text{m}$ length difference and $<150\text{m}$ centroid/farthest-point divergence), preventing distinct routes with identical generic names from being discarded.
+- **Truthful Metadata & Estimates**: Terrain difficulty without explicit OSM SAC scale or difficulty tags is clearly labeled as an estimate (`Est. Easy`, `Est. Moderate`, `Est. Hard`). Elevation gain is omitted (`--`) when unavailable, and untagged surface defaults strictly to `unknown`.
+- **Backward Compatibility**: Older saved routes without `is_loop` are evaluated geometrically or default safely to `false` (never assumed to be verified loops). Untagged older JSON safely defaults to `RouteSurface.unknown`.
 - **Activity Suitability**: Pedestrian paths on paved and mixed surfaces are marked suitable for both walking and running (`isSuitableFor`), ensuring running filters return valid paths.
 - **Explicit Error Distinction**: Typed exceptions (`RouteRateLimitException`, `RouteNetworkException`, `OverpassServiceException`, `ValhallaRoutingException`) are surfaced in the UI with a dedicated `_RouteErrorView` and a **Retry** button (`ref.invalidate(discoveredRoutesProvider)`), rather than masking API failures as "No routes found".
 - **Map Pan & Place Search Separation**: Place search centers the map without polluting the route filter query, and map panning refreshes discovery after a 900ms debounce and 350m displacement gate.
@@ -172,17 +175,22 @@ $$d = R \cdot \Delta\sigma$$
 - `flutter analyze`: **No issues found!** (0 errors, 0 warnings across the entire repository).
 
 ### 2. Unit and Integration Test Suite
-- `test/maps/real_route_discovery_test.dart` (26 tests):
+- `test/maps/real_route_discovery_test.dart` (31 tests):
   - Overpass place tag classification (parks, recreation grounds, footways, hiking routes).
   - Honest descriptive names for unnamed paths without fictional proper nouns.
   - Typed error propagation (`RouteRateLimitException`, `RouteNetworkException`, `OverpassServiceException`, `ValhallaRoutingException`).
   - Valhalla trip response parsing and precision-6 polyline decoding.
-  - Retraced out-and-back vs polygon circuit loop detection.
+  - Retraced out-and-back vs genuine polygon circuit loop detection via geometry.
+  - Prevention of false loop classification on open paths and retraced multi-waypoint routes.
   - Multi-activity suitability (walking and running overlap on pedestrian ways).
   - Elevation gain handling (honest `--` formatting when elevation data is missing).
-  - RealRouteDiscoveryService waypoint angular pairing and deduplication.
+  - Difficulty estimation labeling (`Est. Easy` vs verified `Hard`).
+  - Preservation of multiple unnamed routes sharing identical display labels.
+  - Geometry-based deduplication of corridor duplicates.
+  - Backward compatibility: old JSON without `is_loop` or `surface_type` parses safely without falsely claiming verified loops.
   - RouteCache TTL caching (get, set, invalidate, expiration).
-- `test/maps/` (49 tests total): All 49 maps tests passing (100%).
+- `test/maps/` (54 tests total): All 54 maps tests passing (100%).
+- **Full Test Suite**: **681 tests passed (100%)** across all features in the repository.
 - **Live API Low-Volume Verification**: Verified live HTTP 200 responses and real geometry from both `https://overpass-api.de/api/interpreter` (15 real pedestrian elements parsed) and `https://valhalla1.openstreetmap.de/route` (genuine pedestrian polyline generated).
 
 ---

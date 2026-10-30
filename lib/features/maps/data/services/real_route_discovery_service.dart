@@ -51,8 +51,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     // 3. Generate pedestrian routes (loops or honest out-and-backs)
     final routes = <SavedRoute>[];
-    final seenDistances = <double>[];
-    final seenNames = <String>{};
+    final seenOsmPairs = <String>{};
 
     for (int i = 0; i < candidates.length && routes.length < _maxRoutes; i++) {
       final p1 = candidates[i];
@@ -60,8 +59,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       // Try finding a complementary second waypoint to create a genuine loop
       final p2 = _findLoopCompanion(center, p1, candidates);
 
+      final pairKey = '${p1.id}:${p2?.id ?? 0}';
+      final reversePairKey = '${p2?.id ?? 0}:${p1.id}';
+      if (seenOsmPairs.contains(pairKey) ||
+          seenOsmPairs.contains(reversePairKey)) {
+        continue;
+      }
+
       ValhallaRoute? routed;
-      bool isLoopAttempt = false;
 
       if (p2 != null) {
         // Multi-point loop: Center -> Waypoint 1 -> Waypoint 2 -> Center
@@ -70,38 +75,29 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
             origin: center,
             waypoints: [p1.latLng, p2.latLng, center],
           );
-          isLoopAttempt = true;
         } catch (_) {
           // Fall back to single waypoint out-and-back
           routed = null;
         }
       }
 
-      if (routed == null) {
-        // Single waypoint: Center -> Waypoint 1 -> Center
-        routed = await _valhalla.route(
-          origin: center,
-          waypoints: [p1.latLng, center],
-        );
-        isLoopAttempt = false;
-      }
+      routed ??= await _valhalla.route(
+        origin: center,
+        waypoints: [p1.latLng, center],
+      );
 
       if (routed == null) continue;
       if (routed.distanceMeters < 300) continue;
       if (routed.points.length < 5) continue;
 
-      // Deduplicate routes of nearly identical distance
-      final isDuplicateDistance = seenDistances.any(
-        (d) => (d - routed!.distanceMeters).abs() < 150,
-      );
-      if (isDuplicateDistance) continue;
+      // Deduplicate using geometric similarity & spatial overlap
+      if (_isGeometricDuplicate(routed, routes)) continue;
 
-      final isLoop = routed.isLoop || isLoopAttempt;
+      // Loop status strictly derived from returned route geometry
+      final isLoop = routed.isLoop;
       final routeName = _determineRouteName(p1, p2, isLoop);
 
-      if (seenNames.contains(routeName)) continue;
-      seenNames.add(routeName);
-      seenDistances.add(routed.distanceMeters);
+      seenOsmPairs.add(pairKey);
 
       final route = _buildRoute(
         id: 'osm_${p1.id}_${p2?.id ?? 0}',
@@ -117,6 +113,68 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     // 4. Apply user filters
     if (filter == null) return routes;
     return routes.where((r) => filter.matches(r)).toList();
+  }
+
+  /// Calculates centroid of a coordinate list.
+  LatLng _calculateCentroid(List<LatLng> points) {
+    if (points.isEmpty) return const LatLng(0, 0);
+    double sumLat = 0;
+    double sumLng = 0;
+    for (final pt in points) {
+      sumLat += pt.latitude;
+      sumLng += pt.longitude;
+    }
+    return LatLng(sumLat / points.length, sumLng / points.length);
+  }
+
+  /// Identifies the farthest point from the starting coordinate.
+  LatLng _findFarthestPoint(List<LatLng> points) {
+    if (points.isEmpty) return const LatLng(0, 0);
+    final start = points.first;
+    LatLng farthest = start;
+    double maxDist = 0;
+    for (final pt in points) {
+      final d = haversineDistance(start, pt);
+      if (d > maxDist) {
+        maxDist = d;
+        farthest = pt;
+      }
+    }
+    return farthest;
+  }
+
+  /// Tests if [candidate] overlaps significantly with an existing route
+  /// (nearly identical distance AND occupying the same geographic corridor).
+  bool _isGeometricDuplicate(
+    ValhallaRoute candidate,
+    List<SavedRoute> existingRoutes,
+  ) {
+    final candidatePoints = candidate.points;
+    if (candidatePoints.isEmpty) return false;
+    final candidateCentroid = _calculateCentroid(candidatePoints);
+    final candidateFarthest = _findFarthestPoint(candidatePoints);
+
+    for (final existing in existingRoutes) {
+      final distDiff =
+          (existing.distanceMeters - candidate.distanceMeters).abs();
+      // Only check spatial overlap if total distances are within 150m
+      if (distDiff < 150.0) {
+        final existingPoints = existing.points.map((p) => p.toLatLng()).toList();
+        final existingCentroid = _calculateCentroid(existingPoints);
+        final centroidDist =
+            haversineDistance(candidateCentroid, existingCentroid);
+
+        if (centroidDist < 150.0) {
+          final existingFarthest = _findFarthestPoint(existingPoints);
+          final farthestDist =
+              haversineDistance(candidateFarthest, existingFarthest);
+          if (farthestDist < 150.0) {
+            return true; // Overlapping corridor and nearly identical distance
+          }
+        }
+      }
+    }
+    return false;
   }
 
   /// Picks geographically distributed candidates around [center].
@@ -202,9 +260,10 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     required bool isLoop,
   }) {
     final gpsPoints = routed.toGpsPoints();
-    final activityType = _inferActivityType(primaryPlace, routed.distanceMeters);
+    final activityType = _inferActivityType(primaryPlace);
     final surface = _inferSurface(primaryPlace);
-    final difficulty = _inferDifficulty(routed.distanceMeters, primaryPlace);
+    final diffResult =
+        _inferDifficulty(routed.distanceMeters, primaryPlace);
 
     return SavedRoute(
       id: id,
@@ -212,7 +271,8 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       activityType: activityType,
       distanceMeters: routed.distanceMeters,
       estimatedDurationSeconds: routed.durationSeconds.round(),
-      difficulty: difficulty,
+      difficulty: diffResult.difficulty,
+      isDifficultyEstimated: diffResult.isEstimated,
       points: gpsPoints,
       elevationGainMeters: null, // Elevation is omitted unless provided by elevation API
       surfaceType: surface,
@@ -223,15 +283,15 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     );
   }
 
-  OutdoorActivityType _inferActivityType(
-    OverpassPlace place,
-    double distanceMeters,
-  ) {
+  OutdoorActivityType _inferActivityType(OverpassPlace place) {
     if (place.isHikingRoute) {
       return OutdoorActivityType.hiking;
     }
-    // Moderate-to-longer paved or park circuits are categorized for running
-    if (distanceMeters >= 3500 && !place.isTrail) {
+    final sport = place.tags['sport']?.toLowerCase();
+    final routeTag = place.tags['route']?.toLowerCase();
+    if (sport == 'running' ||
+        routeTag == 'running' ||
+        place.tags['leisure'] == 'track') {
       return OutdoorActivityType.running;
     }
     return OutdoorActivityType.walking;
@@ -245,25 +305,65 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     if (surface == 'unpaved' ||
         surface == 'dirt' ||
         surface == 'gravel' ||
-        surface == 'ground') {
+        surface == 'ground' ||
+        surface == 'earth') {
       return RouteSurface.trail;
     }
-    if (place.isPark) return RouteSurface.mixed;
+    if (surface == 'fine_gravel' || surface == 'compacted') {
+      return RouteSurface.mixed;
+    }
+    // Do not invent surface information when untagged
     return RouteSurface.unknown;
   }
 
-  RouteDifficulty _inferDifficulty(
+  ({RouteDifficulty difficulty, bool isEstimated}) _inferDifficulty(
     double distanceMeters,
     OverpassPlace place,
   ) {
+    // 1. Check verified OSM SAC hiking scale
+    final sacScale = place.tags['sac_scale']?.toLowerCase();
+    if (sacScale != null) {
+      if (sacScale == 'mountain_hiking' ||
+          sacScale == 'demanding_mountain_hiking') {
+        return (difficulty: RouteDifficulty.moderate, isEstimated: false);
+      }
+      if (sacScale == 'alpine_hiking' ||
+          sacScale == 'demanding_alpine_hiking') {
+        return (difficulty: RouteDifficulty.hard, isEstimated: false);
+      }
+      return (difficulty: RouteDifficulty.easy, isEstimated: false);
+    }
+
+    // 2. Check explicit difficulty tag in OSM
+    final osmDifficulty = place.tags['difficulty']?.toLowerCase();
+    if (osmDifficulty != null) {
+      if (osmDifficulty == 'hard' ||
+          osmDifficulty == 'expert' ||
+          osmDifficulty == 'advanced') {
+        return (difficulty: RouteDifficulty.hard, isEstimated: false);
+      }
+      if (osmDifficulty == 'moderate' || osmDifficulty == 'intermediate') {
+        return (difficulty: RouteDifficulty.moderate, isEstimated: false);
+      }
+      if (osmDifficulty == 'easy' || osmDifficulty == 'novice') {
+        return (difficulty: RouteDifficulty.easy, isEstimated: false);
+      }
+    }
+
+    // 3. Without explicit terrain classification, clearly mark as estimate
+    final RouteDifficulty estimated;
     if (place.isHikingRoute) {
-      return distanceMeters > 4000
+      estimated = distanceMeters > 5000
           ? RouteDifficulty.hard
           : RouteDifficulty.moderate;
+    } else if (distanceMeters < 3000) {
+      estimated = RouteDifficulty.easy;
+    } else if (distanceMeters < 7000) {
+      estimated = RouteDifficulty.moderate;
+    } else {
+      estimated = RouteDifficulty.hard;
     }
-    if (distanceMeters < 2500) return RouteDifficulty.easy;
-    if (distanceMeters < 6000) return RouteDifficulty.moderate;
-    return RouteDifficulty.hard;
+    return (difficulty: estimated, isEstimated: true);
   }
 
   String _buildDescription(
