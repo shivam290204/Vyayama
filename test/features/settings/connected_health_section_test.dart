@@ -47,6 +47,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     HealthService.instance.isSupportedOverride = true;
     HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.hasPermissionsOverride = false;
 
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
@@ -67,6 +68,7 @@ void main() {
     });
     HealthService.instance.isSupportedOverride = true;
     HealthService.instance.serviceNameOverride = 'Apple Health';
+    HealthService.instance.hasPermissionsOverride = true;
 
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
@@ -94,6 +96,7 @@ void main() {
     HealthService.instance.isSupportedOverride = true;
     HealthService.instance.serviceNameOverride = 'Google Health Connect';
     HealthService.instance.isHealthConnectAvailableOverride = true;
+    HealthService.instance.hasPermissionsOverride = false;
     HealthService.instance.requestPermissionsOverride = false;
 
     await tester.pumpWidget(buildTestWidget(
@@ -110,6 +113,7 @@ void main() {
 
     final switchWidget = tester.widget<Switch>(find.byType(Switch));
     expect(switchWidget.value, isFalse);
+    expect(find.text('Permission required • Grant access in system settings'), findsOneWidget);
   });
 
   testWidgets('connects and enables sync when Health Connect permission succeeds', (tester) async {
@@ -118,6 +122,7 @@ void main() {
     HealthService.instance.serviceNameOverride = 'Google Health Connect';
     HealthService.instance.isHealthConnectAvailableOverride = true;
     HealthService.instance.requestPermissionsOverride = true;
+    HealthService.instance.hasPermissionsOverride = true;
     HealthService.instance.stepsTodayOverride = 5000;
 
     await tester.pumpWidget(buildTestWidget(
@@ -144,6 +149,7 @@ void main() {
     HealthService.instance.isSupportedOverride = true;
     HealthService.instance.serviceNameOverride = 'Google Health Connect';
     HealthService.instance.isHealthConnectAvailableOverride = false;
+    HealthService.instance.hasPermissionsOverride = false;
 
     await tester.pumpWidget(buildTestWidget(
       theme: ThemeData(platform: TargetPlatform.android),
@@ -156,5 +162,54 @@ void main() {
 
     expect(find.text('Google Health Connect is not installed or requires an update.'), findsOneWidget);
     expect(find.text('Install'), findsOneWidget);
+  });
+
+  testWidgets('shows permission-required state when sync was enabled but permissions subsequently revoked', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      HealthService.kHealthSyncEnabledKey: true,
+    });
+    HealthService.instance.isSupportedOverride = true;
+    HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.hasPermissionsOverride = false; // Permissions revoked in system settings
+
+    await tester.pumpWidget(buildTestWidget(
+      theme: ThemeData(platform: TargetPlatform.android),
+    ));
+    await tester.pumpAndSettle();
+
+    // Must show permission-required state, not active state
+    expect(find.text('Permission required • Grant access in system settings'), findsOneWidget);
+    final switchWidget = tester.widget<Switch>(find.byType(Switch));
+    expect(switchWidget.value, isFalse);
+    expect(find.text('Sync Now'), findsNothing);
+  });
+
+  testWidgets('revalidates permissions when application resumes from system settings', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      HealthService.kHealthSyncEnabledKey: true,
+    });
+    HealthService.instance.isSupportedOverride = true;
+    HealthService.instance.serviceNameOverride = 'Google Health Connect';
+    HealthService.instance.hasPermissionsOverride = false; // Initially revoked
+
+    await tester.pumpWidget(buildTestWidget(
+      theme: ThemeData(platform: TargetPlatform.android),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Permission required • Grant access in system settings'), findsOneWidget);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+
+    // User went to system settings and granted permissions
+    HealthService.instance.hasPermissionsOverride = true;
+
+    // Application resumes
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    // Automatically transitions to active connected state upon resume
+    expect(find.text('Active • Synced with Wear OS, Apple Watch & health apps'), findsOneWidget);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+    expect(find.text('Sync Now'), findsOneWidget);
   });
 }

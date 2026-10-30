@@ -15,22 +15,61 @@ class ConnectedHealthSection extends StatefulWidget {
   State<ConnectedHealthSection> createState() => _ConnectedHealthSectionState();
 }
 
-class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
+class _ConnectedHealthSectionState extends State<ConnectedHealthSection> with WidgetsBindingObserver {
   bool _isLoading = true;
   bool _isConnected = false;
+  bool _isPermissionRequired = false;
   bool _isSyncing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadState();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadState();
+    }
+  }
+
   Future<void> _loadState() async {
-    final enabled = await HealthService.instance.isSyncEnabled();
+    final service = HealthService.instance;
+    if (!service.isSupported) {
+      if (mounted) {
+        setState(() {
+          _isConnected = false;
+          _isPermissionRequired = false;
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    final syncEnabled = await service.isSyncEnabled();
+    final hasPerm = await service.hasPermissions();
+
     if (mounted) {
       setState(() {
-        _isConnected = enabled;
+        if (syncEnabled && hasPerm) {
+          _isConnected = true;
+          _isPermissionRequired = false;
+        } else if (syncEnabled && !hasPerm) {
+          // Permissions were revoked or missing in system settings after sync was enabled
+          _isConnected = false;
+          _isPermissionRequired = true;
+        } else {
+          _isConnected = false;
+          _isPermissionRequired = false;
+        }
         _isLoading = false;
       });
     }
@@ -47,6 +86,7 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
           if (!mounted) return;
           setState(() {
             _isConnected = false;
+            _isPermissionRequired = false;
             _isLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -69,6 +109,7 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
       if (granted) {
         setState(() {
           _isConnected = true;
+          _isPermissionRequired = false;
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +120,7 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
       } else {
         setState(() {
           _isConnected = false;
+          _isPermissionRequired = true;
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -96,6 +138,7 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
       if (!mounted) return;
       setState(() {
         _isConnected = false;
+        _isPermissionRequired = false;
         _isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,14 +187,18 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
                       decoration: BoxDecoration(
                         color: _isConnected
                             ? context.colors.success.withValues(alpha: 0.15)
-                            : theme.colorScheme.surfaceContainerHighest,
+                            : _isPermissionRequired
+                                ? theme.colorScheme.error.withValues(alpha: 0.15)
+                                : theme.colorScheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.health_and_safety_rounded,
                         color: _isConnected
                             ? context.colors.success
-                            : theme.colorScheme.onSurfaceVariant,
+                            : _isPermissionRequired
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onSurfaceVariant,
                         size: 24,
                       ),
                     ),
@@ -170,12 +217,16 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
                           Text(
                             _isConnected
                                 ? 'Active • Synced with Wear OS, Apple Watch & health apps'
-                                : 'Sync steps from smartwatches & health apps',
+                                : _isPermissionRequired
+                                    ? 'Permission required • Grant access in system settings'
+                                    : 'Sync steps from smartwatches & health apps',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: _isConnected
                                   ? context.colors.success
-                                  : theme.colorScheme.onSurfaceVariant,
-                              fontWeight: _isConnected ? FontWeight.w600 : FontWeight.normal,
+                                  : _isPermissionRequired
+                                      ? theme.colorScheme.error
+                                      : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: _isConnected || _isPermissionRequired ? FontWeight.w600 : FontWeight.normal,
                             ),
                           ),
                         ],

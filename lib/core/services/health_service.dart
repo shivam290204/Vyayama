@@ -34,6 +34,18 @@ class HealthService {
   bool? requestPermissionsOverride;
 
   @visibleForTesting
+  bool? requestAuthorizationOverride;
+
+  @visibleForTesting
+  bool? hasPermissionsOverride;
+
+  @visibleForTesting
+  Object? hasPermissionsError;
+
+  @visibleForTesting
+  Object? hasPermissionsUncaughtError;
+
+  @visibleForTesting
   int? stepsTodayOverride;
 
   /// Whether the current platform supports HealthKit or Health Connect.
@@ -58,6 +70,10 @@ class HealthService {
     serviceNameOverride = null;
     isHealthConnectAvailableOverride = null;
     requestPermissionsOverride = null;
+    requestAuthorizationOverride = null;
+    hasPermissionsOverride = null;
+    hasPermissionsError = null;
+    hasPermissionsUncaughtError = null;
     stepsTodayOverride = null;
   }
 
@@ -73,13 +89,17 @@ class HealthService {
 
   /// Checks whether permissions have been granted by HealthKit or Health Connect.
   Future<bool> hasPermissions() async {
+    if (hasPermissionsUncaughtError != null) throw hasPermissionsUncaughtError!;
+    if (hasPermissionsOverride != null) return hasPermissionsOverride!;
     if (!isSupported) return false;
     await _ensureConfigured();
     try {
+      if (hasPermissionsError != null) throw hasPermissionsError!;
       final hasPerm = await _health.hasPermissions(_types);
       return hasPerm ?? false;
-    } catch (_) {
-      return isSyncEnabled();
+    } catch (e) {
+      debugPrint('Health hasPermissions check failed: $e');
+      return false;
     }
   }
 
@@ -146,14 +166,20 @@ class HealthService {
     await _ensureConfigured();
 
     try {
-      final alreadyGranted = await _health.hasPermissions(_types);
-      if (alreadyGranted == true) return true;
+      final alreadyGranted = await hasPermissions();
+      if (alreadyGranted) return true;
 
-      final granted = await _health.requestAuthorization(_types);
-      if (granted) return true;
+      if (requestAuthorizationOverride != null) {
+        if (!requestAuthorizationOverride!) {
+          return false;
+        }
+      } else {
+        await _health.requestAuthorization(_types);
+      }
 
-      final verified = await _health.hasPermissions(_types);
-      return verified ?? false;
+      // Explicitly check actual granted permissions, even when requestAuthorization() returns true
+      final verified = await hasPermissions();
+      return verified;
     } catch (e) {
       debugPrint('Health authorization request failed: $e');
       return false;
