@@ -122,7 +122,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        'Suggested local circuits',
+                        'Discovered via OpenStreetMap',
                         style: TextStyle(
                           fontSize: 12,
                           color: textMuted,
@@ -180,12 +180,13 @@ class RouteDiscoverySheet extends ConsumerWidget {
                           Icon(Icons.explore_off_rounded, size: 40, color: textMuted),
                           const SizedBox(height: 8),
                           Text(
-                            'No routes matched your filters.',
+                            'No mapped routes found nearby.',
                             style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Try expanding distance or clearing activity filters.',
+                            'Route availability depends on local OSM map data. '
+                            'Try moving to an area with mapped paths or parks.',
                             style: TextStyle(color: textMuted, fontSize: 12),
                           ),
                         ],

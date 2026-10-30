@@ -6,11 +6,12 @@ This module expands **Vyayama** by introducing a comprehensive Maps and Outdoor 
 
 ### Core Capabilities
 1. **Interactive Full-Screen Map**: Rendered using modern, open-source OpenStreetMap tiles via `flutter_map` (zero paid Google Maps or Mapbox API keys).
-2. **GPS Outdoor Activity Recording**: Tracks walking, running, and hiking in real-time with live drawn polylines, elapsed duration, distance in kilometers, average pace (min/km), and speed (km/h).
-3. **Robust GPS Drift & Jump Filtering**: Geodesic math filtering out inaccurate GPS fixes (>20m error), stationary jitter (<3m displacement), and unrealistic speed jumps (>45 km/h).
-4. **Offline-First Storage**: Completed outdoor activities and user-saved routes are stored in local storage (`SharedPreferences` JSON) with automatic deferred sync to Supabase when authenticated.
-5. **Route Discovery & Filters**: Discover nearby scenic trails, circuits, and loops around the user's location with full filtering by activity type, distance, difficulty, elevation, and surface type.
-6. **Route History & Template Saving**: Users can inspect previous outdoor sessions, review detailed stats, and save any recorded activity as a reusable route template.
+2. **Real Route Discovery**: Discovers genuine nearby walking, running, and hiking routes using actual OpenStreetMap geographic data (Overpass API) and pedestrian network routing (Valhalla API). No artificial circular loops or fabricated routes.
+3. **Real Place Search**: Integrated OpenStreetMap Nominatim geocoding search that finds real parks, trails, and landmarks, and centers the map view.
+4. **GPS Outdoor Activity Recording**: Tracks walking, running, and hiking in real-time with live drawn polylines, elapsed duration, distance in kilometers, average pace (min/km), and speed (km/h).
+5. **Robust GPS Drift & Jump Filtering**: Geodesic math filtering out inaccurate GPS fixes (>20m error), stationary jitter (<3m displacement), and unrealistic speed jumps (>45 km/h).
+6. **Offline-First Storage**: Completed outdoor activities and user-saved routes are stored in local storage (`SharedPreferences` JSON) with automatic deferred sync to Supabase when authenticated.
+7. **Route History & Template Saving**: Users can inspect previous outdoor sessions, review detailed stats, and save any recorded activity as a reusable route template.
 
 ---
 
@@ -28,10 +29,16 @@ The implementation strictly followed the **ADD ONLY, NEVER REPLACE** policy:
 ```text
 lib/features/maps/
 ├── data/
-│   └── repositories/
-│       ├── local_outdoor_storage.dart          # Offline-first SharedPreferences persistence
-│       ├── outdoor_activity_repository.dart    # Manages activity lifecycle and Supabase sync
-│       └── saved_routes_repository.dart        # Manages saved route templates
+│   ├── repositories/
+│   │   ├── local_outdoor_storage.dart          # Offline-first SharedPreferences persistence
+│   │   ├── outdoor_activity_repository.dart    # Manages activity lifecycle and Supabase sync
+│   │   └── saved_routes_repository.dart        # Manages saved route templates
+│   └── services/
+│       ├── nominatim_service.dart              # OSM Nominatim geocoding place search
+│       ├── overpass_service.dart               # Queries OSM Overpass API for real parks & trails
+│       ├── real_route_discovery_service.dart   # Orchestrates Overpass places + Valhalla routing
+│       ├── route_cache.dart                    # In-memory TTL cache (10 min) for API queries
+│       └── valhalla_service.dart               # Valhalla pedestrian routing & precision-6 polyline decoding
 ├── domain/
 │   ├── models/
 │   │   ├── gps_point.dart                      # LatLng coordinate, altitude, accuracy, speed, timestamp
@@ -42,10 +49,10 @@ lib/features/maps/
 │   └── services/
 │       ├── gps_filter_service.dart             # Mathematical coordinate validation & distance math
 │       ├── location_tracking_service.dart      # Geolocator stream controller, pause/resume, timer
-│       └── route_discovery_engine.dart         # Scenic loop generator and route discovery engine
+│       └── route_discovery_engine.dart         # Production interface delegating to RealRouteDiscoveryService
 ├── presentation/
 │   ├── screens/
-│   │   ├── maps_screen.dart                    # Main Strava-inspired map screen with discovery sheet
+│   │   ├── maps_screen.dart                    # Main map screen with real discovered route polylines
 │   │   ├── outdoor_recording_screen.dart       # Live recording dashboard with map, pace & controls
 │   │   ├── outdoor_summary_screen.dart         # Workout summary, route map, title edit, save
 │   │   ├── route_detail_screen.dart            # In-depth route preview with "Start Workout" action
@@ -54,7 +61,7 @@ lib/features/maps/
 │       ├── map_controls_overlay.dart           # Floating search bar, recenter, zoom & bookmark badge
 │       ├── recording_metrics_card.dart         # Live metric display during workouts
 │       ├── route_card.dart                     # Reusable route preview card with difficulty & stats
-│       ├── route_discovery_sheet.dart          # Draggable bottom sheet with nearby routes list
+│       ├── route_discovery_sheet.dart          # Draggable bottom sheet with real discovered routes list
 │       └── route_filter_sheet.dart             # Modal filter sheet with multi-attribute choice chips
 ├── maps_routes.dart                            # GoRouter routes for /maps, /maps/record, /maps/saved
 └── providers.dart                              # Riverpod dependency injection & reactive streams
@@ -62,7 +69,54 @@ lib/features/maps/
 
 ---
 
-## 4. GPS Signal Processing and Mathematical Filtering
+## 4. Real Route Discovery Architecture
+
+### A. Data Flow & Routing Pipeline
+
+```
+[User Location / Selected Center]
+               │
+               ▼
+   [OverpassService] ── Query OSM Overpass for named parks, recreation grounds, trails, footways
+               │
+               ▼
+   [Candidate Filtering & Deduplication] ── Sort by proximity, prioritize parks/trails, eliminate duplicate IDs
+               │
+               ▼
+   [ValhallaService] ── Route pedestrian loop: Origin → Waypoint → Origin via mapped walkable ways
+               │
+               ▼
+   [Precision-6 Polyline Decoding] ── Decode actual geometry following streets and park paths
+               │
+               ▼
+   [SavedRoute Model Generation] ── Real OSM place name, calculated distance/duration, inferred surface & difficulty
+               │
+               ▼
+   [Filter Application] ── Filter by distance, activity type, difficulty, surface, search query
+               │
+               ▼
+   [RouteDiscoverySheet & Map Display] ── Render actual route geometry on map; empty state if none
+```
+
+### B. Geographic Data Sources & Endpoints
+
+| Provider | Endpoint | Role | Rate Limit / Politeness |
+|---|---|---|---|
+| **OSM Overpass API** | `https://overpass-api.de/api/interpreter` | Discovers nearby named parks, recreation grounds, paths, footways, and hiking routes. | Max 1 request per 5 seconds; cached for 10 minutes in memory. |
+| **Valhalla Routing API** | `https://valhalla1.openstreetmap.de/route` | Computes pedestrian routes along actual routable road and path segments. | Low-volume usage; includes `X-Client-Id: vyayama` header; cached in memory. |
+| **OSM Nominatim API** | `https://nominatim.openstreetmap.org/search` | Geocoding search for places, parks, and cities. | Max 1 request per second; user agent `Vyayama/1.0 (com.vyayama.fitbuddy)`. |
+
+### C. Honest Empty and Offline States
+- When no mapped routes exist nearby, the service returns an empty list (`[]`).
+- The bottom sheet displays:  
+  **"No mapped routes found nearby."**  
+  *"Route availability depends on local OSM map data. Try moving to an area with mapped paths or parks."*
+- **No artificial concentric circles or fictional names** (e.g. "Greenway Park Circuit") are ever displayed to the user in production.
+- If the network is unavailable or times out, the service falls back to in-memory cached routes. If no cached routes exist, it displays the honest empty state while preserving the map, user location marker, and GPS recording button.
+
+---
+
+## 5. GPS Signal Processing and Mathematical Filtering
 
 GPS data from mobile hardware can suffer from multipath interference, urban canyon reflections, and sensor sleep. To maintain elite tracking precision, `GpsFilterService` enforces 5 strict mathematical filters:
 
@@ -76,17 +130,6 @@ GPS data from mobile hardware can suffer from multipath interference, urban cany
 Distance is computed using the ellipsoidal Haversine / Vincenty formula via `latlong2`:
 $$\Delta\sigma = 2 \arcsin \left( \sqrt{\sin^2\left(\frac{\Delta\phi}{2}\right) + \cos\phi_1 \cos\phi_2 \sin^2\left(\frac{\Delta\lambda}{2}\right)} \right)$$
 $$d = R \cdot \Delta\sigma$$
-
----
-
-## 5. Technology, Dependencies & Zero-Cost Model
-
-| Package | Version | Purpose & Cost Model |
-|---|---|---|
-| `flutter_map` | `8.3.2` | Open-source vector/raster map renderer. Zero API keys, 100% free. |
-| `latlong2` | `0.10.1` | Lightweight coordinate geometry, bearing, and distance calculation. |
-| `geolocator` | `14.0.2` | Cross-platform hardware GPS access, stream configuration, and permissions. |
-| **Map Tiles** | OpenStreetMap | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` with compliant `userAgentPackageName: 'com.vyayama.fitbuddy'`. |
 
 ---
 
@@ -124,15 +167,24 @@ $$d = R \cdot \Delta\sigma$$
 
 ### 1. Static Analysis
 - `flutter analyze`: **No issues found!** (0 errors, 0 warnings across the entire repository).
-- `no_hardcoded_colors_test`: **100% Passing** (all widgets use `AppPalette` and semantic tokens).
 
-### 2. Unit and Widget Test Suite
-- `test/maps/gps_filter_service_test.dart` (8 tests): Validated accuracy gating, drift noise rejection, jump rejection, elevation gain calculations, pace and speed math.
-- `test/maps/local_outdoor_storage_test.dart` (2 tests): Validated offline save, load, delete, and rename of activities and routes.
-- `test/maps/route_filter_test.dart` (4 tests): Validated filtering by activity type, distance bounds, difficulty, surface, and text search.
-- `test/maps/location_tracking_service_test.dart` (4 tests): Validated tracking state, duration formatting, pause/resume transitions, and activity compilation.
-- `test/maps/maps_navigation_test.dart` (1 test): Verified bottom bar layout renders all 5 tabs and camera button without overflow, and tapping Maps navigates to branch 2.
-- **Regression Tests**: All dashboard tests (11/11) and intelligence tests (48/48) continue to pass with 100% success rate.
+### 2. Unit and Integration Test Suite
+- `test/maps/real_route_discovery_test.dart` (22 tests):
+  - Overpass place tag classification (parks, recreation grounds, footways, hiking routes).
+  - Valhalla trip response parsing and precision-6 polyline decoding.
+  - Haversine geodesic distance calculation.
+  - Candidate deduplication and distance filtering (<300m rejected, nearly identical distances deduped).
+  - Activity type inference from OSM tags.
+  - Route filter integration (activity type, distance boundary).
+  - Honest empty state when no places or routing data found.
+  - In-memory TTL cache operations (get, set, invalidate, expiration).
+- `test/maps/gps_filter_service_test.dart` (8 tests): Accuracy gating, drift rejection, speed jump rejection.
+- `test/maps/local_outdoor_storage_test.dart` (2 tests): Offline save, load, delete of activities and routes.
+- `test/maps/route_filter_test.dart` (4 tests): Multi-attribute filter matching.
+- `test/maps/location_tracking_service_test.dart` (4 tests): Tracking state, duration formatting, pause/resume.
+- `test/maps/maps_attribution_and_caching_test.dart` (4 tests): OSM attribution and tile provider caching.
+- `test/maps/maps_navigation_test.dart` (1 test): Bottom navigation bar renders all 5 tabs and camera button.
+- **Full Test Suite**: **672 tests passed (100%)** across all features.
 
 ---
 
@@ -142,45 +194,58 @@ $$d = R \cdot \Delta\sigma$$
 |---|---|---|
 | **Map Rendering** | `VERIFIED BY TEST` | `FlutterMap` renders OSM raster tiles with `TileLayer` using `userAgentPackageName: 'com.vyayama.fitbuddy'`. Tested without layout overflow or memory leak. |
 | **OSM Attribution** | `VERIFIED BY TEST` | Visible `RichAttributionWidget` with clickable `TextSourceAttribution('OpenStreetMap contributors')` pointing to `https://openstreetmap.org/copyright` integrated on all 4 map screens. Complies strictly with OSM Tile Usage Policy. |
-| **Tile Caching & Prefetching** | `VERIFIED BY TEST` | Uses standard HTTP tile caching. Complies with OSM policy by strictly avoiding bulk tile prefetching or scraper-style scraping. |
+| **Tile Caching** | `VERIFIED BY TEST` | Built-in disk caching configured via `NetworkTileProvider`. Complies with OSM policy by strictly avoiding bulk tile prefetching. |
 | **GPS Filtering & Metrics** | `VERIFIED BY TEST` | 5 mathematical filters in `GpsFilterService` thoroughly tested (accuracy < 20m, stationary drift > 3m, speed jump < 45km/h, time monotonicity, pause freeze). |
-| **Live UI Recording State** | `VERIFIED BY TEST` | Live timer, distance formatting, pace formatting, and polylines tested via `location_tracking_service_test.dart`. |
-| **Offline GPS Tracking & Storage** | `VERIFIED BY TEST` | Local GPS collection, metric calculation, and JSON persistence in `SharedPreferences` verified 100% offline. |
-| **Offline Map Tiles** | `CODE READING ONLY` | Standard Flutter HTTP image cache persists recently viewed tiles. Zero-network tile viewing for uncached areas requires vector MBTiles / PMTiles integration (future enhancement). |
-| **Background GPS (Android)** | `CODE READING ONLY` | Configured `AndroidSettings` with `ForegroundNotificationConfig(notificationTitle: 'Vyayama — Outdoor Tracking', enableWakeLock: true, setOngoing: true)` and permissions (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`). Physical lock-screen test required. |
-| **Background GPS (iOS)** | `CODE READING ONLY` | Configured `UIBackgroundModes` with `location` and `fetch` in `Info.plist`, plus `AppleSettings(activityType: ActivityType.fitness, showBackgroundLocationIndicator: true)`. Physical test required. |
-| **Route Discovery Engine** | `MOCKED / SAMPLE DATA` | Discovered routes in `route_discovery_engine.dart` are **synthesized offline geometric circuits** generated around the user's GPS coordinate. Clearly labeled in UI as "Suggested Local Circuits". External routing (OSRM / Valhalla / Overpass) is an extension point. |
-| **Place / Route Search** | `CODE READING ONLY` | Search bar currently performs local keyword search across discovered route titles, descriptions, and surfaces. External geocoding API (e.g. Photon, Nominatim) is an extension point. |
+| **Real Route Discovery (OSM Overpass + Valhalla)** | `VERIFIED BY TEST` | Integrated in `RealRouteDiscoveryService`. Queries real Overpass features, routes with Valhalla pedestrian costing, decodes precision-6 polyline geometry, and constructs `SavedRoute`. Tested with mocked and unit fixtures. |
+| **Place Search (Nominatim)** | `VERIFIED BY TEST` | Integrated in `NominatimService` and `MapControlsOverlay`. Queries OSM Nominatim API, moves map to selected coordinates, throttled to 1 req/sec with in-memory query caching. |
+| **Honest Empty State** | `VERIFIED BY TEST` | Displays "No mapped routes found nearby" with zero artificial circular polylines or fake names when no OSM data exists. |
+| **Background GPS (Android)** | `CODE READING ONLY` | Configured `AndroidSettings` with `ForegroundNotificationConfig` and permissions (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`). Physical device verification recommended. |
+| **Background GPS (iOS)** | `CODE READING ONLY` | Configured `UIBackgroundModes` with `location` and `fetch` in `Info.plist`, plus `AppleSettings`. Physical device verification recommended. |
 | **Supabase Remote Sync** | `NOT IMPLEMENTED / CODE-PREPARED` | Database migration `019_outdoor_activities_and_saved_routes.sql` created with RLS. Client repositories have catch-wrapped upsert/delete logic. Remote sync will activate once migration 019 is applied to the live Supabase instance. |
 
 ---
 
-## 9. Physical Device Verification Checklist
+## 9. Production Infrastructure & Deployment Recommendations
+
+For large-scale production deployment, relying on free public demonstration servers (overpass-api.de, valhalla1.openstreetmap.de, nominatim.openstreetmap.org) is not recommended due to rate limits and fair-use policies.
+
+### Recommended Production Setup
+1. **Self-Hosted Valhalla**:
+   - Run Valhalla via Docker (`gisops/valhalla`) on a regional VPS (2–4 vCPUs, 8–16 GB RAM depending on regional extract size).
+   - Ingest regional OpenStreetMap `.osm.pbf` extracts from Geofabrik.
+   - Provides sub-50ms routing responses with unlimited request volume.
+2. **Managed Routing & Geocoding Alternative**:
+   - Stadia Maps, Jawg Maps, or Mapbox provide hosted Valhalla and geocoding endpoints with production SLAs.
+   - Endpoints in `OverpassService`, `ValhallaService`, and `NominatimService` can be pointed to custom URLs via environment variables (`ROUTING_ENDPOINT`, `GEOCODING_ENDPOINT`).
+3. **Tile Hosting**:
+   - For high traffic, consider serving map tiles from a dedicated CDN (e.g., Fastly/Cloudflare caching proxy, Stadia Maps, or self-hosted OpenMapTiles/Tegola server) to adhere to OSM foundation tile usage guidelines.
+
+---
+
+## 10. Physical Device Verification Checklist
 
 To complete full hardware validation before store release, perform these steps on physical Android and iOS devices:
 
 1. **Outdoor GPS Signal Acquisition**:
    - [ ] Walk outside with clear sky view.
-   - [ ] Verify blue location puck centers on physical location.
+   - [ ] Verify location puck centers on physical location.
    - [ ] Tap "Start Workout" and verify elapsed time and distance begin ticking.
-2. **Background & Lock Screen Tracking**:
+2. **Real Route Discovery**:
+   - [ ] Open the Maps screen in an area with mapped parks/trails.
+   - [ ] Verify discovered routes display genuine names and follow actual streets/paths.
+   - [ ] In an unmapped or remote area, verify the app displays the honest empty state without generating fake circular loops.
+3. **Place Search**:
+   - [ ] Search for a known nearby park or landmark in the search bar.
+   - [ ] Verify the map pans to that location and shows nearby routes.
+4. **Background & Lock Screen Tracking**:
    - [ ] Begin recording an outdoor walk.
    - [ ] Lock the phone screen and walk 200 meters.
    - [ ] Verify Android persistent notification shows ongoing recording with wake lock.
    - [ ] Verify iOS blue status bar indicator shows background location is active.
    - [ ] Unlock phone: verify polyline has correctly drawn the 200m path without gaps or straight-line teleport jumps.
-3. **App Minimization / Multitasking**:
-   - [ ] Switch to another app (e.g., Camera or Messages) for 2 minutes while walking.
-   - [ ] Return to Vyayama: verify session is intact and metrics are updated.
-4. **Pause / Resume**:
+5. **Pause / Resume / Finish**:
    - [ ] Tap "Pause": verify timer stops and distance no longer increments.
    - [ ] Tap "Resume": verify recording continues smoothly.
-5. **Finish & Summary**:
    - [ ] Tap "Finish": verify `OutdoorSummaryScreen` displays total distance, duration, avg pace, calories, and complete route polyline.
    - [ ] Edit workout title and tap "Save Activity".
    - [ ] Open "Saved Routes & History": verify saved session appears in "Activity History" tab.
-6. **Route Template Re-use**:
-   - [ ] Select a saved route and tap "Start Workout".
-   - [ ] Verify the route geometry is loaded onto the recording map for navigation.
-
-

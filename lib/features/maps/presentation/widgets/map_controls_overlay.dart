@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
+import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,8 @@ class MapControlsOverlay extends ConsumerStatefulWidget {
 
 class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final NominatimService _nominatimService = NominatimService();
+  bool _isSearching = false;
 
   @override
   void dispose() {
@@ -31,10 +34,47 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
     super.dispose();
   }
 
-  void _onSearchSubmitted(String query) {
+  Future<void> _onSearchSubmitted(String query) async {
+    final trimmed = query.trim();
+    // Update route name filter for any non-empty query
     ref.read(activeRouteFilterProvider.notifier).update(
-          (current) => current.copyWith(searchQuery: query.trim()),
+          (current) => current.copyWith(searchQuery: trimmed),
         );
+
+    if (trimmed.isEmpty) return;
+
+    if (_isSearching) return;
+    setState(() => _isSearching = true);
+
+    try {
+      final results = await _nominatimService.search(trimmed);
+      if (!mounted) return;
+
+      if (results.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No places found for that search.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final first = results.first;
+      ref.read(selectedMapCenterProvider.notifier).state = first.latLng;
+      widget.mapController.move(first.latLng, 14.5);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Moved to: ${first.shortName}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSearching = false);
+    }
   }
 
   @override
@@ -109,22 +149,38 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                         _onSearchSubmitted('');
                       },
                     ),
-                  // Filter trigger button
+                  // Filter trigger button — replaced with progress when searching
                   Container(
                     margin: const EdgeInsets.only(right: 6),
-                    child: IconButton(
-                      icon: const Icon(Icons.tune_rounded, size: 20),
-                      color: isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
-                      tooltip: 'Filter Routes',
-                      onPressed: () {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => const RouteFilterSheet(),
-                        );
-                      },
-                    ),
+                    child: _isSearching
+                        ? Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: isDark
+                                    ? AppPalette.limeGreen
+                                    : AppPalette.forestGreen,
+                              ),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.tune_rounded, size: 20),
+                            color: isDark
+                                ? AppPalette.limeGreen
+                                : AppPalette.forestGreen,
+                            tooltip: 'Filter Routes',
+                            onPressed: () {
+                              showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const RouteFilterSheet(),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),

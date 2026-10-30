@@ -27,7 +27,7 @@ final savedRoutesRepositoryProvider = Provider<SavedRoutesRepository>((ref) {
 });
 
 final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {
-  return const RouteDiscoveryEngine();
+  return RouteDiscoveryEngine();
 });
 
 final locationTrackingServiceProvider =
