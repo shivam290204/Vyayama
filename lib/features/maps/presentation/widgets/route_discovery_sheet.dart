@@ -238,7 +238,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 24),
                               child: Text(
-                                'Vyayama uses your device\'s location to discover real nearby walking, running, and hiking routes and track your outdoor workouts.\n\nYour location data stays private on your device and is never shared without your consent.',
+                                'Vyayama uses your location to discover nearby walking, running, and cycling routes and to track your outdoor workouts.\n\nTo discover real paths and calculate routes, your search coordinates may be sent to external mapping and routing services (such as OpenStreetMap and routing providers).',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: textMuted, fontSize: 13, height: 1.4),
                               ),

@@ -9,6 +9,7 @@ import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.da
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/route_detail_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/route_discovery_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -490,6 +491,48 @@ void main() {
       expect(find.text('Stand in an open area for best accuracy.'),
           findsOneWidget);
       expect(find.byType(FlutterMap), findsNothing);
+    });
+
+    testWidgets('20. RouteDiscoverySheet displays accurate, plain-language location disclosure without unsupported privacy claims',
+        (tester) async {
+      final notifier = _ControlledLocationNotifier(
+        const UserLocationState(
+          status: UserLocationStatus.permissionDenied,
+          errorMessage: 'Permission denied',
+        ),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            userLocationNotifierProvider.overrideWith((ref) => notifier),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: RouteDiscoverySheet(
+                onRouteSelected: (_) {},
+                onRecordPressed: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Location Permission Needed'), findsOneWidget);
+      expect(
+        find.textContaining('external mapping and routing services'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('stays on your device and is never shared'),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('stays private on your device'),
+        findsNothing,
+      );
+      expect(find.text('Allow Location Access'), findsOneWidget);
     });
   });
 }
