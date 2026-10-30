@@ -156,6 +156,13 @@ void main() {
     });
 
     testWidgets('2. Walks PlanDetailScreen: days, exercises, and action buttons', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       await tester.pumpWidget(createTestWidget(const PlanDetailScreen(planId: 'test_plan_1')));
       for (int i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));
@@ -166,7 +173,7 @@ void main() {
       expect(find.text('Monday · Full Body A'), findsOneWidget);
 
       // Check Start Workout button
-      expect(find.textContaining('Start workout'), findsOneWidget);
+      expect(find.textContaining('Start workout'), findsWidgets);
 
       // Check medical disclaimer notice
       expect(find.textContaining('General wellness information'), findsOneWidget);

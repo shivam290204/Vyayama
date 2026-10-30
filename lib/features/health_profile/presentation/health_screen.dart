@@ -1,12 +1,10 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
-import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/widgets/animated_section_header.dart';
 import 'package:fitbuddy/core/widgets/glow_background.dart';
 import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/conditions_section.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/health_hero_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/meal_reminders_section.dart';
-import 'package:fitbuddy/features/health_profile/presentation/widgets/medical_disclaimer_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicine_edit_sheet.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicines_section.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
@@ -61,17 +59,6 @@ class HealthScreen extends ConsumerWidget {
                           }
                         },
                       ),
-                      actions: [
-                        IconButton(
-                          tooltip: 'Alarm & Notification Diagnostics',
-                          icon: Icon(
-                            Icons.healing_rounded,
-                            color: context.colors.streak,
-                          ),
-                          onPressed: () =>
-                              context.push(AppRoutes.notificationDiagnostics),
-                        ),
-                      ],
                       flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
                         title: Text(
@@ -90,8 +77,6 @@ class HealthScreen extends ConsumerWidget {
                           StaggeredEntrance(
                             children: [
                               HealthHeroCard(),
-                              SizedBox(height: 20),
-                              MedicalDisclaimerCard(),
                               SizedBox(height: 24),
                               AnimatedSectionHeader(
                                 title: 'Health conditions',

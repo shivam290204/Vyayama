@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/intelligence/presentation/widgets/post_workout_feedback_card.dart';
 import 'package:fitbuddy/features/workouts/logic/session_engine.dart';
 import 'package:flutter/material.dart';
 
@@ -7,10 +8,14 @@ class SessionSummaryView extends StatelessWidget {
     super.key,
     required this.summary,
     required this.onDone,
+    this.planDayId = '',
+    this.workoutLogId,
   });
 
   final SessionSummary summary;
   final VoidCallback onDone;
+  final String planDayId;
+  final String? workoutLogId;
 
   String get _message {
     if (summary.exercisesCompleted == 0) {
@@ -93,6 +98,13 @@ class SessionSummaryView extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
+          if (planDayId.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            PostWorkoutFeedbackCard(
+              planDayId: planDayId,
+              workoutLogId: workoutLogId,
+            ),
+          ],
           FilledButton.icon(
             onPressed: onDone,
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),

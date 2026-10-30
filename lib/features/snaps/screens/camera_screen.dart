@@ -14,7 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum _CamState { loading, ready, denied, unavailable }
+enum _CamState { loading, ready, denied, permanentlyDenied, unavailable }
 
 /// `/snaps/camera`: full-screen in-app camera. No gallery picker, by design.
 class CameraScreen extends ConsumerStatefulWidget {
@@ -63,10 +63,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     if (state == AppLifecycleState.inactive) {
       _controller?.dispose();
       _controller = null;
-    } else if (state == AppLifecycleState.resumed &&
-        _cameras.isNotEmpty &&
-        _controller == null) {
-      _open();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_state == _CamState.denied || _state == _CamState.permanentlyDenied) {
+        // Automatically check if user enabled camera in system settings and returned
+        Permission.camera.isGranted.then((granted) {
+          if (granted && mounted) {
+            setState(() => _state = _CamState.loading);
+            _start();
+          }
+        });
+      } else if (_cameras.isNotEmpty && _controller == null) {
+        _open();
+      }
     }
   }
 
@@ -108,6 +116,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       return;
     }
     try {
+      final status = await Permission.camera.status;
+      if (!status.isGranted) {
+        final req = await Permission.camera.request();
+        if (!req.isGranted) {
+          if (mounted) {
+            setState(() => _state = req.isPermanentlyDenied
+                ? _CamState.permanentlyDenied
+                : _CamState.denied);
+          }
+          return;
+        }
+      }
+
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
         if (mounted) setState(() => _state = _CamState.unavailable);
@@ -123,8 +144,17 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 
   void _fail(CameraException e) {
     if (!mounted) return;
-    setState(() => _state =
-        e.code.startsWith('CameraAccess') ? _CamState.denied : _CamState.unavailable);
+    if (e.code.startsWith('CameraAccess')) {
+      Permission.camera.isPermanentlyDenied.then((permanently) {
+        if (mounted) {
+          setState(() => _state = permanently
+              ? _CamState.permanentlyDenied
+              : _CamState.denied);
+        }
+      });
+    } else {
+      setState(() => _state = _CamState.unavailable);
+    }
   }
 
   Future<void> _open() async {
@@ -223,18 +253,27 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         ),
       );
     }
-    if (_state == _CamState.denied || _state == _CamState.unavailable) {
-      final denied = _state == _CamState.denied;
+    if (_state == _CamState.denied ||
+        _state == _CamState.permanentlyDenied ||
+        _state == _CamState.unavailable) {
+      final isDenied = _state == _CamState.denied;
+      final isPermanent = _state == _CamState.permanentlyDenied;
       return Scaffold(
         appBar: AppBar(leading: BackButton(onPressed: _close)),
         body: StateMessage(
           icon: Icons.no_photography_outlined,
-          title: denied ? 'Camera access is off' : 'No camera found',
-          message: denied
-              ? 'Vyayama needs your camera to take exercise snaps. You can turn it on in your settings.'
+          title: (isDenied || isPermanent) ? 'Camera access is off' : 'No camera found',
+          message: (isDenied || isPermanent)
+              ? (isPermanent
+                  ? 'Camera permission was disabled in Android Settings. Please tap Open Settings to allow camera access for exercise snaps.'
+                  : 'Vyayama needs camera access to take exercise snaps. Please grant camera permission to continue.')
               : 'We could not start a camera on this device.',
-          actionLabel: denied ? 'Open settings' : 'Go back',
-          onAction: denied ? openAppSettings : _close,
+          actionLabel: isPermanent
+              ? 'Open settings'
+              : (isDenied ? 'Grant camera access' : 'Go back'),
+          onAction: isPermanent
+              ? openAppSettings
+              : (isDenied ? _start : _close),
         ),
       );
     }

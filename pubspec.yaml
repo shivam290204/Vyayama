@@ -60,6 +60,9 @@ dependencies:
   url_launcher: ^6.3.3
   pedometer: ^4.2.0
   flutter_timezone: ^5.1.1
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

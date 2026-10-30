@@ -8,9 +8,11 @@ import 'package:fitbuddy/features/dashboard/daily_targets.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats_repository.dart';
 import 'package:fitbuddy/features/dashboard/data/supabase_daily_stats_repository.dart';
+import 'package:fitbuddy/features/dashboard/logic/monthly_activity_logic.dart';
 import 'package:fitbuddy/features/dashboard/stats_range.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/schedule/clock_providers.dart';
+import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// How many days (including today) the dashboard loads.
@@ -105,3 +107,54 @@ final calorieBreakdownProvider = Provider<AsyncValue<CalorieBreakdown>>((ref) {
         (stats) => CalorieMath.breakdown(stats: stats, metrics: metrics),
       );
 });
+
+/// Currently viewed month in the Monthly Activity Calendar (normalized to 1st of month).
+final selectedCalendarMonthProvider = StateProvider<DateTime>((ref) {
+  final today = ref.watch(todayProvider);
+  return DateTime(today.year, today.month, 1);
+});
+
+/// Currently selected date in the Monthly Activity Calendar.
+final selectedCalendarDateProvider = StateProvider<DateTime>((ref) {
+  return ref.watch(todayProvider);
+});
+
+/// Fetches and computes the aggregated monthly activity summary for [month].
+final monthlyActivityProvider =
+    FutureProvider.family<MonthlyActivitySummary, DateTime>((ref, month) async {
+  final repo = ref.watch(dailyStatsRepositoryProvider);
+  final targets = ref.watch(dailyTargetsProvider);
+  final today = ref.watch(todayProvider);
+
+  final from = MonthlyActivityLogic.startOfMonth(month);
+  final to = MonthlyActivityLogic.endOfMonth(month);
+  final rows = await repo.fetchRange(from, to);
+
+  // Merge today's live hardware step tracking numbers if looking at current month
+  if (month.year == today.year && month.month == today.month) {
+    final live = StepTrackingService.instance.getTodayStats();
+    final todayKeyStr = dayKey(today);
+    final index = rows.indexWhere((r) => dayKey(r.date) == todayKeyStr);
+    if (index >= 0) {
+      final existing = rows[index];
+      final updated = existing.copyWith(
+        steps: live.steps > existing.steps ? live.steps : existing.steps,
+        calories: live.calories > existing.calories ? live.calories : existing.calories,
+        activeMinutes: live.activeMinutes > existing.activeMinutes
+            ? live.activeMinutes
+            : existing.activeMinutes,
+      );
+      rows[index] = updated;
+    } else if (!live.isEmpty) {
+      rows.add(live);
+    }
+  }
+
+  return MonthlyActivityLogic.computeSummary(
+    rows: rows,
+    month: month,
+    targets: targets,
+    today: today,
+  );
+});
+

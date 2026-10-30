@@ -6,6 +6,8 @@ import 'package:fitbuddy/features/schedule/clock_providers.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:fitbuddy/core/router/app_routes.dart';
 
 /// "Good morning, Asha!" header with brand logo.
 class GreetingHeader extends ConsumerWidget {
@@ -73,6 +75,23 @@ class GreetingHeader extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              const Spacer(),
+              Semantics(
+                button: true,
+                label: 'Take fitness snap',
+                child: FilledButton.tonalIcon(
+                  onPressed: () => context.push(AppRoutes.snapsCamera),
+                  icon: const Icon(Icons.photo_camera_rounded, size: 18),
+                  label: const Text(
+                    'Snap',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               ),
             ],
           ),

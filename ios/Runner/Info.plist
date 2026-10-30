@@ -77,6 +77,15 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Vyayama uses your location to show your position on the map and record outdoor walking, running, and hiking routes.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Vyayama uses background location to track your outdoor activity route even when your screen is locked.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Vyayama requires access to the camera to take fitness snaps and scan friend invite QR codes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

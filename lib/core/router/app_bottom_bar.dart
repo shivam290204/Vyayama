@@ -2,19 +2,19 @@ import 'package:flutter/material.dart';
 
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 
-/// Bottom bar with four tabs and a large center Camera button.
+/// Bottom bar with five clean navigation tabs: Home, Workouts, Maps, Friends, and Profile.
 class AppBottomBar extends StatelessWidget {
   const AppBottomBar({
     super.key,
     required this.selectedBranch,
     required this.onBranchSelected,
-    required this.onCameraPressed,
+    this.onCameraPressed,
     this.friendsBadgeCount = 0,
   });
 
   final int selectedBranch;
   final ValueChanged<int> onBranchSelected;
-  final VoidCallback onCameraPressed;
+  final VoidCallback? onCameraPressed;
   final int friendsBadgeCount;
 
   static const _home = _TabSpec(0, 'Home', Icons.home_outlined, Icons.home_rounded);
@@ -24,14 +24,20 @@ class AppBottomBar extends StatelessWidget {
     Icons.fitness_center_outlined,
     Icons.fitness_center_rounded,
   );
-  static const _friends = _TabSpec(
+  static const _maps = _TabSpec(
     2,
+    'Maps',
+    Icons.explore_outlined,
+    Icons.explore_rounded,
+  );
+  static const _friends = _TabSpec(
+    3,
     'Friends',
     Icons.people_outline_rounded,
     Icons.people_rounded,
   );
   static const _profile = _TabSpec(
-    3,
+    4,
     'Profile',
     Icons.person_outline_rounded,
     Icons.person_rounded,
@@ -40,7 +46,7 @@ class AppBottomBar extends StatelessWidget {
   Widget _tab(_TabSpec spec) => _TabButton(
         spec: spec,
         selected: selectedBranch == spec.branch,
-        badgeCount: spec.branch == 2 ? friendsBadgeCount : 0,
+        badgeCount: spec.branch == 3 ? friendsBadgeCount : 0,
         onTap: () => onBranchSelected(spec.branch),
       );
 
@@ -55,14 +61,12 @@ class AppBottomBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 72,
+          height: 68,
           child: Row(
             children: [
               _tab(_home),
               _tab(_workouts),
-              Expanded(
-                child: Center(child: _CameraButton(onPressed: onCameraPressed)),
-              ),
+              _tab(_maps),
               _tab(_friends),
               _tab(_profile),
             ],
@@ -116,8 +120,8 @@ class _TabButton extends StatelessWidget {
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 56,
-                  height: 32,
+                  width: 48,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: selected ? scheme.primaryContainer : Colors.transparent,
                     borderRadius: BorderRadius.circular(AppRadius.md),
@@ -151,38 +155,3 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-class _CameraButton extends StatelessWidget {
-  const _CameraButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Semantics(
-      button: true,
-      label: 'Open camera to share an exercise snap',
-      excludeSemantics: true,
-      onTap: onPressed,
-      child: Material(
-        color: scheme.primary,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: SizedBox(
-            width: 60,
-            height: 60,
-            child: Icon(
-              Icons.photo_camera_rounded,
-              size: 30,
-              color: scheme.onPrimary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

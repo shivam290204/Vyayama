@@ -1,4 +1,3 @@
-import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/widgets/glass_card.dart';
@@ -6,10 +5,8 @@ import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/medicine_edit_sheet.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
-import 'package:fitbuddy/features/schedule/widgets/medicine_alert_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// Medicine reminders: name and times only.
@@ -237,95 +234,6 @@ class _MedicinesSectionState extends ConsumerState<MedicinesSection>
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: context.colors.streak,
-                            side: BorderSide(color: context.colors.streak),
-                          ),
-                          onPressed: () =>
-                              context.push(AppRoutes.notificationDiagnostics),
-                          icon: const Icon(Icons.healing_rounded, size: 16),
-                          label: const Text(
-                            'Diagnostics',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: context.colors.amberWarning,
-                            side: BorderSide(color: context.colors.amberWarning),
-                          ),
-                          onPressed: () async {
-                            final timeStr = list.first.reminderTimes.firstOrNull
-                                    ?.format(context) ??
-                                 '09:00 AM';
-                            await NotificationService.instance
-                                .requestPermissions();
-                            await NotificationService.instance
-                                .scheduleTestAlarmInSeconds(
-                              id: 9992,
-                              seconds: 5,
-                              title: '💊 Medicine Reminder (Test)',
-                              body: 'Time to take ${list.first.name} ($timeStr)',
-                              channelId: NotificationService.medicineChannelId,
-                              channelName: 'Medicine Reminders',
-                              alarmStyle: true,
-                              payload:
-                                  'medicine:test:Medicine reminder:Reminder: ${list.first.name}',
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Alarm set for 5s! Lock phone to test heads-up popup and alarm sound 🔔💊',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: Duration(seconds: 4),
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.timer_outlined, size: 16),
-                          label: const Text(
-                            '5s Lock Test',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: context.colors.amberWarning,
-                            foregroundColor: Colors.black,
-                          ),
-                          onPressed: () async {
-                            await NotificationService.instance
-                                .requestPermissions();
-                            if (context.mounted) {
-                              MedicineAlertDialog.show(
-                                context,
-                                medicineName: list.first.name,
-                                time: list.first.reminderTimes.firstOrNull
-                                        ?.format(context) ??
-                                    '09:00 AM',
-                              );
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.play_circle_fill_rounded,
-                            size: 16,
-                          ),
-                          label: const Text(
-                            'Test Alert Popup',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
         ),
@@ -379,85 +287,14 @@ class _EmptyMedicines extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 20),
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: [
-                FilledButton.icon(
-                  onPressed: () async {
-                    await NotificationService.instance.requestPermissions();
-                    onCheckPermissions?.call();
-                    if (context.mounted) showMedicineEditSheet(context);
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add reminder'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await NotificationService.instance.requestPermissions();
-                    onCheckPermissions?.call();
-                    if (context.mounted) {
-                      MedicineAlertDialog.show(
-                        context,
-                        medicineName: 'Daily Vitamin',
-                        time: '09:00 AM',
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.volume_up_rounded, size: 18),
-                  label: const Text('Test alert sound'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: context.colors.amberWarning,
-              ),
+            FilledButton.icon(
               onPressed: () async {
                 await NotificationService.instance.requestPermissions();
                 onCheckPermissions?.call();
-                await NotificationService.instance.scheduleTestAlarmInSeconds(
-                  id: 9991,
-                  seconds: 5,
-                  title: '💊 Medicine Reminder (Test)',
-                  body: 'Time to take your scheduled medicine!',
-                  channelId: NotificationService.medicineChannelId,
-                  channelName: 'Medicine Reminders',
-                  alarmStyle: true,
-                  payload:
-                      'medicine:test:Medicine reminder:Reminder: Daily Medicine',
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Alarm set for 5 seconds from now! Lock your phone to test the heads-up popup and alarm sound 🔔💊',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                      duration: Duration(seconds: 4),
-                    ),
-                  );
-                }
+                if (context.mounted) showMedicineEditSheet(context);
               },
-              icon: const Icon(Icons.timer_outlined, size: 16),
-              label: const Text(
-                'Test 5s Alarm (Lock phone to test)',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: context.colors.streak,
-              ),
-              onPressed: () => context.push(AppRoutes.notificationDiagnostics),
-              icon: const Icon(Icons.healing_rounded, size: 16),
-              label: const Text(
-                'Alarm & Notification Diagnostics',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add reminder'),
             ),
           ],
         ),
@@ -466,7 +303,7 @@ class _EmptyMedicines extends StatelessWidget {
   }
 }
 
-enum _MedicineAction { edit, testAlert, delete }
+enum _MedicineAction { edit, delete }
 
 class _MedicineTile extends ConsumerWidget {
   const _MedicineTile({required this.medicine});
@@ -628,13 +465,6 @@ class _MedicineTile extends ConsumerWidget {
               switch (action) {
                 case _MedicineAction.edit:
                   showMedicineEditSheet(context, medicine: medicine);
-                case _MedicineAction.testAlert:
-                  MedicineAlertDialog.show(
-                    context,
-                    medicineName: medicine.name,
-                    time: medicine.reminderTimes.firstOrNull?.format(context) ??
-                        '09:00 AM',
-                  );
                 case _MedicineAction.delete:
                   _confirmDelete(context, ref);
               }
@@ -647,16 +477,6 @@ class _MedicineTile extends ConsumerWidget {
                     Icon(Icons.edit_outlined, size: 18),
                     SizedBox(width: 8),
                     Text('Edit'),
-                  ],
-                ),
-              ),
-              PopupMenuItem<_MedicineAction>(
-                value: _MedicineAction.testAlert,
-                child: Row(
-                  children: [
-                    Icon(Icons.volume_up_outlined, size: 18),
-                    SizedBox(width: 8),
-                    Text('Test alert sound'),
                   ],
                 ),
               ),

@@ -13,6 +13,7 @@ import 'package:fitbuddy/features/challenges/challenges_routes.dart';
 import 'package:fitbuddy/features/dashboard/dashboard_routes.dart';
 import 'package:fitbuddy/features/health_profile/health_profile_routes.dart';
 import 'package:fitbuddy/features/home/home_routes.dart';
+import 'package:fitbuddy/features/maps/maps_routes.dart';
 import 'package:fitbuddy/features/motivation/motivation_routes.dart';
 import 'package:fitbuddy/features/nutrition/nutrition_routes.dart';
 import 'package:fitbuddy/features/onboarding/onboarding_routes.dart';
@@ -119,6 +120,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: homeRoutes),
           StatefulShellBranch(routes: workoutsRoutes),
+          StatefulShellBranch(routes: mapsRoutes),
           StatefulShellBranch(routes: friendsRoutes),
           StatefulShellBranch(routes: profileRoutes),
         ],

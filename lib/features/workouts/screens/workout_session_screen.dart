@@ -266,6 +266,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   SessionPhase.finished => SessionSummaryView(
                       summary: s.summary ?? SessionEngine.summarize(s, 70),
                       onDone: _leave,
+                      planDayId: widget.dayId,
                     ),
                 },
               ),

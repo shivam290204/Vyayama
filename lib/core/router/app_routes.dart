@@ -10,6 +10,7 @@ abstract final class AppRoutes {
   // Home area
   static const String home = '/home';
   static const String dashboard = '/dashboard';
+  static const String monthlyActivity = '/dashboard/monthly-activity';
   static const String schedule = '/schedule';
   static const String dailyBoost = '/boost';
   static const String challenges = '/challenges';
@@ -20,6 +21,11 @@ abstract final class AppRoutes {
   static const String workoutSession = '/workouts/session/:dayId';
   static const String exercise = '/workouts/exercise/:id';
   static const String planBuilder = '/workouts/builder';
+
+  // Maps & Outdoor Activities
+  static const String maps = '/maps';
+  static const String mapsRecord = '/maps/record';
+  static const String mapsSaved = '/maps/saved';
 
   /// Prefix of the guided session (shown full screen, no bottom bar).
   static const String workoutSessionPrefix = '/workouts/session';
@@ -49,6 +55,7 @@ abstract final class AppRoutes {
   static const String profile = '/profile';
   static const String profileEdit = '/profile/edit';
   static const String bmi = '/profile/bmi';
+  static const String fitnessPreferences = '/profile/fitness-preferences';
 
   // Helpers for parameterized paths
   static String workoutPlanPath(String id) =>

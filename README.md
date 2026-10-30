@@ -34,6 +34,9 @@
   - [10. Nutrition, Meal Guidance & Smart Hydration](#10-nutrition-meal-guidance--smart-hydration)
   - [11. Circadian Sleep Schedule & Wind-Down Routine](#11-circadian-sleep-schedule--wind-down-routine)
   - [12. Daily Boost: XP Progression, Quotes & Memes](#12-daily-boost-xp-progression-quotes--memes)
+  - [13. Strava-Inspired Maps & Outdoor Fitness Tracking](#13-strava-inspired-maps--outdoor-fitness-tracking)
+  - [14. Monthly Activity Calendar & Concentric Progress Rings](#14-monthly-activity-calendar--concentric-progress-rings)
+  - [15. Adaptive Fitness Journey & Intelligence Layer](#15-adaptive-fitness-journey--intelligence-layer)
 - [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
 - [📂 Project Directory Structure](#-project-directory-structure)
 - [🗄️ Database Architecture & Migrations](#️-database-architecture--migrations)
@@ -156,6 +159,27 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 - **XP & Level Milestones**: Earn experience points for logging workouts, drinking water, hitting step goals, and keeping streaks alive.
 - **Curated Motivational Content**: Daily rotating fitness quotes and wholesome health memes to keep morale high.
 
+### 13. Strava-Inspired Maps & Outdoor Fitness Tracking
+- **Interactive Full-Screen Map**: Rendered using modern OpenStreetMap raster tiles via `flutter_map: 8.3.2` with compliant `userAgentPackageName: 'com.vyayama.fitbuddy'` and visible attribution link to OpenStreetMap contributors.
+- **Real-Time GPS Tracking**: Track outdoor walking, running, and hiking workouts with live polylines, current and average pace (min/km), speed (km/h), elapsed duration, and distance.
+- **5-Stage Mathematical Drift Filtering**: Mathematical noise rejection via `GpsFilterService` (accuracy < 20m, stationary drift > 3m, teleport jump rejection < 45 km/h) using ellipsoidal geodesic distance formulas (`latlong2`).
+- **Offline Caching & Persistence**: Tiles visited while online are cached locally to disk via `BuiltInMapCachingProvider` (1 GB cache) and survive app restarts. Activity logs are stored locally offline first with deferred sync to Supabase.
+- **Route Discovery & Templates**: Browse suggested local circuits or save completed sessions as reusable route templates with elevation profiles and surface types.
+
+### 14. Monthly Activity Calendar & Concentric Progress Rings
+- **Samsung Health Inspired Design**: Beautiful monthly calendar view accessible from the top-right calendar icon in the daily activity dashboard.
+- **Concentric Daily Progress Rings**: Visualizes triple fitness rings for every day of the month:
+  1. Outer Lime Ring: Steps target progress.
+  2. Middle Blue Ring: Active minutes target progress.
+  3. Inner Purple Ring: Active calorie burn progress.
+- **Monthly Aggregate Statistics**: Displays total monthly steps, active duration, calories burned, and target completion score (e.g. `24/30 days`).
+- **Selected Day Inspection**: Tap any date to view detailed metrics and progress bars without leaving the screen.
+
+### 15. Adaptive Fitness Journey & Intelligence Layer
+- **Deterministic Fitness Insights**: Phase 1 rule-based intelligence engine generating context-aware recovery advice, consistency nudges, and milestone celebrations without external cloud LLM costs or privacy risks.
+- **Adaptive Planning Engine**: Phase 2 adaptive engine personalizing workout recommendations based on user equipment access, target session duration, weekly workout targets, and post-workout difficulty feedback (RPE).
+- **Post-Workout Difficulty Feedback**: Log session difficulty to dynamically adjust upcoming workout intensities.
+
 ---
 
 ## 🛠️ Tech Stack & Architecture
@@ -220,6 +244,8 @@ vyayama/
 │   │   ├── friends/          # Friend list, friend request RPCs, QR code connect
 │   │   ├── health_profile/   # Health conditions, contraindications, medicine alarms
 │   │   ├── home/             # MascotSection, Today's workout & daily blocks
+│   │   ├── intelligence/     # Adaptive fitness engine, smart insights, weekly reviews
+│   │   ├── maps/             # Strava-inspired GPS tracking, OSM maps, route discovery & caching
 │   │   ├── mascot/           # MoodEngine, 6-stage emotional progression
 │   │   ├── motivation/       # Daily boost quotes, wellness memes, audio feedback
 │   │   ├── nutrition/        # Water tracker, meal notifications, diet recommendations
@@ -262,6 +288,7 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
 | `013_fix_snaps_verification_feed.sql` | Private storage policies and friend-only snap feed visibility |
 | `014_bmi_records.sql` | `bmi_records` table tracking chronological height, weight & BMI history |
 | `015_security_privacy_hardening.sql` | Revokes public RPC execution; restricts verification to `service_role` |
+| `019_outdoor_activities_and_saved_routes.sql` | `outdoor_activities` (GPS recordings, JSONB waypoints, RLS), `saved_routes` (templates, RLS) |
 | `100_snap_streak_functions.sql` | Real-time pair streak calculation and timezone-aware midnight reset |
 
 ---

@@ -59,7 +59,7 @@ void main() {
   });
 
   group('MedicineEditSheet', () {
-    testWidgets('renders add medicine title, sound info, and save button',
+    testWidgets('renders add medicine title, input fields, and save button',
         (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
@@ -73,8 +73,10 @@ void main() {
       await tester.pump();
 
       expect(find.text('Add medicine reminder'), findsOneWidget);
-      expect(find.text('Warning Alarm Sound'), findsOneWidget);
-      expect(find.text('Preview'), findsOneWidget);
+      expect(find.text('Medicine name'), findsOneWidget);
+      expect(find.text('Reminder times'), findsOneWidget);
+      expect(find.text('Warning Alarm Sound'), findsNothing);
+      expect(find.text('Preview'), findsNothing);
       expect(find.text('Save reminder'), findsOneWidget);
     });
   });

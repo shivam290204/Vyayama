@@ -26,6 +26,14 @@ void main() {
           reason: 'READ_MEDIA_AUDIO must be removed because alarm sounds are bundled in raw resources');
       expect(manifestContent.contains('android.permission.READ_EXTERNAL_STORAGE'), isFalse,
           reason: 'READ_EXTERNAL_STORAGE must be removed as no local file storage is accessed');
+      expect(manifestContent.contains('android.permission.READ_CONTACTS'), isFalse,
+          reason: 'READ_CONTACTS must not be declared as friends use username search & QR codes');
+      expect(manifestContent.contains('android.permission.GET_ACCOUNTS'), isFalse,
+          reason: 'GET_ACCOUNTS must not be declared');
+      expect(manifestContent.contains('android.permission.RECORD_AUDIO'), isFalse,
+          reason: 'RECORD_AUDIO must not be declared as no voice recording features exist');
+      expect(manifestContent.contains('android.permission.BLUETOOTH'), isFalse,
+          reason: 'BLUETOOTH must not be declared as no nearby/BLE hardware is used');
     });
 
     test('2. AndroidManifest.xml must retain only compliant, necessary permissions', () {
@@ -41,6 +49,10 @@ void main() {
         'android.permission.health.READ_STEPS',
         'android.permission.health.READ_ACTIVE_CALORIES_BURNED',
         'android.permission.MODIFY_AUDIO_SETTINGS',
+        'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_COARSE_LOCATION',
+        'android.permission.FOREGROUND_SERVICE',
+        'android.permission.FOREGROUND_SERVICE_LOCATION',
       ];
 
       for (final perm in expectedPermissions) {
@@ -53,8 +65,8 @@ void main() {
           .map((m) => m.group(1))
           .toList();
 
-      expect(permissionMatches.length, equals(11),
-          reason: 'Manifest should contain exactly 11 declared permissions');
+      expect(permissionMatches.length, equals(15),
+          reason: 'Manifest should contain exactly 15 declared permissions including Maps location and foreground service');
     });
 
     test('3. Audio permissions return true immediately without runtime storage requests', () async {
@@ -89,6 +101,40 @@ void main() {
       await service.setManualSteps(6000);
       expect(service.todaySteps, equals(6000));
       expect(service.isSensorActive.value, isFalse);
+
+      // Adding manual steps increments total cleanly
+      await service.addManualSteps(500);
+      expect(service.todaySteps, equals(6500));
+      expect(service.todayCalories, equals((6500 * 0.04).round()));
+    });
+
+    test('5. iOS Info.plist declares only valid, supported usage descriptions', () {
+      final plistFile = File('ios/Runner/Info.plist');
+      expect(plistFile.existsSync(), isTrue, reason: 'Info.plist must exist');
+      final plistContent = plistFile.readAsStringSync();
+
+      // Required descriptions
+      expect(plistContent.contains('NSCameraUsageDescription'), isTrue);
+      expect(plistContent.contains('NSPhotoLibraryUsageDescription'), isTrue);
+      expect(plistContent.contains('NSMotionUsageDescription'), isTrue);
+      expect(plistContent.contains('NSHealthShareUsageDescription'), isTrue);
+      expect(plistContent.contains('NSHealthUpdateUsageDescription'), isTrue);
+      expect(plistContent.contains('NSLocationWhenInUseUsageDescription'), isTrue);
+      expect(plistContent.contains('NSLocationAlwaysAndWhenInUseUsageDescription'), isTrue);
+
+      // Disallowed/unneeded descriptions
+      expect(plistContent.contains('NSLocationAlwaysUsageDescription'), isFalse);
+      expect(plistContent.contains('NSMicrophoneUsageDescription'), isFalse);
+      expect(plistContent.contains('NSContactsUsageDescription'), isFalse);
+      expect(plistContent.contains('NSBluetoothAlwaysUsageDescription'), isFalse);
+    });
+
+    test('6. NotificationService safe fallback modes on unsupported/test harness platforms', () async {
+      final isAudioOk = await NotificationService.instance.isAudioPermissionGranted();
+      expect(isAudioOk, isTrue);
+
+      final batteryIgnored = await NotificationService.instance.isBatteryOptimizationIgnored();
+      expect(batteryIgnored, isTrue);
     });
   });
 }

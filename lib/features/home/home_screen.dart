@@ -11,6 +11,7 @@ import 'package:fitbuddy/features/home/widgets/summary_row.dart';
 import 'package:fitbuddy/features/home/widgets/time_blocks_section.dart';
 import 'package:fitbuddy/features/home/widgets/today_workout_card.dart';
 import 'package:fitbuddy/features/home/widgets/wellness_summary_cards.dart';
+import 'package:fitbuddy/features/intelligence/providers.dart';
 import 'package:fitbuddy/features/mascot/mascot_debug_panel.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_boost_card.dart';
@@ -54,7 +55,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ..invalidate(quotesProvider)
       ..invalidate(memesProvider)
       ..invalidate(waterProvider)
-      ..invalidate(sleepSettingsProvider);
+      ..invalidate(sleepSettingsProvider)
+      ..invalidate(fitnessInsightsProvider)
+      ..invalidate(adaptiveJourneyProvider);
     await ref.read(recentStatsProvider.future);
   }
 

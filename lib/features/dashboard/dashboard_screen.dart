@@ -3,10 +3,12 @@ import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/dashboard/widgets/calorie_breakdown_card.dart';
 import 'package:fitbuddy/features/dashboard/widgets/history_list.dart';
+import 'package:fitbuddy/features/dashboard/monthly_activity_screen.dart';
 import 'package:fitbuddy/features/dashboard/widgets/rings_section.dart';
 import 'package:fitbuddy/features/dashboard/widgets/week_bar_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// Progress rings, a 7-day bar chart, the calorie breakdown and history.
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -29,10 +31,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _refresh() async {
     await StepTrackingService.instance.refresh();
     ref.invalidate(recentStatsProvider);
+    final month = ref.read(selectedCalendarMonthProvider);
+    ref.invalidate(monthlyActivityProvider(month));
     await ref.read(recentStatsProvider.future);
   }
 
-  Future<void> _promptActivityRecognition(BuildContext context) async {
+  Future<void> _promptActivityRecognition() async {
+    final status = await Permission.activityRecognition.status;
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: Icon(Icons.settings, size: 36, color: Theme.of(ctx).colorScheme.primary),
+          title: const Text('Permission in Android Settings'),
+          content: const Text(
+            'Physical activity recognition permission was previously disabled.\n\n'
+            'To enable live hardware step tracking, please tap "Open Settings", then tap "Permissions", and allow "Physical activity".',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -192,6 +227,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         title: const Text('Dashboard'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_rounded),
+            tooltip: 'Monthly Activity',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MonthlyActivityScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Sync Steps',
             onPressed: _refresh,
@@ -232,9 +278,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         ValueListenableBuilder<bool>(
-          valueListenable: StepTrackingService.instance.hasPermission,
-          builder: (context, granted, _) {
-            if (granted) return const SizedBox.shrink();
+            valueListenable: StepTrackingService.instance.hasPermission,
+            builder: (context, granted, _) {
+              if (granted) return const SizedBox.shrink();
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -272,7 +318,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton.tonal(
-                    onPressed: () => _promptActivityRecognition(context),
+                    onPressed: _promptActivityRecognition,
                     child: const Text('Enable'),
                   ),
                 ],

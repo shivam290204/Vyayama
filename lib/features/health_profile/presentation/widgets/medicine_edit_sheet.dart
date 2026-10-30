@@ -1,5 +1,3 @@
-import 'package:fitbuddy/core/services/app_sound_service.dart';
-import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/features/health_profile/data/medicine.dart';
 import 'package:fitbuddy/features/health_profile/data/time_codec.dart';
@@ -51,7 +49,6 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
   @override
   void dispose() {
     _name.dispose();
-    AppSoundService.instance.stop();
     super.dispose();
   }
 
@@ -211,10 +208,7 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close_rounded),
-                    onPressed: () {
-                      AppSoundService.instance.stop();
-                      Navigator.of(context).pop();
-                    },
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
@@ -222,81 +216,6 @@ class _MedicineEditSheetState extends ConsumerState<MedicineEditSheet> {
               Text(
                 'Reminders only. This app does not give dosage or medical advice.',
                 style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-
-              // Alert Sound preview card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: context.colors.amberWarning.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: context.colors.amberWarning.withValues(alpha: isDark ? 0.2 : 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.alarm_on_rounded,
-                        color: context.colors.amberWarning,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Warning Alarm Sound',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Plays warning sound so you don\'t miss taking medicine.',
-                            style: text.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ValueListenableBuilder<bool>(
-                      valueListenable: AppSoundService.instance.isPlayingNotifier,
-                      builder: (context, isPlaying, _) {
-                        return TextButton.icon(
-                          style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact,
-                            foregroundColor: context.colors.amberWarning,
-                          ),
-                          onPressed: () {
-                            if (isPlaying) {
-                              AppSoundService.instance.stop();
-                            } else {
-                              AppSoundService.instance.playMedicineAlert();
-                            }
-                          },
-                          icon: Icon(
-                            isPlaying
-                                ? Icons.stop_circle_rounded
-                                : Icons.play_circle_fill_rounded,
-                            size: 18,
-                          ),
-                          label: Text(isPlaying ? 'Stop' : 'Preview'),
-                        );
-                      },
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: 16),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:fitbuddy/core/services/health_service.dart';
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
@@ -60,6 +61,10 @@ class _ConnectedHealthSectionState extends State<ConnectedHealthSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not connect to ${service.serviceName}. Please grant permissions in system settings.'),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: openAppSettings,
+            ),
           ),
         );
       }

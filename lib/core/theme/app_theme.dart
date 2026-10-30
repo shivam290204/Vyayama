@@ -49,6 +49,11 @@ abstract final class AppPalette {
   static const Color accent = limeGreen;
   static const Color highlight = limeGreen;
   static const Color error = Color(0xFFBA1A1A);
+
+  // Activity Rings Tokens (Daily Activity Calendar & Tracking)
+  static const Color activitySteps = limeGreen; // #8BCF45
+  static const Color activityMinutes = Color(0xFF06B6D4); // Cyan / Teal
+  static const Color activityCalories = Color(0xFFA855F7); // Purple
 }
 
 /// Material 3 light and dark themes built using the Forest Green & Lime Green system.
