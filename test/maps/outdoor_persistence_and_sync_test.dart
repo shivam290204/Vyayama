@@ -67,6 +67,8 @@ void main() {
     RouteSurface surface = RouteSurface.unknown,
     RouteElevation elevation = RouteElevation.unknown,
     double? elevationGain,
+    bool isLoop = true,
+    bool isDifficultyEstimated = false,
   }) {
     final now = DateTime(2026, 10, 31, 9, 0, 0);
     return SavedRoute(
@@ -87,8 +89,8 @@ void main() {
       isSavedByUser: true,
       userId: userId,
       createdAt: now,
-      isLoop: true,
-      isDifficultyEstimated: false,
+      isLoop: isLoop,
+      isDifficultyEstimated: isDifficultyEstimated,
     );
   }
 
@@ -688,12 +690,14 @@ void main() {
   // 4. SAVED ROUTES SCHEMA COMPATIBILITY & CONSTRAINTS
   // ===========================================================================
   group('4. Saved Routes Schema Compatibility & Sanitization', () {
-    test('11. toSupabasePayload preserves unknown surface and elevation semantics', () {
+    test('11. toSupabasePayload synchronizes metadata and preserves unknown/nullable semantics', () {
       final route = makeSampleRoute(
         id: 'route_check_constraints',
         surface: RouteSurface.unknown,
         elevation: RouteElevation.unknown,
         elevationGain: null,
+        isLoop: true,
+        isDifficultyEstimated: true,
       );
 
       final payload = SavedRoutesRepository.toSupabasePayload(route, 'user_123');
@@ -702,12 +706,12 @@ void main() {
       expect(payload['surface_type'], equals('unknown'));
       expect(payload['elevation_profile'], equals('unknown'));
 
-      // Non-null constraint on elevation_gain_meters defaults to 0.0
-      expect(payload['elevation_gain_meters'], equals(0.0));
+      // Preserves null elevation_gain_meters rather than inventing 0.0 (requires migration 020)
+      expect(payload['elevation_gain_meters'], isNull);
 
-      // Client-only metadata omitted to prevent PostgreSQL column mismatches before migration 020
-      expect(payload.containsKey('is_loop'), isFalse);
-      expect(payload.containsKey('is_difficulty_estimated'), isFalse);
+      // Metadata synchronized for loop circuits and estimated difficulty (requires migration 020)
+      expect(payload['is_loop'], isTrue);
+      expect(payload['is_difficulty_estimated'], isTrue);
     });
 
     test('11b. SavedRoute round-trip JSON serialization preserves unknown metadata', () {
@@ -715,6 +719,8 @@ void main() {
         id: 'route_unknown_roundtrip',
         surface: RouteSurface.unknown,
         elevation: RouteElevation.unknown,
+        isLoop: true,
+        isDifficultyEstimated: false,
       );
       final json = route.toJson();
       final restored = SavedRoute.fromJson(json);
@@ -722,6 +728,66 @@ void main() {
       expect(restored.elevationProfile, equals(RouteElevation.unknown));
       expect(restored.isLoop, isTrue);
       expect(restored.isDifficultyEstimated, isFalse);
+    });
+
+    test('11c. SavedRoute Supabase payload round-trip covers all 5 requested edge cases', () {
+      // Case 1: Loop with estimated difficulty
+      final routeLoopEstimated = makeSampleRoute(
+        id: 'route_roundtrip_1',
+        isLoop: true,
+        isDifficultyEstimated: true,
+        elevationGain: 150.0,
+      );
+      final payload1 = SavedRoutesRepository.toSupabasePayload(routeLoopEstimated, 'user_123');
+      expect(payload1['is_loop'], isTrue);
+      expect(payload1['is_difficulty_estimated'], isTrue);
+      final restored1 = SavedRoute.fromJson(payload1);
+      expect(restored1.isLoop, isTrue);
+      expect(restored1.isDifficultyEstimated, isTrue);
+
+      // Case 2: Non-loop with non-estimated difficulty
+      final routePointToPoint = makeSampleRoute(
+        id: 'route_roundtrip_2',
+        isLoop: false,
+        isDifficultyEstimated: false,
+        elevationGain: 50.0,
+      );
+      final payload2 = SavedRoutesRepository.toSupabasePayload(routePointToPoint, 'user_123');
+      expect(payload2['is_loop'], isFalse);
+      expect(payload2['is_difficulty_estimated'], isFalse);
+      final restored2 = SavedRoute.fromJson(payload2);
+      expect(restored2.isLoop, isFalse);
+      expect(restored2.isDifficultyEstimated, isFalse);
+
+      // Case 3: Unknown surface
+      final routeUnknownSurface = makeSampleRoute(
+        id: 'route_roundtrip_3',
+        surface: RouteSurface.unknown,
+      );
+      final payload3 = SavedRoutesRepository.toSupabasePayload(routeUnknownSurface, 'user_123');
+      expect(payload3['surface_type'], equals('unknown'));
+      final restored3 = SavedRoute.fromJson(payload3);
+      expect(restored3.surfaceType, equals(RouteSurface.unknown));
+
+      // Case 4: Unknown elevation profile
+      final routeUnknownElevation = makeSampleRoute(
+        id: 'route_roundtrip_4',
+        elevation: RouteElevation.unknown,
+      );
+      final payload4 = SavedRoutesRepository.toSupabasePayload(routeUnknownElevation, 'user_123');
+      expect(payload4['elevation_profile'], equals('unknown'));
+      final restored4 = SavedRoute.fromJson(payload4);
+      expect(restored4.elevationProfile, equals(RouteElevation.unknown));
+
+      // Case 5: Null elevation gain (never defaulting to 0.0)
+      final routeNullElevationGain = makeSampleRoute(
+        id: 'route_roundtrip_5',
+        elevationGain: null,
+      );
+      final payload5 = SavedRoutesRepository.toSupabasePayload(routeNullElevationGain, 'user_123');
+      expect(payload5['elevation_gain_meters'], isNull);
+      final restored5 = SavedRoute.fromJson(payload5);
+      expect(restored5.elevationGainMeters, isNull);
     });
 
     test('12. Saves route locally and syncs to Supabase', () async {

@@ -277,11 +277,12 @@ class SavedRoutesRepository {
   }
 
   /// Converts a [SavedRoute] into a remote payload.
-  /// Strictly preserves actual route characteristics without silently inventing values:
+  /// Converts a [SavedRoute] into a remote Supabase row payload.
+  /// Strictly preserves actual route characteristics without silently inventing false values:
   /// - Preserves 'surface_type' as 'unknown' if not known (requires migration 020 in production)
   /// - Preserves 'elevation_profile' as 'unknown' if not known (requires migration 020 in production)
-  /// - Enforces non-null numeric(6,2) for 'elevation_gain_meters'
-  /// - Strips client-only fields ('is_loop', 'is_difficulty_estimated')
+  /// - Preserves nullable 'elevation_gain_meters' (null if not available)
+  /// - Synchronizes 'is_loop' and 'is_difficulty_estimated'
   static Map<String, dynamic> toSupabasePayload(SavedRoute route, String userId) {
     return {
       'id': route.id,
@@ -292,12 +293,14 @@ class SavedRoutesRepository {
       'estimated_duration_sec': route.estimatedDurationSeconds,
       'difficulty': route.difficulty.name,
       'points': route.points.map((p) => p.toJson()).toList(),
-      'elevation_gain_meters': route.elevationGainMeters ?? 0.0,
-      'surface_type': route.surfaceType.name, // Preserves actual 'unknown' without inventing 'paved'
-      'elevation_profile': route.elevationProfile.name, // Preserves actual 'unknown' without inventing 'flat'
+      'elevation_gain_meters': route.elevationGainMeters,
+      'surface_type': route.surfaceType.name,
+      'elevation_profile': route.elevationProfile.name,
       'description': route.description,
       'is_saved_by_user': route.isSavedByUser,
       'created_at': (route.createdAt ?? DateTime.now()).toIso8601String(),
+      'is_loop': route.isLoop,
+      'is_difficulty_estimated': route.isDifficultyEstimated,
     };
   }
 
