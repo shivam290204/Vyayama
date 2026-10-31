@@ -36,6 +36,42 @@ alter table public.saved_routes
 create index if not exists idx_saved_routes_user_updated
   on public.saved_routes(user_id, created_at desc);
 
+-- 5. Outdoor Deletion Tombstones Table (Cross-Device Deletion Synchronization)
+-- Prevents stale local records on secondary/offline devices from resurrecting deleted workouts or routes.
+create table if not exists public.outdoor_tombstones (
+  id text not null,
+  entity_type text not null check (entity_type in ('activity', 'route')),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  deleted_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  primary key (id, entity_type, user_id)
+);
+
+alter table public.outdoor_tombstones enable row level security;
+
+create policy "read own outdoor tombstones" on public.outdoor_tombstones
+  for select to authenticated
+  using (auth.uid() = user_id);
+
+create policy "insert own outdoor tombstones" on public.outdoor_tombstones
+  for insert to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "update own outdoor tombstones" on public.outdoor_tombstones
+  for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "delete own outdoor tombstones" on public.outdoor_tombstones
+  for delete to authenticated
+  using (auth.uid() = user_id);
+
+create index if not exists idx_outdoor_tombstones_user_deleted
+  on public.outdoor_tombstones(user_id, deleted_at desc);
+
 comment on table public.saved_routes is
   'User saved and custom outdoor routes with loop detection and difficulty estimation metadata.';
+
+comment on table public.outdoor_tombstones is
+  'Cross-device deletion tombstones preventing stale local records from resurrecting deleted workouts or routes.';
 

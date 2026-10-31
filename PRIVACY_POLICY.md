@@ -101,19 +101,30 @@ When you use the Maps and Route Discovery features in Vyayama, location-related 
   - If you require strict, 100% local-only tracking with zero cloud synchronization, you must record your workouts in **Unauthenticated Guest Mode** or sign out of your account before starting an outdoor session.
 - **Idempotency & Deduplication:** Remote synchronization uses idempotent record upserts bound to stable client-generated UUIDs. Retrying synchronization across unstable network conditions will never create duplicate workout entries.
 
-### B. Offline Deletion & Crash-Resistant Tombstone Queue
+### B. Offline Deletion & Crash-Durable Cross-Device Tombstone Synchronization
 - **Four-Step Atomic Deletion Guarantee:** When you delete a workout or saved route:
-  1. A persistent deletion tombstone containing the entity type (`activity` or `route`), record UUID, owner user ID, and timestamp is persisted to disk **first**.
+  1. A persistent deletion tombstone containing the entity type (`activity` or `route`), record UUID, owner user ID, and timestamp is persisted to an atomic, crash-durable file journal **first** using synchronous flush (`flush: true`) and CRC-32 integrity validation.
   2. The record is unlinked and hidden from all visible local listings immediately.
-  3. A remote deletion request is dispatched to Supabase with bounded exponential backoff.
-  4. The persistent tombstone is purged from disk **only after** the remote server confirms deletion.
-- **Crash & Power-Loss Safety:** Because the tombstone is written *before* any remote deletion is attempted, an unexpected crash, power loss, or network termination at any point during deletion leaves the system in a consistent state: the item remains hidden locally, and pending tombstones are retried automatically upon app restart or reconnect.
+  3. The tombstone is uploaded to Supabase (`outdoor_tombstones` table) and the corresponding cloud record is deleted with bounded exponential backoff.
+  4. The local tombstone is marked as acknowledged and synced, remaining retained locally to prevent stale caches from resurrecting the record.
+- **Cross-Device Synchronization:**
+  - Remote tombstones are retained in Supabase under your authenticated account.
+  - When you sign in on another device (or reconnect after being offline), that device downloads remote tombstones before performing any uploads.
+  - Stale local workout copies on secondary devices are immediately detected and purged, preventing multi-device resurrection.
+- **Crash & Power-Loss Safety:** Because the tombstone is written to the durable journal *before* any remote deletion or local unlinking is attempted, an unexpected crash, power loss, or network termination at any point during deletion leaves the system in a consistent state: the item remains hidden locally, and pending tombstones are retried automatically upon app restart or reconnect.
 - **Resurrection Prevention:** Tombstoned records are strictly barred from being resurrected or re-saved by concurrent or subsequent cloud synchronization cycles.
 
 ### C. Account Isolation & Row Level Security (RLS)
-- All cloud database tables enforce PostgreSQL Row Level Security (RLS) policies (`auth.uid() = user_id`).
-- **User A cannot read, insert, update, or delete User B's activities or saved routes.**
+- All cloud database tables (`outdoor_activities`, `saved_routes`, and `outdoor_tombstones`) enforce PostgreSQL Row Level Security (RLS) policies (`auth.uid() = user_id`).
+- **User A cannot read, insert, update, or delete User B's activities, saved routes, or tombstones.**
 - On shared devices, local activity histories are partitioned by user ID. Signing out does not expose your workout history to subsequent users.
+
+### D. Privacy Review: Authenticated Sync & Future User Consent Roadmap
+- **Privacy Assessment:** Precise GPS location fixes, timestamps, and route polylines are sensitive personal data. While automatic cloud synchronization provides seamless multi-device continuity, privacy best practices support granular user consent.
+- **Recommended Implementation for Settings:** An explicit setting toggle in **Settings → Privacy & Maps → "Cloud Backup & Sync for Outdoor Workouts"** is planned:
+  - *Default:* Enabled for authenticated users (preserving existing expectations without disrupting social streaks).
+  - *When Disabled by User:* Outdoor workout GPS coordinates and route tracks remain strictly local in the device's sandbox, skipping Supabase synchronization. The app displays an informational notice: 'Your outdoor workout history will remain only on this device.'
+  - *Current Status:* Pending UI setting rollout in a future update; currently, users requiring strict local-only tracking must use Unauthenticated Guest Mode.
 
 ---
 

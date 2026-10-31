@@ -36,6 +36,12 @@ class OutdoorActivityRepository {
   Future<void> Function(String table, String id, String userId)? remoteDeleteOverride;
 
   @visibleForTesting
+  Future<List<Map<String, dynamic>>> Function(String table, String userId)? remoteFetchTombstonesOverride;
+
+  @visibleForTesting
+  Future<void> Function(String table, Map<String, dynamic> tombstonePayload)? remoteUpsertTombstoneOverride;
+
+  @visibleForTesting
   String? Function()? currentUserIdOverride;
 
   /// Retrieves all recorded activities, scoped to the authenticated user to ensure
@@ -91,29 +97,51 @@ class OutdoorActivityRepository {
   }
 
   /// Deletes an activity using a strict, crash-safe 4-step sequence:
-  /// 1. Persist a tombstone containing entity type, record ID and owner user ID.
+  /// 1. Persist a tombstone containing entity type, record ID and owner user ID FIRST.
   /// 2. Hide/remove the record from local storage.
-  /// 3. Attempt remote deletion if authenticated.
-  /// 4. Remove the tombstone ONLY after remote success.
+  /// 3. Upload tombstone to Supabase `outdoor_tombstones` and delete from `outdoor_activities`.
+  /// 4. Mark local tombstone as remote synced (retained locally to prevent resurrection).
   Future<void> deleteActivity(String id) async {
     final effectiveUser = _currentUserId ?? 'local_user';
 
-    // 1. Persist tombstone containing entity type, record ID and owner user ID FIRST
-    await _storage.recordTombstone(OutdoorTombstone(
+    final tombstone = OutdoorTombstone(
       id: id,
       entityType: 'activity',
       userId: effectiveUser,
       deletedAt: DateTime.now(),
-    ));
+      isRemoteSynced: false,
+    );
+
+    // 1. Persist tombstone containing entity type, record ID and owner user ID FIRST
+    await _storage.recordTombstone(tombstone);
 
     // 2. Hide/remove the record from visible local results
     await _storage.deleteActivity(id);
 
-    // 3. Attempt remote deletion if authenticated
+    // 3. Attempt remote tombstone upload and remote record deletion if authenticated
     if (_currentUserId != null) {
       try {
+        // Upload tombstone to Supabase outdoor_tombstones table
+        if (remoteUpsertTombstoneOverride != null) {
+          await _retryWithBackoff(
+            () => remoteUpsertTombstoneOverride!(
+              'outdoor_tombstones',
+              tombstone.toRemotePayload(),
+            ),
+          );
+        } else if (_supabase != null) {
+          await _retryWithBackoff(
+            () => _supabase!
+                .from('outdoor_tombstones')
+                .upsert(tombstone.toRemotePayload()),
+          );
+        }
+
+        // Delete remote record from outdoor_activities table
         if (remoteDeleteOverride != null) {
-          await _retryWithBackoff(() => remoteDeleteOverride!('outdoor_activities', id, effectiveUser));
+          await _retryWithBackoff(
+            () => remoteDeleteOverride!('outdoor_activities', id, effectiveUser),
+          );
         } else if (_supabase != null) {
           await _retryWithBackoff(
             () => _supabase!
@@ -123,15 +151,16 @@ class OutdoorActivityRepository {
                 .eq('user_id', effectiveUser),
           );
         }
-        // 4. Remove the tombstone only after remote success
-        await _storage.removeTombstone(id, 'activity');
+
+        // 4. Mark local tombstone as acknowledged and synced
+        await _storage.markTombstoneRemoteSynced(id, 'activity');
       } catch (e) {
         debugPrint('[OutdoorActivityRepository] Remote delete deferred: queued tombstone.');
       }
     }
   }
 
-  /// Synchronizes pending activities and processes offline deletion tombstones.
+  /// Synchronizes pending activities, downloads remote tombstones, and processes offline deletion tombstones.
   /// Uses an in-flight lock to prevent concurrent sync executions.
   Future<int> syncPendingActivities() async {
     if (_isSyncing) return 0;
@@ -141,15 +170,66 @@ class OutdoorActivityRepository {
       final effectiveUser = _currentUserId;
       if (effectiveUser == null) return 0;
 
-      // --- Step 1: Process Deletion Tombstones FIRST ---
-      final tombstones = await _storage.getTombstones(
+      // --- Step 0: Download Remote Tombstones (Cross-Device Deletion Sync) ---
+      // Ensures that if Device A deleted a record on another device, this device downloads
+      // the tombstone and purges its local copy BEFORE uploading any pending activities!
+      try {
+        List<Map<String, dynamic>> remoteTombstones = [];
+        if (remoteFetchTombstonesOverride != null) {
+          remoteTombstones = await remoteFetchTombstonesOverride!(
+            'outdoor_tombstones',
+            effectiveUser,
+          );
+        } else if (_supabase != null) {
+          final res = await _supabase!
+              .from('outdoor_tombstones')
+              .select()
+              .eq('user_id', effectiveUser)
+              .eq('entity_type', 'activity');
+          remoteTombstones = List<Map<String, dynamic>>.from(res as List);
+        }
+
+        for (final row in remoteTombstones) {
+          final remoteTombstone = OutdoorTombstone.fromJson(row).copyWith(
+            isRemoteSynced: true,
+          );
+          await _storage.recordTombstone(remoteTombstone);
+          // Purge stale local copy immediately
+          await _storage.deleteActivity(remoteTombstone.id);
+        }
+      } catch (e) {
+        debugPrint('[OutdoorActivityRepository] Remote tombstone pull deferred: $e');
+      }
+
+      // --- Step 1: Process Local Unsynced Tombstones ---
+      final localTombstones = await _storage.getTombstones(
         entityType: 'activity',
         userId: effectiveUser,
       );
-      for (final t in tombstones) {
+      final pendingTombstones =
+          localTombstones.where((t) => !t.isRemoteSynced).toList();
+
+      for (final t in pendingTombstones) {
         try {
+          if (remoteUpsertTombstoneOverride != null) {
+            await _retryWithBackoff(
+              () => remoteUpsertTombstoneOverride!(
+                'outdoor_tombstones',
+                t.toRemotePayload(),
+              ),
+            );
+          } else if (_supabase != null) {
+            await _retryWithBackoff(
+              () => _supabase!
+                  .from('outdoor_tombstones')
+                  .upsert(t.toRemotePayload()),
+            );
+          }
+
           if (remoteDeleteOverride != null) {
-            await _retryWithBackoff(() => remoteDeleteOverride!('outdoor_activities', t.id, effectiveUser));
+            await _retryWithBackoff(
+              () => remoteDeleteOverride!('outdoor_activities', t.id, effectiveUser),
+            );
           } else if (_supabase != null) {
             await _retryWithBackoff(
               () => _supabase!
@@ -159,7 +239,7 @@ class OutdoorActivityRepository {
                   .eq('user_id', effectiveUser),
             );
           }
-          await _storage.removeTombstone(t.id, 'activity');
+          await _storage.markTombstoneRemoteSynced(t.id, 'activity');
         } catch (e) {
           debugPrint('[OutdoorActivityRepository] Tombstone retry deferred for ID.');
         }

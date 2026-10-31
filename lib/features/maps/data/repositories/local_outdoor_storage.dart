@@ -1,16 +1,21 @@
 import 'dart:convert';
+import 'package:fitbuddy/features/maps/data/repositories/outdoor_tombstone_journal.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_tombstone.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Local offline persistence for recorded GPS outdoor activities, saved routes,
-/// and crash-safe persistent tombstone ordering.
+/// and crash-durable persistent tombstone journaling.
 class LocalOutdoorStorage {
-  const LocalOutdoorStorage({SharedPreferences? preferences})
-      : _injectedPrefs = preferences;
+  const LocalOutdoorStorage({
+    SharedPreferences? preferences,
+    OutdoorTombstoneJournal? tombstoneJournal,
+  })  : _injectedPrefs = preferences,
+        _journal = tombstoneJournal ?? const OutdoorTombstoneJournal();
 
   final SharedPreferences? _injectedPrefs;
+  final OutdoorTombstoneJournal _journal;
 
   static const String _activitiesKey = 'vyayama_outdoor_activities_v1';
   static const String _savedRoutesKey = 'vyayama_saved_routes_v1';
@@ -206,13 +211,22 @@ class LocalOutdoorStorage {
     }
   }
 
-  // --- Structured Tombstone Queue (Crash-Safe Ordering) ---
+  // --- Structured Tombstone Journal (Crash-Durable Ordering) ---
 
   /// Retrieves structured tombstones, optionally filtered by [entityType] and [userId].
   Future<List<OutdoorTombstone>> getTombstones({
     String? entityType,
     String? userId,
   }) async {
+    final journalTombstones = await _journal.getAll(
+      entityType: entityType,
+      userId: userId,
+    );
+    if (journalTombstones.isNotEmpty) {
+      return journalTombstones;
+    }
+
+    // Fallback/migration from SharedPreferences
     final prefs = await _getPrefs();
     final raw = prefs.getStringList(_tombstonesKey);
     if (raw == null || raw.isEmpty) return [];
@@ -224,35 +238,46 @@ class LocalOutdoorStorage {
         if (entityType != null && t.entityType != entityType) continue;
         if (userId != null && t.userId != userId && t.userId != 'local_user') continue;
         list.add(t);
+        // Migrate to durable journal
+        await _journal.record(t);
       } catch (_) {}
     }
     return list;
   }
 
-  /// Persists a tombstone containing entity type, record ID, and owner user ID.
-  /// Must be invoked BEFORE local record deletion.
+  /// Persists a tombstone to durable storage using fsync flush before local record deletion.
   Future<void> recordTombstone(OutdoorTombstone tombstone) async {
+    // 1. Write to atomic file journal with flush: true
+    await _journal.record(tombstone);
+
+    // 2. Also mirror to SharedPreferences for compatibility
     final prefs = await _getPrefs();
     final all = await getTombstones();
-    all.removeWhere((t) => t.id == tombstone.id && t.entityType == tombstone.entityType);
-    all.add(tombstone);
     final encoded = all.map((t) => jsonEncode(t.toJson())).toList();
     await prefs.setStringList(_tombstonesKey, encoded);
   }
 
-  /// Removes a tombstone only after successful remote deletion.
-  Future<void> removeTombstone(String id, [String? entityType]) async {
+  /// Marks a local tombstone as acknowledged and synced in Supabase outdoor_tombstones.
+  Future<void> markTombstoneRemoteSynced(String id, String entityType) async {
+    await _journal.markRemoteSynced(id, entityType);
     final prefs = await _getPrefs();
     final all = await getTombstones();
-    all.removeWhere((t) => t.id == id && (entityType == null || t.entityType == entityType));
+    final encoded = all.map((t) => jsonEncode(t.toJson())).toList();
+    await prefs.setStringList(_tombstonesKey, encoded);
+  }
+
+  /// Removes a tombstone only after successful remote deletion and acknowledgement.
+  Future<void> removeTombstone(String id, [String? entityType]) async {
+    await _journal.remove(id, entityType);
+    final prefs = await _getPrefs();
+    final all = await getTombstones();
     final encoded = all.map((t) => jsonEncode(t.toJson())).toList();
     await prefs.setStringList(_tombstonesKey, encoded);
   }
 
   /// Checks if a record ID is tombstoned.
   Future<bool> isTombstoned(String id, [String? entityType]) async {
-    final tombstones = await getTombstones(entityType: entityType);
-    return tombstones.any((t) => t.id == id);
+    return _journal.isTombstoned(id, entityType);
   }
 
   // Backward-compatible helper methods
@@ -336,6 +361,9 @@ class LocalOutdoorStorage {
       final encoded = allRoutes.map((r) => jsonEncode(r.toJson())).toList();
       await prefs.setStringList(_savedRoutesKey, encoded);
     }
+
+    // 3. Adopt tombstones in durable journal
+    await _journal.adoptGuestData(newUserId);
   }
 
   /// Purges records belonging to [userId] on account sign-out or account deletion.
@@ -368,7 +396,8 @@ class LocalOutdoorStorage {
     }
     await prefs.setStringList(_savedRoutesKey, retainedRoutes);
 
-    // Purge user's tombstones
+    // Purge user's tombstones from journal and preferences
+    await _journal.clearUserData(userId);
     final allTombstones = await getTombstones();
     allTombstones.removeWhere((t) => t.userId == userId);
     await prefs.setStringList(
@@ -383,5 +412,6 @@ class LocalOutdoorStorage {
     await prefs.remove(_activitiesKey);
     await prefs.remove(_savedRoutesKey);
     await prefs.remove(_tombstonesKey);
+    await _journal.clearUserData('local_user');
   }
 }

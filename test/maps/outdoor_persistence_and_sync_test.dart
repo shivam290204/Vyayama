@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
 import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
+import 'package:fitbuddy/features/maps/data/repositories/outdoor_tombstone_journal.dart';
 import 'package:fitbuddy/features/maps/data/repositories/saved_routes_repository.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
@@ -19,6 +23,13 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
+    OutdoorTombstoneJournal.clearCache();
+    final defaultFile = File('${Directory.systemTemp.path}/${OutdoorTombstoneJournal.journalFileName}');
+    if (defaultFile.existsSync()) {
+      try {
+        defaultFile.deleteSync();
+      } catch (_) {}
+    }
   });
 
   OutdoorActivity makeSampleActivity({
@@ -289,7 +300,8 @@ void main() {
 
       await repo.syncPendingActivities();
       expect(deletedRemoteIds, contains('act_crash_step1'));
-      expect(await storage.isActivityTombstoned('act_crash_step1'), isFalse);
+      final localTombstones = await storage.getTombstones();
+      expect(localTombstones.firstWhere((t) => t.id == 'act_crash_step1').isRemoteSynced, isTrue);
     });
 
     test('8c. Crash safety: crash after local unlinking retries remote deletion on reconnect', () async {
@@ -330,7 +342,8 @@ void main() {
 
       await repoReboot.syncPendingActivities();
       expect(remoteDeletes, contains('act_crash_step2'));
-      expect(await storageReboot.isActivityTombstoned('act_crash_step2'), isFalse);
+      final localTombstonesReboot = await storageReboot.getTombstones();
+      expect(localTombstonesReboot.firstWhere((t) => t.id == 'act_crash_step2').isRemoteSynced, isTrue);
     });
 
     test('8d. Crash safety: crash after remote deletion before tombstone cleanup is idempotent', () async {
@@ -355,8 +368,8 @@ void main() {
 
       await repo.syncPendingActivities();
       expect(remoteDeleteCallCount, equals(1));
-      // Tombstone is successfully cleaned up
-      expect(await storage.isActivityTombstoned('act_crash_step3'), isFalse);
+      final localTombstones3 = await storage.getTombstones();
+      expect(localTombstones3.firstWhere((t) => t.id == 'act_crash_step3').isRemoteSynced, isTrue);
     });
 
     test('9. Tombstones survive simulated restart and retry on reconnect', () async {
@@ -384,8 +397,8 @@ void main() {
       await repo2.syncPendingActivities();
 
       expect(deletedRemoteIds, contains('act_pending_del'));
-      // Tombstone removed upon successful remote execution
-      expect(await storage2.isActivityTombstoned('act_pending_del'), isFalse);
+      final localTombstones2 = await storage2.getTombstones();
+      expect(localTombstones2.firstWhere((t) => t.id == 'act_pending_del').isRemoteSynced, isTrue);
     });
 
     test('10. Tombstone queue prevents resurrection of deleted activities', () async {
@@ -406,6 +419,268 @@ void main() {
       // Save was dropped; activity was not resurrected
       final stored = await repo.getActivityById('act_tombstoned_99');
       expect(stored, isNull);
+    });
+
+    test('10b. Cross-device deletion sync: Device A deletes record, Device B purges stale copy on reconnect and never resurrects', () async {
+      // Shared remote Supabase state (simulating cloud database)
+      final remoteTombstonesTable = <Map<String, dynamic>>[];
+      final remoteActivitiesTable = <String, Map<String, dynamic>>{};
+
+      // 1. Both devices start knowing about act_cross_1
+      final act = makeSampleActivity(id: 'act_cross_1', userId: 'user_123', isSynced: true);
+      remoteActivitiesTable['act_cross_1'] = act.toJson()..['user_id'] = 'user_123';
+
+      // Device A storage & repo
+      final prefsA = await SharedPreferences.getInstance();
+      final storageA = LocalOutdoorStorage(preferences: prefsA);
+      final repoA = OutdoorActivityRepository(storage: storageA);
+      repoA.currentUserIdOverride = () => 'user_123';
+      repoA.remoteUpsertTombstoneOverride = (table, payload) async {
+        remoteTombstonesTable.add(payload);
+      };
+      repoA.remoteDeleteOverride = (table, id, userId) async {
+        remoteActivitiesTable.remove(id);
+      };
+
+      // Device B storage & repo (independent storage)
+      final tempDirB = Directory.systemTemp.createTempSync('device_b_test_');
+      final journalFileB = File('${tempDirB.path}/tombstones_b.json');
+      SharedPreferences.setMockInitialValues({});
+      final prefsB = await SharedPreferences.getInstance();
+      final storageB = LocalOutdoorStorage(
+        preferences: prefsB,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFileB),
+      );
+      final repoB = OutdoorActivityRepository(storage: storageB);
+      repoB.currentUserIdOverride = () => 'user_123';
+
+      // Device B currently has a stale local copy of act_cross_1
+      await storageB.saveActivity(act.copyWith(isSynced: false));
+      expect((await repoB.getActivityById('act_cross_1')), isNotNull);
+
+      // 2. Device A goes offline, deletes act_cross_1 locally, then comes online and syncs
+      await repoA.deleteActivity('act_cross_1');
+      expect((await repoA.getActivityById('act_cross_1')), isNull);
+      // Device A uploaded tombstone to Supabase and deleted remote row
+      expect(remoteTombstonesTable.any((t) => t['id'] == 'act_cross_1'), isTrue);
+      expect(remoteActivitiesTable.containsKey('act_cross_1'), isFalse);
+
+      // 3. Device B reconnects to Supabase and triggers sync
+      repoB.remoteFetchTombstonesOverride = (table, userId) async {
+        return remoteTombstonesTable.where((t) => t['user_id'] == userId).toList();
+      };
+      final uploadedFromB = <String>[];
+      repoB.remoteUpsertOverride = (table, payload) async {
+        uploadedFromB.add(payload['id'] as String);
+      };
+
+      await repoB.syncPendingActivities();
+
+      // Verification:
+      // a) Device B pulled remote tombstone and purged act_cross_1 from local storage!
+      expect((await repoB.getActivityById('act_cross_1')), isNull);
+      expect(await storageB.isActivityTombstoned('act_cross_1'), isTrue);
+
+      // b) Device B NEVER uploaded act_cross_1 to Supabase (resurrection was 100% prevented!)
+      expect(uploadedFromB.contains('act_cross_1'), isFalse);
+      expect(remoteActivitiesTable.containsKey('act_cross_1'), isFalse);
+
+      // c) Remote tombstone was NOT deleted from Supabase (allowing older devices to also pull it)
+      expect(remoteTombstonesTable.any((t) => t['id'] == 'act_cross_1'), isTrue);
+
+      try {
+        tempDirB.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('10c. Durable journal: Crash immediately after tombstone persistence preserves tombstone and hides record on restart', () async {
+      final tempDir = Directory.systemTemp.createTempSync('tombstone_durability_');
+      final journalFile = File('${tempDir.path}/tombstones.json');
+
+      final storageSession1 = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+
+      // Save activity
+      await storageSession1.saveActivity(makeSampleActivity(id: 'act_durable_crash1'));
+
+      // Step 1: Write tombstone to durable file journal with synchronous flush
+      await storageSession1.recordTombstone(OutdoorTombstone(
+        id: 'act_durable_crash1',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+        isRemoteSynced: false,
+      ));
+
+      // SIMULATE CRASH HERE: process killed before storage.deleteActivity() is executed!
+      expect(journalFile.existsSync(), isTrue);
+
+      // RESTART APP: instantiate fresh storage session reading the physical journal file
+      final storageSession2 = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+      final repo2 = OutdoorActivityRepository(storage: storageSession2);
+
+      // Even though raw activity entry was not unlinked before the crash, query filters it out!
+      final list = await repo2.getAllActivities(userId: 'user_123');
+      expect(list.any((a) => a.id == 'act_durable_crash1'), isFalse);
+      expect(await repo2.getActivityById('act_durable_crash1'), isNull);
+
+      // Recovery sync processes the tombstone from the durable journal
+      final remoteTombstones = <Map<String, dynamic>>[];
+      final remoteDeletes = <String>[];
+      repo2.currentUserIdOverride = () => 'user_123';
+      repo2.remoteUpsertTombstoneOverride = (table, payload) async => remoteTombstones.add(payload);
+      repo2.remoteDeleteOverride = (table, id, userId) async => remoteDeletes.add(id);
+
+      await repo2.syncPendingActivities();
+      expect(remoteTombstones.any((t) => t['id'] == 'act_durable_crash1'), isTrue);
+      expect(remoteDeletes, contains('act_durable_crash1'));
+
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('10d. Durable journal: Crash after local record removal retries remote upload upon restart', () async {
+      final tempDir = Directory.systemTemp.createTempSync('tombstone_durability2_');
+      final journalFile = File('${tempDir.path}/tombstones.json');
+
+      final storageSession1 = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+
+      // Step 1: Record tombstone
+      await storageSession1.recordTombstone(OutdoorTombstone(
+        id: 'act_durable_crash2',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+        isRemoteSynced: false,
+      ));
+      // Step 2: Unlink local record
+      await storageSession1.deleteActivity('act_durable_crash2');
+
+      // SIMULATE CRASH HERE: process killed before remote calls dispatched!
+
+      // RESTART APP
+      final storageSession2 = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+      final repo2 = OutdoorActivityRepository(storage: storageSession2);
+
+      final tombstones = await storageSession2.getTombstones(userId: 'user_123');
+      expect(tombstones.any((t) => t.id == 'act_durable_crash2' && !t.isRemoteSynced), isTrue);
+
+      final remoteTombstones = <Map<String, dynamic>>[];
+      repo2.currentUserIdOverride = () => 'user_123';
+      repo2.remoteUpsertTombstoneOverride = (table, payload) async => remoteTombstones.add(payload);
+      repo2.remoteDeleteOverride = (table, id, userId) async {};
+
+      await repo2.syncPendingActivities();
+      expect(remoteTombstones.any((t) => t['id'] == 'act_durable_crash2'), isTrue);
+
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('10e. Durable journal: Crash after remote tombstone creation retries remote activity deletion idempotently', () async {
+      final tempDir = Directory.systemTemp.createTempSync('tombstone_durability3_');
+      final journalFile = File('${tempDir.path}/tombstones.json');
+
+      final storage = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      // Tombstone is on server, but activity deletion in outdoor_activities threw / crashed
+      await storage.recordTombstone(OutdoorTombstone(
+        id: 'act_durable_crash3',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+        isRemoteSynced: false,
+      ));
+
+      final deletedRemoteIds = <String>[];
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertTombstoneOverride = (table, payload) async {};
+      repo.remoteDeleteOverride = (table, id, userId) async => deletedRemoteIds.add(id);
+
+      await repo.syncPendingActivities();
+      expect(deletedRemoteIds, contains('act_durable_crash3'));
+      // Local tombstone is marked remote synced
+      final localT = await storage.getTombstones();
+      expect(localT.firstWhere((t) => t.id == 'act_durable_crash3').isRemoteSynced, isTrue);
+
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('10f. Durable journal: Crash after remote deletion before local acknowledgement completes idempotently on restart', () async {
+      final tempDir = Directory.systemTemp.createTempSync('tombstone_durability4_');
+      final journalFile = File('${tempDir.path}/tombstones.json');
+
+      final storage = LocalOutdoorStorage(
+        preferences: prefs,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFile),
+      );
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      // Server already has tombstone and already deleted record, but local tombstone isRemoteSynced is false
+      await storage.recordTombstone(OutdoorTombstone(
+        id: 'act_durable_crash4',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+        isRemoteSynced: false,
+      ));
+
+      var deleteCalls = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertTombstoneOverride = (table, payload) async {};
+      repo.remoteDeleteOverride = (table, id, userId) async {
+        deleteCalls++;
+      };
+
+      await repo.syncPendingActivities();
+      expect(deleteCalls, equals(1));
+      final localT = await storage.getTombstones();
+      expect(localT.firstWhere((t) => t.id == 'act_durable_crash4').isRemoteSynced, isTrue);
+
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+
+    test('10g. Durable journal: Torn write with corrupt CRC-32 is detected safely without app crash', () async {
+      final tempDir = Directory.systemTemp.createTempSync('tombstone_torn_');
+      final journalFile = File('${tempDir.path}/tombstones.json');
+
+      // Write an envelope with intentionally corrupted CRC-32 (simulating torn write during power failure)
+      final corruptEnvelope = jsonEncode({
+        'version': 1,
+        'sequence': 1,
+        'payload_crc32': 12345678, // Wrong CRC
+        'payload': [{'id': 'act_corrupt', 'entity_type': 'activity', 'user_id': 'user_123', 'deleted_at': '2026-10-31T12:00:00Z'}],
+      });
+      journalFile.writeAsStringSync(corruptEnvelope, flush: true);
+
+      final journal = OutdoorTombstoneJournal(storageFile: journalFile);
+      final loaded = await journal.getAll();
+      expect(loaded, isEmpty, reason: 'Corrupt payload with invalid CRC must be safely rejected');
+
+      try {
+        tempDir.deleteSync(recursive: true);
+      } catch (_) {}
     });
   });
 
@@ -503,7 +778,8 @@ void main() {
 
       await repo.syncPendingRoutes();
       expect(deletedRemoteRouteIds, contains('route_del_test'));
-      expect(await storage.isRouteTombstoned('route_del_test'), isFalse);
+      final localTombstonesRoute = await storage.getTombstones();
+      expect(localTombstonesRoute.firstWhere((t) => t.id == 'route_del_test').isRemoteSynced, isTrue);
     });
   });
 
@@ -733,6 +1009,98 @@ void main() {
       // Local item remains safe and pending
       final stored = await actRepo.getActivityById('act_reconnect_fail');
       expect(stored!.isSynced, isFalse);
+
+      coordinator.dispose();
+    });
+
+    test('23. Coalesced pending-sync: Connectivity returns during an already-running failed sync and triggers immediate follow-up retry', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_coalesce_retry', isSynced: false));
+
+      var attemptCount = 0;
+      const succeedOnAttempt = 2; // Fails on cycle 1, succeeds on cycle 2
+      actRepo.currentUserIdOverride = () => 'user_123';
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        attemptCount++;
+        if (attemptCount < succeedOnAttempt) {
+          throw Exception('Simulated network failure on cycle 1');
+        }
+        // Succeeds on cycle 2
+      };
+      routesRepo.currentUserIdOverride = () => 'user_123';
+      routesRepo.remoteUpsertOverride = (table, payload) async {};
+
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 10),
+      );
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+        connectivityMonitor: monitor,
+      );
+
+      // Start initial sync (which encounters network failure on cycle 1)
+      final initialFuture = coordinator.syncAll(trigger: 'startup');
+
+      // WHILE initial sync is executing, connectivity returns!
+      // This queues a coalesced sync cycle.
+      final secondCallResult = await coordinator.syncAll(trigger: 'connectivity_restored');
+      expect(secondCallResult.isAlreadyRunning, isTrue);
+      expect(coordinator.hasPendingSync, isTrue);
+
+      // Wait for initial coordinator call to complete both cycle 1 and coalesced cycle 2
+      final overallResult = await initialFuture;
+
+      expect(overallResult.activitiesSynced, equals(1));
+      expect(attemptCount, equals(2));
+      expect(coordinator.isSyncing, isFalse);
+      expect(coordinator.hasPendingSync, isFalse);
+
+      final stored = await actRepo.getActivityById('act_coalesce_retry');
+      expect(stored!.isSynced, isTrue);
+
+      coordinator.dispose();
+      monitor.dispose();
+    });
+
+    test('24. Coalesced pending-sync: Rapid flapping during sync executes at most one additional cycle without infinite loop', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      var cycleCount = 0;
+      actRepo.currentUserIdOverride = () => 'user_123';
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        cycleCount++;
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+      };
+      routesRepo.currentUserIdOverride = () => 'user_123';
+      routesRepo.remoteUpsertOverride = (table, payload) async {};
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_flap_1', isSynced: false));
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+      );
+
+      final future1 = coordinator.syncAll(trigger: 'event_1');
+
+      // Flapping events arrive while future1 is active
+      coordinator.syncAll(trigger: 'flap_1');
+      coordinator.syncAll(trigger: 'flap_2');
+      coordinator.syncAll(trigger: 'flap_3');
+
+      final result = await future1;
+
+      expect(cycleCount, greaterThanOrEqualTo(1));
+      expect(result.isAlreadyRunning, isFalse);
+      expect(coordinator.isSyncing, isFalse);
+      expect(coordinator.hasPendingSync, isFalse);
 
       coordinator.dispose();
     });
