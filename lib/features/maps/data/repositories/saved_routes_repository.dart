@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_tombstone.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Repository managing user saved routes with offline-first persistence,
-/// Supabase schema-compatible payload sanitization, bounded backoff, and offline tombstones.
+/// semantically accurate metadata preservation, bounded backoff, and crash-safe tombstone ordering.
 class SavedRoutesRepository {
   SavedRoutesRepository({
     LocalOutdoorStorage? storage,
@@ -48,7 +49,7 @@ class SavedRoutesRepository {
 
   /// Saves a route locally and attempts remote synchronization if authenticated.
   Future<void> saveRoute(SavedRoute route) async {
-    if (await _storage.isRouteTombstoned(route.id)) {
+    if (await _storage.isTombstoned(route.id, 'route')) {
       return;
     }
 
@@ -80,22 +81,25 @@ class SavedRoutesRepository {
       final effectiveUser = _currentUserId;
       if (effectiveUser == null) return 0;
 
-      // --- Step 1: Process Route Deletion Tombstones ---
-      final tombstones = await _storage.getRouteTombstones();
-      for (final id in tombstones) {
+      // --- Step 1: Process Route Deletion Tombstones FIRST ---
+      final tombstones = await _storage.getTombstones(
+        entityType: 'route',
+        userId: effectiveUser,
+      );
+      for (final t in tombstones) {
         try {
           if (remoteDeleteOverride != null) {
-            await _retryWithBackoff(() => remoteDeleteOverride!('saved_routes', id, effectiveUser));
+            await _retryWithBackoff(() => remoteDeleteOverride!('saved_routes', t.id, effectiveUser));
           } else if (_supabase != null) {
             await _retryWithBackoff(
               () => _supabase!
                   .from('saved_routes')
                   .delete()
-                  .eq('id', id)
+                  .eq('id', t.id)
                   .eq('user_id', effectiveUser),
             );
           }
-          await _storage.removeRouteTombstone(id);
+          await _storage.removeTombstone(t.id, 'route');
         } catch (e) {
           debugPrint('[SavedRoutesRepository] Route tombstone retry deferred for ID.');
         }
@@ -106,7 +110,7 @@ class SavedRoutesRepository {
       int syncedCount = 0;
 
       for (final r in routes) {
-        if (await _storage.isRouteTombstoned(r.id)) {
+        if (await _storage.isTombstoned(r.id, 'route')) {
           continue;
         }
 
@@ -134,17 +138,27 @@ class SavedRoutesRepository {
     }
   }
 
-  /// Deletes a saved route immediately from local storage and queues a tombstone.
+  /// Deletes a saved route using a strict, crash-safe 4-step sequence:
+  /// 1. Persist a tombstone containing entity type, record ID and owner user ID.
+  /// 2. Hide/remove the record from local storage.
+  /// 3. Attempt remote deletion if authenticated.
+  /// 4. Remove the tombstone ONLY after remote success.
   Future<void> deleteRoute(String id) async {
-    // 1. Delete locally immediately
+    final effectiveUser = _currentUserId ?? 'local_user';
+
+    // 1. Persist tombstone containing entity type, record ID and owner user ID FIRST
+    await _storage.recordTombstone(OutdoorTombstone(
+      id: id,
+      entityType: 'route',
+      userId: effectiveUser,
+      deletedAt: DateTime.now(),
+    ));
+
+    // 2. Hide/remove the record from visible local results
     await _storage.deleteRoute(id);
 
-    // 2. Record tombstone
-    await _storage.recordRouteTombstone(id);
-
     // 3. Attempt remote delete if authenticated
-    final effectiveUser = _currentUserId;
-    if (effectiveUser != null) {
+    if (_currentUserId != null) {
       try {
         if (remoteDeleteOverride != null) {
           await _retryWithBackoff(() => remoteDeleteOverride!('saved_routes', id, effectiveUser));
@@ -157,7 +171,8 @@ class SavedRoutesRepository {
                 .eq('user_id', effectiveUser),
           );
         }
-        await _storage.removeRouteTombstone(id);
+        // 4. Remove the tombstone only after remote success
+        await _storage.removeTombstone(id, 'route');
       } catch (e) {
         debugPrint('[SavedRoutesRepository] Remote route delete deferred: queued tombstone.');
       }
@@ -186,48 +201,13 @@ class SavedRoutesRepository {
     }
   }
 
-  /// Sanitizes a [SavedRoute] into a Map that strictly complies with the Supabase
-  /// migration 019 schema constraints:
-  /// - Strips client-only fields ('is_loop', 'is_difficulty_estimated')
+  /// Converts a [SavedRoute] into a remote payload.
+  /// Strictly preserves actual route characteristics without silently inventing values:
+  /// - Preserves 'surface_type' as 'unknown' if not known (requires migration 020 in production)
+  /// - Preserves 'elevation_profile' as 'unknown' if not known (requires migration 020 in production)
   /// - Enforces non-null numeric(6,2) for 'elevation_gain_meters'
-  /// - Normalizes 'surface_type' to ('paved', 'trail', 'mixed')
-  /// - Normalizes 'elevation_profile' to ('flat', 'moderate', 'hilly')
+  /// - Strips client-only fields ('is_loop', 'is_difficulty_estimated')
   static Map<String, dynamic> toSupabasePayload(SavedRoute route, String userId) {
-    // Check constraints in migration 019:
-    // surface_type in ('paved', 'trail', 'mixed')
-    final String surface;
-    switch (route.surfaceType) {
-      case RouteSurface.paved:
-        surface = 'paved';
-        break;
-      case RouteSurface.trail:
-        surface = 'trail';
-        break;
-      case RouteSurface.mixed:
-        surface = 'mixed';
-        break;
-      case RouteSurface.unknown:
-        surface = 'paved'; // Safe fallback adhering to schema check constraint
-        break;
-    }
-
-    // elevation_profile in ('flat', 'moderate', 'hilly')
-    final String elevation;
-    switch (route.elevationProfile) {
-      case RouteElevation.flat:
-        elevation = 'flat';
-        break;
-      case RouteElevation.moderate:
-        elevation = 'moderate';
-        break;
-      case RouteElevation.hilly:
-        elevation = 'hilly';
-        break;
-      case RouteElevation.unknown:
-        elevation = 'flat'; // Safe fallback adhering to schema check constraint
-        break;
-    }
-
     return {
       'id': route.id,
       'user_id': userId,
@@ -238,12 +218,11 @@ class SavedRoutesRepository {
       'difficulty': route.difficulty.name,
       'points': route.points.map((p) => p.toJson()).toList(),
       'elevation_gain_meters': route.elevationGainMeters ?? 0.0,
-      'surface_type': surface,
-      'elevation_profile': elevation,
+      'surface_type': route.surfaceType.name, // Preserves actual 'unknown' without inventing 'paved'
+      'elevation_profile': route.elevationProfile.name, // Preserves actual 'unknown' without inventing 'flat'
       'description': route.description,
       'is_saved_by_user': route.isSavedByUser,
       'created_at': (route.createdAt ?? DateTime.now()).toIso8601String(),
-      // 'is_loop' and 'is_difficulty_estimated' are omitted to avoid PostgreSQL column mismatch
     };
   }
 

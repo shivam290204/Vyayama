@@ -2,11 +2,12 @@ import 'dart:async';
 import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_tombstone.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Repository managing outdoor activity lifecycle, local-first offline caching,
-/// resilient Supabase synchronization with bounded backoff, and offline tombstones.
+/// resilient Supabase synchronization with bounded backoff, and crash-safe tombstone ordering.
 class OutdoorActivityRepository {
   OutdoorActivityRepository({
     LocalOutdoorStorage? storage,
@@ -58,7 +59,7 @@ class OutdoorActivityRepository {
   /// Guarantees offline-first persistence before attempting remote Supabase upsert.
   Future<void> saveActivity(OutdoorActivity activity) async {
     // 0. Do not save or resurrect activities that have been deleted locally
-    if (await _storage.isActivityTombstoned(activity.id)) {
+    if (await _storage.isTombstoned(activity.id, 'activity')) {
       return;
     }
 
@@ -89,19 +90,27 @@ class OutdoorActivityRepository {
     }
   }
 
-  /// Deletes an activity with immediate local removal and persistent tombstone queueing.
-  /// If the device is offline or the remote request fails, the tombstone persists across
-  /// restarts and will be retried when connectivity is restored.
+  /// Deletes an activity using a strict, crash-safe 4-step sequence:
+  /// 1. Persist a tombstone containing entity type, record ID and owner user ID.
+  /// 2. Hide/remove the record from local storage.
+  /// 3. Attempt remote deletion if authenticated.
+  /// 4. Remove the tombstone ONLY after remote success.
   Future<void> deleteActivity(String id) async {
-    // 1. Delete locally immediately
+    final effectiveUser = _currentUserId ?? 'local_user';
+
+    // 1. Persist tombstone containing entity type, record ID and owner user ID FIRST
+    await _storage.recordTombstone(OutdoorTombstone(
+      id: id,
+      entityType: 'activity',
+      userId: effectiveUser,
+      deletedAt: DateTime.now(),
+    ));
+
+    // 2. Hide/remove the record from visible local results
     await _storage.deleteActivity(id);
 
-    // 2. Record tombstone in persistent queue
-    await _storage.recordActivityTombstone(id);
-
     // 3. Attempt remote deletion if authenticated
-    final effectiveUser = _currentUserId;
-    if (effectiveUser != null) {
+    if (_currentUserId != null) {
       try {
         if (remoteDeleteOverride != null) {
           await _retryWithBackoff(() => remoteDeleteOverride!('outdoor_activities', id, effectiveUser));
@@ -114,8 +123,8 @@ class OutdoorActivityRepository {
                 .eq('user_id', effectiveUser),
           );
         }
-        // Remote delete succeeded: remove from tombstone queue
-        await _storage.removeActivityTombstone(id);
+        // 4. Remove the tombstone only after remote success
+        await _storage.removeTombstone(id, 'activity');
       } catch (e) {
         debugPrint('[OutdoorActivityRepository] Remote delete deferred: queued tombstone.');
       }
@@ -132,22 +141,25 @@ class OutdoorActivityRepository {
       final effectiveUser = _currentUserId;
       if (effectiveUser == null) return 0;
 
-      // --- Step 1: Process Deletion Tombstones ---
-      final tombstones = await _storage.getActivityTombstones();
-      for (final id in tombstones) {
+      // --- Step 1: Process Deletion Tombstones FIRST ---
+      final tombstones = await _storage.getTombstones(
+        entityType: 'activity',
+        userId: effectiveUser,
+      );
+      for (final t in tombstones) {
         try {
           if (remoteDeleteOverride != null) {
-            await _retryWithBackoff(() => remoteDeleteOverride!('outdoor_activities', id, effectiveUser));
+            await _retryWithBackoff(() => remoteDeleteOverride!('outdoor_activities', t.id, effectiveUser));
           } else if (_supabase != null) {
             await _retryWithBackoff(
               () => _supabase!
                   .from('outdoor_activities')
                   .delete()
-                  .eq('id', id)
+                  .eq('id', t.id)
                   .eq('user_id', effectiveUser),
             );
           }
-          await _storage.removeActivityTombstone(id);
+          await _storage.removeTombstone(t.id, 'activity');
         } catch (e) {
           debugPrint('[OutdoorActivityRepository] Tombstone retry deferred for ID.');
         }
@@ -160,7 +172,7 @@ class OutdoorActivityRepository {
 
       for (final act in unsynced) {
         // Prevent resurrection if item is tombstoned
-        if (await _storage.isActivityTombstoned(act.id)) {
+        if (await _storage.isTombstoned(act.id, 'activity')) {
           continue;
         }
 

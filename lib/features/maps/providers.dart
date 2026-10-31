@@ -6,6 +6,7 @@ import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
@@ -29,13 +30,23 @@ final savedRoutesRepositoryProvider = Provider<SavedRoutesRepository>((ref) {
   return SavedRoutesRepository(storage: storage);
 });
 
+final connectivityMonitorProvider = Provider<ConnectivityMonitor>((ref) {
+  final monitor = ConnectivityMonitor();
+  ref.onDispose(monitor.dispose);
+  return monitor;
+});
+
 final outdoorSyncCoordinatorProvider = Provider<OutdoorSyncCoordinator>((ref) {
   final actRepo = ref.watch(outdoorActivityRepositoryProvider);
   final routesRepo = ref.watch(savedRoutesRepositoryProvider);
-  return OutdoorSyncCoordinator(
+  final connectivity = ref.watch(connectivityMonitorProvider);
+  final coordinator = OutdoorSyncCoordinator(
     activityRepository: actRepo,
     routesRepository: routesRepo,
+    connectivityMonitor: connectivity,
   );
+  ref.onDispose(coordinator.dispose);
+  return coordinator;
 });
 
 final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {

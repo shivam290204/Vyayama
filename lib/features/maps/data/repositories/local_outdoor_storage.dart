@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_tombstone.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Local offline persistence for recorded GPS outdoor activities and saved routes,
-/// with user isolation and persistent tombstone queue for reliable offline deletion.
+/// Local offline persistence for recorded GPS outdoor activities, saved routes,
+/// and crash-safe persistent tombstone ordering.
 class LocalOutdoorStorage {
   const LocalOutdoorStorage({SharedPreferences? preferences})
       : _injectedPrefs = preferences;
@@ -13,9 +14,7 @@ class LocalOutdoorStorage {
 
   static const String _activitiesKey = 'vyayama_outdoor_activities_v1';
   static const String _savedRoutesKey = 'vyayama_saved_routes_v1';
-  static const String _activityTombstonesKey =
-      'vyayama_outdoor_activity_tombstones_v1';
-  static const String _routeTombstonesKey = 'vyayama_saved_route_tombstones_v1';
+  static const String _tombstonesKey = 'vyayama_outdoor_tombstones_v2';
 
   Future<SharedPreferences> _getPrefs() async {
     return _injectedPrefs ?? await SharedPreferences.getInstance();
@@ -26,9 +25,14 @@ class LocalOutdoorStorage {
   /// Retrieves stored outdoor activities.
   /// If [userId] is specified, filters out activities belonging to other accounts,
   /// preserving strict user account isolation on shared devices.
+  /// Automatically filters out any tombstoned records to guarantee that if a crash
+  /// occurred between tombstone persistence and local file removal, the record remains hidden.
   Future<List<OutdoorActivity>> getAllActivities({String? userId}) async {
     final prefs = await _getPrefs();
     final raw = prefs.getStringList(_activitiesKey);
+    final tombstones = await getTombstones(entityType: 'activity');
+    final tombstonedIds = tombstones.map((t) => t.id).toSet();
+
     if (raw == null || raw.isEmpty) return [];
 
     final list = <OutdoorActivity>[];
@@ -36,6 +40,11 @@ class LocalOutdoorStorage {
       try {
         final decoded = jsonDecode(item) as Map<String, dynamic>;
         final activity = OutdoorActivity.fromJson(decoded);
+
+        // Hide tombstoned activities immediately
+        if (tombstonedIds.contains(activity.id)) {
+          continue;
+        }
 
         // Filter by user account if requested
         if (userId != null) {
@@ -58,7 +67,7 @@ class LocalOutdoorStorage {
   /// Rejects saving if the activity is currently queued in the tombstone queue,
   /// preventing deleted activities from being resurrected by stale sync/recovery.
   Future<void> saveActivity(OutdoorActivity activity) async {
-    if (await isActivityTombstoned(activity.id)) {
+    if (await isTombstoned(activity.id, 'activity')) {
       return;
     }
 
@@ -84,7 +93,7 @@ class LocalOutdoorStorage {
     await prefs.setStringList(_activitiesKey, encoded);
   }
 
-  /// Removes an activity from local storage immediately.
+  /// Removes an activity from local storage.
   Future<void> deleteActivity(String id) async {
     final prefs = await _getPrefs();
     final rawList = prefs.getStringList(_activitiesKey) ?? [];
@@ -103,43 +112,16 @@ class LocalOutdoorStorage {
     await prefs.setStringList(_activitiesKey, encoded);
   }
 
-  // --- Activity Tombstone Queue (Offline Deletion) ---
-
-  /// Returns the list of activity IDs pending remote deletion.
-  Future<List<String>> getActivityTombstones() async {
-    final prefs = await _getPrefs();
-    return prefs.getStringList(_activityTombstonesKey) ?? [];
-  }
-
-  /// Records an activity ID in the persistent tombstone queue.
-  Future<void> recordActivityTombstone(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = (prefs.getStringList(_activityTombstonesKey) ?? []).toSet();
-    tombstones.add(id);
-    await prefs.setStringList(_activityTombstonesKey, tombstones.toList());
-  }
-
-  /// Removes an activity ID from the persistent tombstone queue after remote success.
-  Future<void> removeActivityTombstone(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = (prefs.getStringList(_activityTombstonesKey) ?? []).toSet();
-    tombstones.remove(id);
-    await prefs.setStringList(_activityTombstonesKey, tombstones.toList());
-  }
-
-  /// Checks if an activity ID is in the tombstone queue.
-  Future<bool> isActivityTombstoned(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = prefs.getStringList(_activityTombstonesKey) ?? [];
-    return tombstones.contains(id);
-  }
-
   // --- Saved Routes ---
 
   /// Retrieves stored saved routes, optionally filtered by [userId].
+  /// Automatically filters out any tombstoned routes.
   Future<List<SavedRoute>> getSavedRoutes({String? userId}) async {
     final prefs = await _getPrefs();
     final raw = prefs.getStringList(_savedRoutesKey);
+    final tombstones = await getTombstones(entityType: 'route');
+    final tombstonedIds = tombstones.map((t) => t.id).toSet();
+
     if (raw == null || raw.isEmpty) return [];
 
     final list = <SavedRoute>[];
@@ -147,6 +129,10 @@ class LocalOutdoorStorage {
       try {
         final decoded = jsonDecode(item) as Map<String, dynamic>;
         final route = SavedRoute.fromJson(decoded);
+
+        if (tombstonedIds.contains(route.id)) {
+          continue;
+        }
 
         if (userId != null) {
           if (route.userId == userId || route.userId == 'local_user') {
@@ -165,7 +151,7 @@ class LocalOutdoorStorage {
   /// Persists a saved route locally.
   /// Rejects saving if the route is currently in the tombstone queue.
   Future<void> saveRoute(SavedRoute route) async {
-    if (await isRouteTombstoned(route.id)) {
+    if (await isTombstoned(route.id, 'route')) {
       return;
     }
 
@@ -190,7 +176,7 @@ class LocalOutdoorStorage {
     await prefs.setStringList(_savedRoutesKey, encoded);
   }
 
-  /// Removes a saved route from local storage immediately.
+  /// Removes a saved route from local storage.
   Future<void> deleteRoute(String id) async {
     final prefs = await _getPrefs();
     final rawList = prefs.getStringList(_savedRoutesKey) ?? [];
@@ -220,35 +206,98 @@ class LocalOutdoorStorage {
     }
   }
 
-  // --- Route Tombstone Queue (Offline Deletion) ---
+  // --- Structured Tombstone Queue (Crash-Safe Ordering) ---
 
-  /// Returns the list of route IDs pending remote deletion.
+  /// Retrieves structured tombstones, optionally filtered by [entityType] and [userId].
+  Future<List<OutdoorTombstone>> getTombstones({
+    String? entityType,
+    String? userId,
+  }) async {
+    final prefs = await _getPrefs();
+    final raw = prefs.getStringList(_tombstonesKey);
+    if (raw == null || raw.isEmpty) return [];
+
+    final list = <OutdoorTombstone>[];
+    for (final item in raw) {
+      try {
+        final t = OutdoorTombstone.fromJson(jsonDecode(item) as Map<String, dynamic>);
+        if (entityType != null && t.entityType != entityType) continue;
+        if (userId != null && t.userId != userId && t.userId != 'local_user') continue;
+        list.add(t);
+      } catch (_) {}
+    }
+    return list;
+  }
+
+  /// Persists a tombstone containing entity type, record ID, and owner user ID.
+  /// Must be invoked BEFORE local record deletion.
+  Future<void> recordTombstone(OutdoorTombstone tombstone) async {
+    final prefs = await _getPrefs();
+    final all = await getTombstones();
+    all.removeWhere((t) => t.id == tombstone.id && t.entityType == tombstone.entityType);
+    all.add(tombstone);
+    final encoded = all.map((t) => jsonEncode(t.toJson())).toList();
+    await prefs.setStringList(_tombstonesKey, encoded);
+  }
+
+  /// Removes a tombstone only after successful remote deletion.
+  Future<void> removeTombstone(String id, [String? entityType]) async {
+    final prefs = await _getPrefs();
+    final all = await getTombstones();
+    all.removeWhere((t) => t.id == id && (entityType == null || t.entityType == entityType));
+    final encoded = all.map((t) => jsonEncode(t.toJson())).toList();
+    await prefs.setStringList(_tombstonesKey, encoded);
+  }
+
+  /// Checks if a record ID is tombstoned.
+  Future<bool> isTombstoned(String id, [String? entityType]) async {
+    final tombstones = await getTombstones(entityType: entityType);
+    return tombstones.any((t) => t.id == id);
+  }
+
+  // Backward-compatible helper methods
+  Future<List<String>> getActivityTombstones() async {
+    final tombstones = await getTombstones(entityType: 'activity');
+    return tombstones.map((t) => t.id).toList();
+  }
+
+  Future<void> recordActivityTombstone(String id, {String userId = 'local_user'}) async {
+    await recordTombstone(OutdoorTombstone(
+      id: id,
+      entityType: 'activity',
+      userId: userId,
+      deletedAt: DateTime.now(),
+    ));
+  }
+
+  Future<void> removeActivityTombstone(String id) async {
+    await removeTombstone(id, 'activity');
+  }
+
+  Future<bool> isActivityTombstoned(String id) async {
+    return isTombstoned(id, 'activity');
+  }
+
   Future<List<String>> getRouteTombstones() async {
-    final prefs = await _getPrefs();
-    return prefs.getStringList(_routeTombstonesKey) ?? [];
+    final tombstones = await getTombstones(entityType: 'route');
+    return tombstones.map((t) => t.id).toList();
   }
 
-  /// Records a route ID in the persistent tombstone queue.
-  Future<void> recordRouteTombstone(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = (prefs.getStringList(_routeTombstonesKey) ?? []).toSet();
-    tombstones.add(id);
-    await prefs.setStringList(_routeTombstonesKey, tombstones.toList());
+  Future<void> recordRouteTombstone(String id, {String userId = 'local_user'}) async {
+    await recordTombstone(OutdoorTombstone(
+      id: id,
+      entityType: 'route',
+      userId: userId,
+      deletedAt: DateTime.now(),
+    ));
   }
 
-  /// Removes a route ID from the persistent tombstone queue after remote success.
   Future<void> removeRouteTombstone(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = (prefs.getStringList(_routeTombstonesKey) ?? []).toSet();
-    tombstones.remove(id);
-    await prefs.setStringList(_routeTombstonesKey, tombstones.toList());
+    await removeTombstone(id, 'route');
   }
 
-  /// Checks if a route ID is in the tombstone queue.
   Future<bool> isRouteTombstoned(String id) async {
-    final prefs = await _getPrefs();
-    final tombstones = prefs.getStringList(_routeTombstonesKey) ?? [];
-    return tombstones.contains(id);
+    return isTombstoned(id, 'route');
   }
 
   // --- Account Migration & Cleanup ---
@@ -294,19 +343,37 @@ class LocalOutdoorStorage {
     final prefs = await _getPrefs();
 
     // Purge activities
-    final allActs = await getAllActivities();
-    final retainedActs = allActs.where((a) => a.userId != userId).toList();
-    await prefs.setStringList(
-      _activitiesKey,
-      retainedActs.map((a) => jsonEncode(a.toJson())).toList(),
-    );
+    final rawActs = prefs.getStringList(_activitiesKey) ?? [];
+    final retainedActs = <String>[];
+    for (final item in rawActs) {
+      try {
+        final decoded = jsonDecode(item) as Map<String, dynamic>;
+        if (decoded['user_id'] != userId) {
+          retainedActs.add(item);
+        }
+      } catch (_) {}
+    }
+    await prefs.setStringList(_activitiesKey, retainedActs);
 
     // Purge routes
-    final allRoutes = await getSavedRoutes();
-    final retainedRoutes = allRoutes.where((r) => r.userId != userId).toList();
+    final rawRoutes = prefs.getStringList(_savedRoutesKey) ?? [];
+    final retainedRoutes = <String>[];
+    for (final item in rawRoutes) {
+      try {
+        final decoded = jsonDecode(item) as Map<String, dynamic>;
+        if (decoded['user_id'] != userId) {
+          retainedRoutes.add(item);
+        }
+      } catch (_) {}
+    }
+    await prefs.setStringList(_savedRoutesKey, retainedRoutes);
+
+    // Purge user's tombstones
+    final allTombstones = await getTombstones();
+    allTombstones.removeWhere((t) => t.userId == userId);
     await prefs.setStringList(
-      _savedRoutesKey,
-      retainedRoutes.map((r) => jsonEncode(r.toJson())).toList(),
+      _tombstonesKey,
+      allTombstones.map((t) => jsonEncode(t.toJson())).toList(),
     );
   }
 
@@ -315,7 +382,6 @@ class LocalOutdoorStorage {
     final prefs = await _getPrefs();
     await prefs.remove(_activitiesKey);
     await prefs.remove(_savedRoutesKey);
-    await prefs.remove(_activityTombstonesKey);
-    await prefs.remove(_routeTombstonesKey);
+    await prefs.remove(_tombstonesKey);
   }
 }

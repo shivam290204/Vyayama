@@ -84,16 +84,31 @@ When you use the Maps and Route Discovery features in Vyayama, location-related 
 
 ## 5. Supabase Synchronization, Offline Deletion & Account Isolation
 
-### A. Synchronization Behavior
-- **Local-First Guarantee:** Completed workouts and saved routes are always saved to your device's local storage first before any remote synchronization is attempted.
-- **Automatic Cloud Sync:** If you are signed in to an authenticated account and an active internet connection is available, activities are synchronized to our cloud database (`outdoor_activities` and `saved_routes` tables).
-- **Idempotency & Deduplication:** Remote synchronization uses idempotent record upserts bound to stable UUIDs. Retrying synchronization after network dropouts will never create duplicate workout entries.
+### A. Synchronization Behavior & Triggers
+- **Local-First Guarantee:** Completed workouts and saved routes are always committed to your device's local storage first before any remote synchronization is attempted.
+- **Automatic Cloud Sync Triggers:** For signed-in users, cloud synchronization occurs automatically upon:
+  1. Application launch/startup.
+  2. Successful user sign-in or session renewal.
+  3. Completion and local saving of any outdoor workout.
+  4. Creation and local saving of any route.
+  5. Automatic detection of restored network connectivity (when switching from offline to online).
+- **Exact Data Uploaded to Cloud:**
+  - *Outdoor Activities:* Activity UUID, owner user ID, activity sport type (walk, run, hike), start and end timestamps, active duration (seconds), total distance (meters), elevation gain (meters), average speed (km/h), average pace (sec/km), and full GPS route points (latitude, longitude, altitude, fix timestamp, speed, bearing).
+  - *Saved Routes:* Route UUID, owner user ID, route title, description, distance (meters), estimated duration (seconds), elevation gain (meters), polyline coordinate sequence, waypoints, surface type, and elevation profile.
+- **No In-App Cloud Sync Opt-Out Toggle (Important Disclosure):**
+  - Vyayama currently **does not feature an in-app toggle or setting to disable cloud synchronization while signed in to an authenticated account**.
+  - All workouts completed and routes saved while authenticated will automatically synchronize to Supabase when an internet connection is detected.
+  - If you require strict, 100% local-only tracking with zero cloud synchronization, you must record your workouts in **Unauthenticated Guest Mode** or sign out of your account before starting an outdoor session.
+- **Idempotency & Deduplication:** Remote synchronization uses idempotent record upserts bound to stable client-generated UUIDs. Retrying synchronization across unstable network conditions will never create duplicate workout entries.
 
-### B. Offline Deletion & Persistent Tombstone Queue
-- When you delete a workout or saved route, it is removed from your device immediately.
-- If your device is offline or the remote deletion fails, a persistent **tombstone record** is stored on-device.
-- When connectivity returns, the tombstone queue automatically retries and executes the remote deletion.
-- **Resurrection Prevention:** Tombstoned records cannot be re-saved or resurrected by subsequent cloud synchronization cycles.
+### B. Offline Deletion & Crash-Resistant Tombstone Queue
+- **Four-Step Atomic Deletion Guarantee:** When you delete a workout or saved route:
+  1. A persistent deletion tombstone containing the entity type (`activity` or `route`), record UUID, owner user ID, and timestamp is persisted to disk **first**.
+  2. The record is unlinked and hidden from all visible local listings immediately.
+  3. A remote deletion request is dispatched to Supabase with bounded exponential backoff.
+  4. The persistent tombstone is purged from disk **only after** the remote server confirms deletion.
+- **Crash & Power-Loss Safety:** Because the tombstone is written *before* any remote deletion is attempted, an unexpected crash, power loss, or network termination at any point during deletion leaves the system in a consistent state: the item remains hidden locally, and pending tombstones are retried automatically upon app restart or reconnect.
+- **Resurrection Prevention:** Tombstoned records are strictly barred from being resurrected or re-saved by concurrent or subsequent cloud synchronization cycles.
 
 ### C. Account Isolation & Row Level Security (RLS)
 - All cloud database tables enforce PostgreSQL Row Level Security (RLS) policies (`auth.uid() = user_id`).

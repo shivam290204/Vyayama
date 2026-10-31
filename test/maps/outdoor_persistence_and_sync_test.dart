@@ -4,7 +4,9 @@ import 'package:fitbuddy/features/maps/data/repositories/saved_routes_repository
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_tombstone.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:fitbuddy/features/maps/domain/services/outdoor_sync_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -257,9 +259,114 @@ void main() {
       expect(await storage.isActivityTombstoned('act_delete_offline'), isTrue);
     });
 
+    test('8b. Crash safety: tombstone recorded before local deletion immediately hides record', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      // Save activity
+      await storage.saveActivity(makeSampleActivity(id: 'act_crash_step1'));
+
+      // Simulate crash right after step 1 (tombstone written to disk) but BEFORE step 2 (deleteActivity called)
+      final tombstone = OutdoorTombstone(
+        id: 'act_crash_step1',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+      );
+      await storage.recordTombstone(tombstone);
+
+      // Even though raw activity entry still exists on disk, query filters it out!
+      final visibleList = await repo.getAllActivities(userId: 'user_123');
+      expect(visibleList.any((a) => a.id == 'act_crash_step1'), isFalse);
+      expect(await repo.getActivityById('act_crash_step1'), isNull);
+
+      // When sync runs upon recovery, it cleans up the pending tombstone and remote record
+      final deletedRemoteIds = <String>[];
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteDeleteOverride = (table, id, userId) async {
+        deletedRemoteIds.add(id);
+      };
+
+      await repo.syncPendingActivities();
+      expect(deletedRemoteIds, contains('act_crash_step1'));
+      expect(await storage.isActivityTombstoned('act_crash_step1'), isFalse);
+    });
+
+    test('8c. Crash safety: crash after local unlinking retries remote deletion on reconnect', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_crash_step2'));
+
+      // Step 1: Tombstone recorded
+      await storage.recordTombstone(OutdoorTombstone(
+        id: 'act_crash_step2',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+      ));
+      // Step 2: Local deletion succeeded
+      await storage.deleteActivity('act_crash_step2');
+
+      // Step 3: Remote deletion fails (e.g. offline, crash before remote call finishes)
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteDeleteOverride = (table, id, userId) async {
+        throw Exception('Network lost');
+      };
+
+      // Simulating reboot: new repository instance on same storage
+      final storageReboot = LocalOutdoorStorage(preferences: prefs);
+      final repoReboot = OutdoorActivityRepository(storage: storageReboot);
+
+      expect(await storageReboot.isActivityTombstoned('act_crash_step2'), isTrue);
+      expect(await repoReboot.getActivityById('act_crash_step2'), isNull);
+
+      // When connectivity is restored, sync retries and succeeds
+      final remoteDeletes = <String>[];
+      repoReboot.currentUserIdOverride = () => 'user_123';
+      repoReboot.remoteDeleteOverride = (table, id, userId) async {
+        remoteDeletes.add(id);
+      };
+
+      await repoReboot.syncPendingActivities();
+      expect(remoteDeletes, contains('act_crash_step2'));
+      expect(await storageReboot.isActivityTombstoned('act_crash_step2'), isFalse);
+    });
+
+    test('8d. Crash safety: crash after remote deletion before tombstone cleanup is idempotent', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      // Suppose remote delete completed on server, but client crashed before tombstone was purged
+      await storage.recordTombstone(OutdoorTombstone(
+        id: 'act_crash_step3',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+      ));
+
+      // On next sync cycle, remote delete is called again (idempotent HTTP 204 in PostgreSQL)
+      var remoteDeleteCallCount = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteDeleteOverride = (table, id, userId) async {
+        remoteDeleteCallCount++;
+        // Idempotent: success even if already deleted remotely
+      };
+
+      await repo.syncPendingActivities();
+      expect(remoteDeleteCallCount, equals(1));
+      // Tombstone is successfully cleaned up
+      expect(await storage.isActivityTombstoned('act_crash_step3'), isFalse);
+    });
+
     test('9. Tombstones survive simulated restart and retry on reconnect', () async {
       final storage1 = LocalOutdoorStorage(preferences: prefs);
-      await storage1.recordActivityTombstone('act_pending_del');
+      await storage1.recordTombstone(OutdoorTombstone(
+        id: 'act_pending_del',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+      ));
 
       // Restart
       final storage2 = LocalOutdoorStorage(preferences: prefs);
@@ -286,7 +393,12 @@ void main() {
       final repo = OutdoorActivityRepository(storage: storage);
 
       // Record tombstone for activity
-      await storage.recordActivityTombstone('act_tombstoned_99');
+      await storage.recordTombstone(OutdoorTombstone(
+        id: 'act_tombstoned_99',
+        entityType: 'activity',
+        userId: 'user_123',
+        deletedAt: DateTime(2026, 10, 31, 12, 0, 0),
+      ));
 
       // Attempt to save or restore a stale copy of this activity
       await repo.saveActivity(makeSampleActivity(id: 'act_tombstoned_99'));
@@ -301,7 +413,7 @@ void main() {
   // 4. SAVED ROUTES SCHEMA COMPATIBILITY & CONSTRAINTS
   // ===========================================================================
   group('4. Saved Routes Schema Compatibility & Sanitization', () {
-    test('11. toSupabasePayload normalizes unknown surface and elevation to schema constraints', () {
+    test('11. toSupabasePayload preserves unknown surface and elevation semantics', () {
       final route = makeSampleRoute(
         id: 'route_check_constraints',
         surface: RouteSurface.unknown,
@@ -311,18 +423,30 @@ void main() {
 
       final payload = SavedRoutesRepository.toSupabasePayload(route, 'user_123');
 
-      // Check constraints in migration 019:
-      // surface_type in ('paved', 'trail', 'mixed')
-      // elevation_profile in ('flat', 'moderate', 'hilly')
-      expect(payload['surface_type'], equals('paved'));
-      expect(payload['elevation_profile'], equals('flat'));
+      // Preserves actual unknown semantics ('unknown') rather than silently falsifying to 'paved'/'flat'
+      expect(payload['surface_type'], equals('unknown'));
+      expect(payload['elevation_profile'], equals('unknown'));
 
-      // Non-null constraint on elevation_gain_meters
+      // Non-null constraint on elevation_gain_meters defaults to 0.0
       expect(payload['elevation_gain_meters'], equals(0.0));
 
-      // Client-only metadata omitted to prevent PostgreSQL column mismatches
+      // Client-only metadata omitted to prevent PostgreSQL column mismatches before migration 020
       expect(payload.containsKey('is_loop'), isFalse);
       expect(payload.containsKey('is_difficulty_estimated'), isFalse);
+    });
+
+    test('11b. SavedRoute round-trip JSON serialization preserves unknown metadata', () {
+      final route = makeSampleRoute(
+        id: 'route_unknown_roundtrip',
+        surface: RouteSurface.unknown,
+        elevation: RouteElevation.unknown,
+      );
+      final json = route.toJson();
+      final restored = SavedRoute.fromJson(json);
+      expect(restored.surfaceType, equals(RouteSurface.unknown));
+      expect(restored.elevationProfile, equals(RouteElevation.unknown));
+      expect(restored.isLoop, isTrue);
+      expect(restored.isDifficultyEstimated, isFalse);
     });
 
     test('12. Saves route locally and syncs to Supabase', () async {
@@ -458,9 +582,9 @@ void main() {
   });
 
   // ===========================================================================
-  // 6. OUTDOOR SYNC COORDINATOR
+  // 6. OUTDOOR SYNC COORDINATOR & CONNECTIVITY RESTORATION
   // ===========================================================================
-  group('6. OutdoorSyncCoordinator Orchestration', () {
+  group('6. OutdoorSyncCoordinator Orchestration & Connectivity Restoration', () {
     test('18. Coordinates both activities and routes sync in a single call', () async {
       final storage = LocalOutdoorStorage(preferences: prefs);
       final actRepo = OutdoorActivityRepository(storage: storage);
@@ -486,6 +610,131 @@ void main() {
       expect(result.activitiesSynced, equals(1));
       expect(result.routesSynced, equals(1));
       expect(result.isAlreadyRunning, isFalse);
+    });
+
+    test('19. ConnectivityMonitor debounces rapid network status transitions', () async {
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 50),
+      );
+
+      final events = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen((event) {
+        events.add(event);
+      });
+
+      // Rapid flapping: offline -> online -> offline -> online
+      monitor.notifyConnectivityChange(false);
+      monitor.notifyConnectivityChange(true);
+      monitor.notifyConnectivityChange(false);
+      monitor.notifyConnectivityChange(true);
+
+      // Wait for debounce timer
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(events, equals([true]), reason: 'Debounce should produce only one restored event');
+      await sub.cancel();
+      monitor.dispose();
+    });
+
+    test('20. ConnectivityMonitor probe suppresses restored event if server is unreachable', () async {
+      var probeCalls = 0;
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 20),
+        reachabilityProbe: () async {
+          probeCalls++;
+          return false; // Reachability probe fails (e.g. captive portal or Supabase offline)
+        },
+      );
+
+      final events = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen((event) {
+        events.add(event);
+      });
+
+      // Transition from offline to online
+      monitor.notifyConnectivityChange(false);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      monitor.notifyConnectivityChange(true);
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(probeCalls, equals(1));
+      expect(events, isEmpty, reason: 'Failed reachability probe must suppress connectivity restored event');
+
+      await sub.cancel();
+      monitor.dispose();
+    });
+
+    test('21. Connectivity restoration automatically triggers coordinator sync', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_reconnect', isSynced: false));
+
+      var syncedCount = 0;
+      actRepo.currentUserIdOverride = () => 'user_123';
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        syncedCount++;
+      };
+      routesRepo.currentUserIdOverride = () => 'user_123';
+      routesRepo.remoteUpsertOverride = (table, payload) async {};
+
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 20),
+      );
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+        connectivityMonitor: monitor,
+      );
+
+      // Initially offline
+      monitor.notifyConnectivityChange(false);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      // Network restored
+      monitor.notifyConnectivityChange(true);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      expect(syncedCount, equals(1));
+      final stored = await actRepo.getActivityById('act_reconnect');
+      expect(stored!.isSynced, isTrue);
+
+      coordinator.dispose();
+      monitor.dispose();
+    });
+
+    test('22. Failed reconnect sync handles server unreachable gracefully with bounded backoff', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_reconnect_fail', isSynced: false));
+
+      actRepo.currentUserIdOverride = () => 'user_123';
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        throw Exception('Supabase 503 Service Unavailable');
+      };
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+      );
+
+      // Reconnect attempt handles network error cleanly without throwing unhandled exceptions
+      final result = await coordinator.syncAll(trigger: 'connectivity_restored');
+
+      expect(result.activitiesSynced, equals(0));
+      expect(result.routesSynced, equals(0));
+      expect(result.isAlreadyRunning, isFalse);
+      expect(coordinator.isSyncing, isFalse);
+
+      // Local item remains safe and pending
+      final stored = await actRepo.getActivityById('act_reconnect_fail');
+      expect(stored!.isSynced, isFalse);
+
+      coordinator.dispose();
     });
   });
 }
