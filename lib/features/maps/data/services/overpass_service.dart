@@ -83,6 +83,7 @@ class OverpassService {
     String? endpoint,
     List<String>? endpoints,
     HttpClient Function()? clientFactory,
+    this.retryBackoff = const Duration(milliseconds: 1500),
   })  : _cache = cache ?? RouteCache.instance,
         _endpoints = endpoints ??
             (endpoint != null
@@ -94,6 +95,7 @@ class OverpassService {
 
   final List<String> _endpoints;
   final HttpClient Function() _clientFactory;
+  final Duration retryBackoff;
   static const Duration _timeout = Duration(seconds: 8);
   static const int _maxResults = 50;
 
@@ -107,11 +109,14 @@ class OverpassService {
   /// Active client tracking for safe cancellation.
   final Set<HttpClient> _activeClients = {};
   final Map<int, Set<HttpClient>> _generationClients = {};
+  final Set<int> _cancelledRequestIds = {};
+  bool _allCancelled = false;
 
   /// Cancels in-flight network requests.
   /// If [requestId] is provided, cancels only clients for that generation.
   void cancelActiveRequests([int? requestId]) {
     if (requestId != null) {
+      _cancelledRequestIds.add(requestId);
       final clients = _generationClients.remove(requestId);
       if (clients != null) {
         for (final client in clients) {
@@ -122,6 +127,7 @@ class OverpassService {
         }
       }
     } else {
+      _allCancelled = true;
       for (final client in _activeClients) {
         try {
           client.close(force: true);
@@ -130,6 +136,12 @@ class OverpassService {
       _activeClients.clear();
       _generationClients.clear();
     }
+  }
+
+  bool _isCancelled(int? requestId) {
+    if (_allCancelled) return true;
+    if (requestId != null && _cancelledRequestIds.contains(requestId)) return true;
+    return false;
   }
 
   /// Finds parks, recreation grounds, trails, footways, and hiking routes within [radiusMeters]
@@ -194,67 +206,91 @@ out center $_maxResults;
 
     RouteDiscoveryException? lastException;
 
-    for (final ep in _endpoints) {
-      HttpClient? client;
-      try {
-        client = _clientFactory()..userAgent = MapApiConfig.userAgent;
-        _activeClients.add(client);
-        if (requestId != null) {
-          _generationClients.putIfAbsent(requestId, () => {}).add(client);
+    for (int attempt = 0; attempt <= 1; attempt++) {
+      if (_isCancelled(requestId)) {
+        throw const RouteNetworkException('Request was cancelled.');
+      }
+
+      for (final ep in _endpoints) {
+        if (_isCancelled(requestId)) {
+          throw const RouteNetworkException('Request was cancelled.');
         }
 
-        final uri = Uri.parse(ep);
-        final request = await client.postUrl(uri).timeout(_timeout);
-        request.headers.set(
-            HttpHeaders.contentTypeHeader, 'application/x-www-form-urlencoded');
-        request.write('data=${Uri.encodeComponent(query)}');
-        final response = await request.close().timeout(_timeout);
-
-        if (response.statusCode == 429) {
-          _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
-          throw const RouteRateLimitException(
-              'OpenStreetMap request limit reached. Please wait a moment.');
-        }
-
-        if (response.statusCode >= 500) {
-          lastException = OverpassServiceException(
-              'OpenStreetMap service returned server error (${response.statusCode}).');
-          continue;
-        }
-
-        if (response.statusCode != 200) {
-          lastException = OverpassServiceException(
-              'OpenStreetMap service returned unexpected status (${response.statusCode}).');
-          continue;
-        }
-
-        final body = await response.transform(utf8.decoder).join();
-        final places = parseOverpassResponse(body);
-        _cache.set(cacheKey, places);
-        return places;
-      } on SocketException catch (_) {
-        lastException = const RouteNetworkException();
-      } on TimeoutException catch (_) {
-        lastException = const RouteNetworkException(
-            'Connection to OpenStreetMap service timed out. Please try again.');
-      } on RouteRateLimitException {
-        // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
-        rethrow;
-      } on RouteDiscoveryException catch (e) {
-        lastException = e;
-      } catch (e) {
-        lastException =
-            OverpassServiceException('Failed to process OpenStreetMap data: $e');
-      } finally {
-        if (client != null) {
-          _activeClients.remove(client);
+        HttpClient? client;
+        try {
+          client = _clientFactory()..userAgent = MapApiConfig.userAgent;
+          _activeClients.add(client);
           if (requestId != null) {
-            _generationClients[requestId]?.remove(client);
+            _generationClients.putIfAbsent(requestId, () => {}).add(client);
           }
-          try {
-            client.close();
-          } catch (_) {}
+
+          final uri = Uri.parse(ep);
+          final request = await client.postUrl(uri).timeout(_timeout);
+          request.headers.set(
+              HttpHeaders.contentTypeHeader, 'application/x-www-form-urlencoded');
+          request.write('data=${Uri.encodeComponent(query)}');
+          final response = await request.close().timeout(_timeout);
+
+          if (response.statusCode == 429) {
+            _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
+            throw const RouteRateLimitException(
+                'OpenStreetMap request limit reached. Please wait a moment.');
+          }
+
+          if (response.statusCode >= 500) {
+            lastException = OverpassServiceException(
+                'OpenStreetMap service returned server error (${response.statusCode}).');
+            continue;
+          }
+
+          if (response.statusCode != 200) {
+            lastException = OverpassServiceException(
+                'OpenStreetMap service returned unexpected status (${response.statusCode}).');
+            continue;
+          }
+
+          final body = await response.transform(utf8.decoder).join();
+          final places = parseOverpassResponse(body);
+          _cache.set(cacheKey, places);
+          return places;
+        } on SocketException catch (_) {
+          lastException = const RouteNetworkException();
+        } on TimeoutException catch (_) {
+          lastException = const RouteNetworkException(
+              'Connection to OpenStreetMap service timed out. Please try again.');
+        } on RouteRateLimitException {
+          // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
+          // and must NEVER be retried.
+          rethrow;
+        } on RouteDiscoveryException catch (e) {
+          lastException = e;
+        } catch (e) {
+          lastException =
+              OverpassServiceException('Failed to process OpenStreetMap data: $e');
+        } finally {
+          if (client != null) {
+            _activeClients.remove(client);
+            if (requestId != null) {
+              _generationClients[requestId]?.remove(client);
+            }
+            try {
+              client.close();
+            } catch (_) {}
+          }
         }
+      }
+
+      // If all mirrors exhausted on attempt 0:
+      // Retry once after backoff delay, provided the request was not cancelled
+      if (attempt == 0) {
+        if (_isCancelled(requestId)) {
+          throw const RouteNetworkException('Request was cancelled.');
+        }
+        await Future<void>.delayed(retryBackoff);
+        if (_isCancelled(requestId)) {
+          throw const RouteNetworkException('Request was cancelled.');
+        }
+        continue;
       }
     }
 

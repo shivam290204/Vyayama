@@ -64,11 +64,14 @@ class ValhallaService {
 
   final Set<HttpClient> _activeClients = {};
   final Map<int, Set<HttpClient>> _generationClients = {};
+  final Set<int> _cancelledRequestIds = {};
+  bool _allCancelled = false;
 
   /// Cancels active in-flight network requests.
   /// If [requestId] is provided, cancels only clients for that generation.
   void cancelActiveRequests([int? requestId]) {
     if (requestId != null) {
+      _cancelledRequestIds.add(requestId);
       final clients = _generationClients.remove(requestId);
       if (clients != null) {
         for (final client in clients) {
@@ -79,6 +82,7 @@ class ValhallaService {
         }
       }
     } else {
+      _allCancelled = true;
       for (final client in _activeClients) {
         try {
           client.close(force: true);
@@ -87,6 +91,12 @@ class ValhallaService {
       _activeClients.clear();
       _generationClients.clear();
     }
+  }
+
+  bool _isCancelled(int? requestId) {
+    if (_allCancelled) return true;
+    if (requestId != null && _cancelledRequestIds.contains(requestId)) return true;
+    return false;
   }
 
   /// Requests a pedestrian route from [origin] through [waypoints].
@@ -129,6 +139,10 @@ class ValhallaService {
     });
 
     for (int attempt = 0; attempt <= 1; attempt++) {
+      if (_isCancelled(requestId)) {
+        throw const RouteNetworkException('Request was cancelled.');
+      }
+
       HttpClient? client;
       try {
         client = _clientFactory()..userAgent = MapApiConfig.userAgent;
@@ -159,7 +173,13 @@ class ValhallaService {
         // 5xx: Server error. Retry at most once on transient server error.
         if (response.statusCode >= 500) {
           if (attempt == 0) {
+            if (_isCancelled(requestId)) {
+              throw const RouteNetworkException('Request was cancelled.');
+            }
             await Future<void>.delayed(retryBackoff);
+            if (_isCancelled(requestId)) {
+              throw const RouteNetworkException('Request was cancelled.');
+            }
             continue;
           }
           throw ValhallaRoutingException(
@@ -181,13 +201,25 @@ class ValhallaService {
         rethrow;
       } on SocketException catch (_) {
         if (attempt == 0) {
+          if (_isCancelled(requestId)) {
+            throw const RouteNetworkException('Request was cancelled.');
+          }
           await Future<void>.delayed(retryBackoff);
+          if (_isCancelled(requestId)) {
+            throw const RouteNetworkException('Request was cancelled.');
+          }
           continue;
         }
         throw const RouteNetworkException();
       } on TimeoutException catch (_) {
         if (attempt == 0) {
+          if (_isCancelled(requestId)) {
+            throw const RouteNetworkException('Request was cancelled.');
+          }
           await Future<void>.delayed(retryBackoff);
+          if (_isCancelled(requestId)) {
+            throw const RouteNetworkException('Request was cancelled.');
+          }
           continue;
         }
         throw const RouteNetworkException(

@@ -42,6 +42,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     ValhallaService? valhalla,
     NominatimService? nominatim,
     RouteCache? cache,
+    this.overallTimeout = const Duration(seconds: 25),
   })  : _overpass = overpass ?? OverpassService(),
         _valhalla = valhalla ?? ValhallaService(),
         _nominatim = nominatim ?? NominatimService(),
@@ -51,11 +52,11 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   final ValhallaService _valhalla;
   final NominatimService _nominatim;
   final RouteCache _cache;
+  final Duration overallTimeout;
 
   static const int _maxRoutes = 4;
   static const int _maxCandidateWaypoints = 8;
   static const double _maxSearchRadiusMeters = 5000;
-  static const Duration _overallTimeout = Duration(seconds: 25);
 
   /// Global request generation counter.
   int _currentRequestId = 0;
@@ -289,7 +290,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
       List<SavedRoute> lastEmitted = const [];
       await for (final routes in progressiveStream.timeout(
-        _overallTimeout,
+        overallTimeout,
         onTimeout: (sink) {
           _cancelGeneration(requestId);
           sink.addError(const RouteNetworkException(

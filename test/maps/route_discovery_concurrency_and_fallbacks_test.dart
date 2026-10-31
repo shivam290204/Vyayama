@@ -291,6 +291,97 @@ void main() {
       expect(requestedUris[1].host, equals('mirror2.overpass.example'));
     });
 
+    test('13b. Exhausted mirrors on transient 5xx error perform bounded single retry with backoff', () async {
+      int requestCount = 0;
+      final requestedUris = <Uri>[];
+
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 999,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Backoff Park" }
+    }
+  ]
+}
+''';
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          // First pass: mirror1 (503), mirror2 (503)
+          // Retry pass after 10ms backoff: mirror1 (200)
+          if (requestCount <= 2) {
+            return _TestHttpClient(
+              statusCode: 503,
+              onRequest: (uri, m) => requestedUris.add(uri),
+            );
+          } else {
+            return _TestHttpClient(
+              statusCode: 200,
+              responseBody: validResponse,
+              onRequest: (uri, m) => requestedUris.add(uri),
+            );
+          }
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 5000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Backoff Park'));
+      expect(requestCount, equals(3));
+      expect(requestedUris[0].host, equals('mirror1.overpass.example'));
+      expect(requestedUris[1].host, equals('mirror2.overpass.example'));
+      expect(requestedUris[2].host, equals('mirror1.overpass.example'));
+    });
+
+    test('13c. Cancelled Overpass request during retry backoff does not launch subsequent HTTP request', () async {
+      int requestCount = 0;
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 60),
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 503);
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      final future = service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 5000,
+        requestId: 42,
+      );
+      future.ignore();
+
+      // Allow request 1 to fail with 503 and enter retry backoff delay
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Cancel requestId 42 while in backoff delay
+      service.cancelActiveRequests(42);
+
+      // Wait past the 60ms backoff timer
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      // No second HTTP request was launched after wakeup
+      expect(requestCount, equals(1));
+    });
+
     test('14. cancelActiveRequests completes without throwing', () {
       final service = OverpassService();
       expect(() => service.cancelActiveRequests(), returnsNormally);
@@ -448,6 +539,37 @@ void main() {
       expect(requestCount, equals(1));
     });
 
+    test('20b. Cancelled Valhalla request during retry backoff does not launch subsequent HTTP request', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 60),
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 503);
+        },
+      );
+
+      final future = service.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+        requestId: 99,
+      );
+      future.ignore();
+
+      // Allow request 1 to fail with 503 and enter retry backoff delay
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Cancel requestId 99 while in backoff
+      service.cancelActiveRequests(99);
+
+      // Wait past the 60ms backoff timer
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      // No second HTTP request was launched after wakeup
+      expect(requestCount, equals(1));
+    });
+
     test('21. testParseRoute rejects invalid non-finite or out-of-bounds coordinates', () {
       final service = ValhallaService();
       const emptyTrip = '''
@@ -553,6 +675,77 @@ void main() {
       service.cancelCurrentDiscovery();
 
       expect(() => service.cancelCurrentDiscovery(), returnsNormally);
+    });
+
+    test('25b. Overall timeout closes active HTTP client with close(force: true)', () async {
+      final hangingClient = _TestHttpClient(
+        responseDelay: const Duration(seconds: 2),
+      );
+
+      final overpass = OverpassService(
+        clientFactory: () => hangingClient,
+      );
+
+      final service = RealRouteDiscoveryService(
+        overpass: overpass,
+        valhalla: ValhallaService(),
+        nominatim: NominatimService(),
+        overallTimeout: const Duration(milliseconds: 50),
+      );
+
+      await expectLater(
+        service.discoverRoutes(center: const LatLng(51.505, -0.090)),
+        throwsA(isA<RouteNetworkException>()),
+      );
+
+      // Timeout forcefully terminated the active HTTP socket
+      expect(hangingClient.wasForceClosed, isTrue);
+    });
+
+    test('25c. Service-wide failure in parallel Valhalla batch cancels sibling request without cancelling newer search', () async {
+      final siblingClient = _TestHttpClient(
+        responseDelay: const Duration(seconds: 2),
+      );
+      final newerSearchClient = _TestHttpClient();
+      int clientCounter = 0;
+
+      final valhallaService = ValhallaService(
+        clientFactory: () {
+          clientCounter++;
+          return clientCounter == 1 ? siblingClient : newerSearchClient;
+        },
+      );
+
+      // Directly launch candidate request (generation 1) using siblingClient
+      final f1 = valhallaService.route(
+        origin: const LatLng(51.505, -0.090),
+        waypoints: [const LatLng(51.508, -0.092)],
+        requestId: 1,
+      );
+
+      // Directly launch newer search request (generation 2) using newerSearchClient
+      final f2 = valhallaService.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+        requestId: 2,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      // Sibling request in generation 1 fails with service-wide failure, cancelling generation 1
+      valhallaService.cancelActiveRequests(1);
+
+      // Generation 1 sibling socket was force-closed
+      expect(siblingClient.wasForceClosed, isTrue);
+      // Generation 2 newer search socket was NOT cancelled
+      expect(newerSearchClient.wasForceClosed, isFalse);
+
+      try {
+        await f1;
+      } catch (_) {}
+      try {
+        await f2;
+      } catch (_) {}
     });
   });
 

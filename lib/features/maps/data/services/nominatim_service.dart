@@ -74,6 +74,8 @@ class NominatimService {
   /// Active client tracking for cancellation.
   final Set<HttpClient> _activeClients = {};
   final Map<int, Set<HttpClient>> _generationClients = {};
+  final Set<int> _cancelledRequestIds = {};
+  bool _allCancelled = false;
 
   /// In-flight request deduplication map.
   final Map<String, Future<List<NominatimResult>>> _inFlightSearches = {};
@@ -83,6 +85,7 @@ class NominatimService {
   /// If [requestId] is provided, cancels only clients for that generation.
   void cancelActiveRequests([int? requestId]) {
     if (requestId != null) {
+      _cancelledRequestIds.add(requestId);
       final clients = _generationClients.remove(requestId);
       if (clients != null) {
         for (final client in clients) {
@@ -93,6 +96,7 @@ class NominatimService {
         }
       }
     } else {
+      _allCancelled = true;
       for (final client in _activeClients) {
         try {
           client.close(force: true);
@@ -101,6 +105,12 @@ class NominatimService {
       _activeClients.clear();
       _generationClients.clear();
     }
+  }
+
+  bool _isCancelled(int? requestId) {
+    if (_allCancelled) return true;
+    if (requestId != null && _cancelledRequestIds.contains(requestId)) return true;
+    return false;
   }
 
   /// Searches for [query] and returns up to 5 results.
@@ -252,8 +262,10 @@ class NominatimService {
     final seenIds = <int>{};
 
     for (int i = 0; i < categories.length; i++) {
+      if (_isCancelled(requestId)) break;
       final category = categories[i];
       await _throttle();
+      if (_isCancelled(requestId)) break;
 
       HttpClient? client;
       try {
