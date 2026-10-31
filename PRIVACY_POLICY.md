@@ -1,9 +1,9 @@
 # Privacy Policy for Vyayama
 
-**Last Updated:** October 23, 2026  
-**Effective Date:** October 23, 2026  
+**Last Updated:** October 31, 2026  
+**Effective Date:** October 31, 2026  
 
-Welcome to **Vyayama** ("we", "our", or "us"). Your privacy is fundamental to how we build our application. This Privacy Policy explains clearly and transparently how we collect, store, protect, process, and delete your personal, fitness, and health information when you use the Vyayama mobile application.
+Welcome to **Vyayama** ("we", "our", or "us"). Your privacy is fundamental to how we build our application. This Privacy Policy explains clearly, transparently, and accurately how we collect, store, protect, process, synchronize, and delete your personal, fitness, health, and location information when you use the Vyayama mobile application.
 
 ---
 
@@ -19,110 +19,126 @@ Welcome to **Vyayama** ("we", "our", or "us"). Your privacy is fundamental to ho
 - **Health Conditions & Medications (Optional):** User-volunteered health tags (e.g. knee sensitivity, asthma) and medicine reminder schedules used exclusively for workout adaptation and on-device schedule management.
 - **Sleep & Rest Schedules:** Target sleep schedules, bedtime reminders, and wake-up alarm times.
 
-### C. Workout Snaps & Social Interactions
+### C. Precise GPS Location & Outdoor Route Data
+- **Live GPS Coordinates:** High-precision latitude, longitude, altitude, bearing, and speed fixes collected during active user-initiated outdoor tracking sessions (walking, running, hiking).
+- **GPS Fix Timestamps:** Exact UTC timestamps corresponding to each geographic fix, used to compute pacing, speed, and track duration.
+- **Derived Outdoor Metrics:** Accumulated geodesic distance, elevation gain, average speed (km/h), and average pace (seconds/km).
+- **Route Coordinates & Polylines:** Geographic waypoints and vector tracks recorded during workouts or saved to your personal route library.
+- **Viewport Search Centers:** Geographic coordinates and bounding boxes centered on your current position or explicitly selected map locations during nearby route discovery.
+
+### D. Workout Snaps & Social Interactions
 - **Workout Photographs ("Snaps"):** Real-time exercise photos captured through the in-app camera to verify workout completion and maintain social streaks. Photo EXIF metadata (such as GPS location) is stripped prior to upload.
 - **Social Connections:** Friend lists, friend request statuses, team memberships, and mutual workout streaks.
 
-### D. Device & Technical Information
+### E. Device & Technical Information
 - **Device Sensors:** Hardware step counter sensor (`SENSOR_TYPE_STEP_COUNTER`) and step detector sensor readings processed locally on your device.
-- **Notification Identifiers:** Native local notification channel identifiers for wake-up alarms, bedtime prompts, and hydration reminders.
+- **Notification Identifiers:** Native local notification channel identifiers for wake-up alarms, bedtime prompts, hydration reminders, and ongoing outdoor tracking status.
 
 ---
 
 ## 2. Why We Collect This Information (Purposes)
 
-We collect and use your data strictly for legitimate health and fitness features:
-1. **Personalized Workout Experience:** Adapting exercise recommendations based on fitness level, equipment availability, and user-specified physical limitations.
-2. **Activity & Habit Tracking:** Tracking daily steps, calories burned, water intake, and rest schedules to help you maintain consistent healthy habits.
-3. **Workout Verification & Accountability:** Validating workout authenticity through privacy-conscious server-side verification to compute snap streaks and social challenges.
-4. **Reminders & Alarms:** Providing exact alarms and notifications for wake-up times, bedtime routines, and hydration intervals.
+We collect and process your data strictly for legitimate health, fitness, and navigation features:
+1. **Outdoor Workout Tracking & Navigation:** Recording your real-time path, distance, elevation, pace, and speed during outdoor runs, walks, and hikes.
+2. **Local Route Discovery:** Locating pedestrian footways, paved paths, and hiking trails in the geographic area you are viewing.
+3. **Crash & Battery Loss Recovery:** Maintaining local crash recovery checkpoints so unfinished workouts can be safely resumed if the device shuts down or the app process is terminated.
+4. **Personalized Workout Adaptation:** Adapting exercise recommendations based on fitness level, equipment availability, and user-specified physical limitations.
+5. **Activity & Habit Consistency:** Tracking daily steps, active calories burned, and hydration intervals.
+6. **Workout Accountability:** Validating workout authenticity through privacy-conscious server-side verification to compute snap streaks and social challenges.
 
-**We never sell, rent, monetize, or trade your personal or health data to advertisers, data brokers, or third parties.**
-
----
-
-## 3. Storage, Transmission & Security Practices
-
-- **Storage at Rest:**
-  - Sensitive authentication credentials and tokens are secured on-device using hardware-backed encryption (Android KeyStore / EncryptedSharedPreferences and iOS Keychain).
-  - Cloud data is stored in isolated PostgreSQL tables protected by Row Level Security (RLS) policies where each user can only read and modify their own records.
-  - Workout photographs are stored in private storage buckets requiring short-lived signed URLs accessible only by the sender and designated recipients.
-- **Transmission Security:**
-  - All communication between Vyayama and our backend infrastructure is encrypted in transit using Transport Layer Security (TLS / HTTPS). Cleartext network traffic is prohibited.
-- **Automatic Ephemeral Storage:**
-  - Workout snaps and images are automatically deleted from Vyayama servers within 24 hours of posting via an automated hourly cleanup job.
+**We never sell, rent, monetize, or trade your personal, health, or location data to advertisers, data brokers, or third parties.**
 
 ---
 
-## 4. Third-Party Services, Processors & AI Verification
+## 3. Storage, Encryption & Local Data Realities
 
-Vyayama utilizes trusted infrastructure providers under strict confidentiality agreements:
-- **Supabase (Backend Infrastructure):** Cloud PostgreSQL database, Row Level Security, authentication, and secure private object storage.
-- **Google Play Services / Android Health APIs:** On-device hardware sensor access (`SensorManager`) and optional Google Health Connect / Google Sign-In integration.
-- **AI Exercise Verification Service:**
-  - **Nature of Verification:** Photo verification is strictly an automated "looks like exercise" classification designed to encourage workout consistency and social accountability. It does NOT constitute proof of physical exertion, athletic effort, or biometric identification.
-  - **Provider Terms & Retention:** Images are processed via encrypted API calls by our vision model provider (e.g. Anthropic Claude API or Google Gemini API). Per the providers' commercial API terms, customer inputs and outputs are **never used to train generalized AI models**. Commercial API requests may be retained by the model provider for up to 30 days solely for trust, safety, and abuse-prevention purposes before deletion.
-  - **On-Device Label Hint:** On-device image labeling (via Google ML Kit) is processed locally on your phone as an advisory hint. Labels evaluated on-device are never logged or shared externally.
+### A. Local Storage Architecture & Realities
+- **Active Workout Checkpoints:**
+  - During an ongoing outdoor workout, state is checkpointed to an isolated file: `vyayama_outdoor_checkpoint_v1.json` located in the app's private documents directory (`/data/user/0/com.vyayama.fitbuddy/app_flutter/` on Android, `~/Documents` on iOS).
+  - **Storage Format:** Checkpoint files and local activity histories are stored as **plaintext UTF-8 JSON** within the app's operating-system sandbox. They are **not encrypted with application-level AES encryption at rest**. Access is protected by OS-level sandbox UID isolation; however, if a device is rooted, jailbroken, or subjected to forensic physical extraction, plaintext coordinates can be read.
+  - **Integrity Verification:** Checkpoints are enveloped with a 32-bit CRC-32 checksum (`payload_crc32`). **CRC-32 is strictly an integrity check for accidental I/O corruption or torn writes; it is NOT encryption, authentication, or tamper-resistance.**
+- **Saved Workout & Route History:**
+  - Stored in app-private `SharedPreferences` on your device.
+  - Supports full offline review without internet connectivity.
+- **Authentication Credentials:**
+  - Sensitive authentication tokens and session refresh keys are stored using hardware-backed secure storage (`FlutterSecureStorage` via Android KeyStore / EncryptedSharedPreferences and iOS Keychain).
 
----
-
-## 5. Community Standards, User-Generated Content & Moderation
-
-Vyayama fosters a supportive, positive community for fitness and wellness:
-- **Prohibited Content:** Photos containing nudity, sexually suggestive imagery, violence, weapons, hate speech, harassment, minors in unsafe situations, or copyrighted/non-exercise material are strictly prohibited under our Community Standards.
-- **User Reporting & Blocking:** Every snap and user profile includes tools to report objectionable content and immediately block abusive users. Blocking a user immediately prevents them from sending snaps, seeing stories, or interacting with your profile.
-- **Moderation Process:** Reports are reviewed by human moderators in accordance with our community standards. While we strive to process reports in a timely manner, we do not promise an instantaneous response time. Blocked users are sequestered immediately upon your action.
+### B. Transmission Security
+- All network communication between Vyayama and remote servers is encrypted in transit using Transport Layer Security (TLS 1.2 / TLS 1.3 / HTTPS). Cleartext network traffic is strictly prohibited.
 
 ---
 
-## 6. Permissions, On-Device Step Counting & How to Revoke
+## 4. Third-Party Mapping, Routing & Infrastructure Services
 
-Vyayama requests minimal runtime permissions strictly when corresponding features are actively utilized, with comprehensive fallback handling:
-- **Physical Activity Recognition (`android.permission.ACTIVITY_RECOGNITION`):**
-  - **On-Device Sensor Processing:** Used to count daily steps using your phone's low-power hardware step sensor (`Sensor.TYPE_STEP_COUNTER`).
-  - **Local Real-Time Tracking:** Step detection is processed entirely on-device. Vyayama does not access GPS or location data for step tracking.
-  - **Graceful Fallback:** If permission is denied or declined, Vyayama never crashes; live tracking pauses calmly, and you can freely enter steps manually or link Google Health Connect.
-  - **Zero Commercial Sharing:** Sensor readings are never sold, rented, or shared with third parties or data brokers.
-- **Exact Alarms (`android.permission.SCHEDULE_EXACT_ALARM`):**
-  - Used to schedule precise wake-up alarms and time-critical medicine reminders.
-  - If exact alarm scheduling is not granted by the system, Vyayama automatically falls back to standard inexact notifications (`AndroidScheduleMode.inexactAllowWhileIdle`) so you never miss an alert and the app never crashes. Vyayama does not use restricted automatic exact alarm permissions (`USE_EXACT_ALARM`).
-- **Notifications (`android.permission.POST_NOTIFICATIONS`):**
-  - Used to deliver heads-up alarm alerts with quick Dismiss and Snooze actions, as well as optional habit reminders.
-- **Camera (`android.permission.CAMERA`):**
-  - Used exclusively when you choose to take workout verification snaps or scan QR codes.
-- **Zero Storage Permissions:**
-  - Vyayama does not request or require `READ_EXTERNAL_STORAGE` or `READ_MEDIA_AUDIO`. All alarm tones, chimes, and exercise media are bundled directly within the app binary.
+When you use the Maps and Route Discovery features in Vyayama, location-related HTTP requests are transmitted to external services under the explicit application User-Agent: `Vyayama/1.0 (com.vyayama.fitbuddy)`. These third-party services receive specific data necessary to deliver mapping capabilities:
 
-You can grant or revoke any optional permission at any time via: **Settings → Apps → Vyayama → Permissions** or **Settings → Apps → Special app access → Alarms & reminders**.
+| External Service | Provider / Endpoint | Data Transmitted | Purpose |
+|---|---|---|---|
+| **OpenStreetMap Tile CDN** | `tile.openstreetmap.org` | Viewport bounding tile coordinates (X, Y, Zoom), Client IP | Fetching standard cartographic map tiles for display. |
+| **Overpass API Mirrors** | `overpass-api.de`, `kumi.systems`, `private.coffee` | Geographic bounding box (South, West, North, East), Client IP | Querying mapped pedestrian ways, footways, and paths. |
+| **Nominatim Geocoding** | `nominatim.openstreetmap.org` | Latitude and Longitude coordinate pair, Client IP | Reverse-geocoding coordinates into human-readable neighborhood/city names. |
+| **Valhalla Routing Engine** | `valhalla1.openstreetmap.de` | Candidate start and waypoint coordinate pairs, Client IP | Calculating pedestrian routes, elevation profiles, turns, and distances. |
+| **Supabase Cloud Infrastructure** | Supabase Inc. (AWS / PostgreSQL) | Completed activity JSON, user ID, route points | Cloud synchronization and cross-device persistence for authenticated accounts. |
 
 ---
 
-## 7. Data Retention & Your Rights (Account Deletion)
+## 5. Supabase Synchronization, Offline Deletion & Account Isolation
 
-You have full ownership of your data at all times:
-- **Access & Correction:** You can view and edit your profile details, BMI records, and health conditions at any time directly in the app.
-- **Complete Account & Data Deletion:**
-  - You can permanently delete your account and all associated records directly inside the app: **Settings → Account → Delete Account**.
-  - When you confirm deletion, all your profile data, workout history, BMI records, friend connections, teams, and uploaded snap photographs are immediately and permanently erased from our databases and storage servers.
-  - Web Deletion Request: If you cannot access the app, you may request deletion by contacting us at the email below.
+### A. Synchronization Behavior
+- **Local-First Guarantee:** Completed workouts and saved routes are always saved to your device's local storage first before any remote synchronization is attempted.
+- **Automatic Cloud Sync:** If you are signed in to an authenticated account and an active internet connection is available, activities are synchronized to our cloud database (`outdoor_activities` and `saved_routes` tables).
+- **Idempotency & Deduplication:** Remote synchronization uses idempotent record upserts bound to stable UUIDs. Retrying synchronization after network dropouts will never create duplicate workout entries.
 
----
+### B. Offline Deletion & Persistent Tombstone Queue
+- When you delete a workout or saved route, it is removed from your device immediately.
+- If your device is offline or the remote deletion fails, a persistent **tombstone record** is stored on-device.
+- When connectivity returns, the tombstone queue automatically retries and executes the remote deletion.
+- **Resurrection Prevention:** Tombstoned records cannot be re-saved or resurrected by subsequent cloud synchronization cycles.
 
-## 8. Children's Privacy
-
-Vyayama is designed for general audiences and does not knowingly collect personal information from children under 13 years of age (or under 16 in certain jurisdictions). If you become aware that a child has provided us with personal information without parental consent, please contact us and we will promptly delete the data.
-
----
-
-## 9. Updates to This Policy
-
-We may update this Privacy Policy from time to time to reflect improvements or regulatory changes. When updates occur, the "Last Updated" date at the top will be revised. Significant changes will be announced within the application.
+### C. Account Isolation & Row Level Security (RLS)
+- All cloud database tables enforce PostgreSQL Row Level Security (RLS) policies (`auth.uid() = user_id`).
+- **User A cannot read, insert, update, or delete User B's activities or saved routes.**
+- On shared devices, local activity histories are partitioned by user ID. Signing out does not expose your workout history to subsequent users.
 
 ---
 
-## 10. Contact Us
+## 6. Permissions, Android Foreground Service & Google Play Compliance
 
-If you have questions, concerns, or requests regarding this Privacy Policy or your personal information, please contact our privacy team at:
+Vyayama requests location and device permissions strictly to deliver active outdoor tracking:
+
+### A. Location Permissions (`ACCESS_FINE_LOCATION` & `ACCESS_COARSE_LOCATION`)
+- **Prominent Disclosure:** A clear in-app disclosure banner is displayed before requesting OS location permissions, explaining that coordinates are collected only to track active workouts and show your position on the map.
+- **When Collected:** Location data is collected only while viewing the map screen or while an outdoor workout recording session is actively running.
+- **Why Background Location (`ACCESS_BACKGROUND_LOCATION`) is Not Requested:** Vyayama does not perform passive "all the time" tracking. Location tracking in background states occurs strictly during an active workout session backed by an Android Foreground Service.
+
+### B. Android Foreground Service (`FOREGROUND_SERVICE_LOCATION`)
+- On Android 10+ (and specifically Android 14+ / API 34+), outdoor tracking runs via a dedicated foreground service (`com.baseflow.geolocator.GeolocatorLocationService`).
+- **Ongoing Notification:** A persistent, non-dismissible notification ("Vyayama — Outdoor Tracking") is displayed in the system notification drawer for the entire duration of the active workout.
+- **User-Initiated Start & Immediate Stop:** The foreground service is initiated strictly when you tap "Start" in the visible app. When you tap "Pause", "Finish", or "Discard", tracking stops immediately.
+- **Google Play Declaration:** An official Foreground Service Location declaration and demonstration video are maintained in Google Play Console justifying user-facing fitness tracking.
+
+---
+
+## 7. Data Retention & Account Deletion
+
+You retain full ownership and control over your data:
+- **Individual Activity Deletion:** You can delete any recorded workout or saved route at any time. Local records and cloud database records are deleted permanently.
+- **Account Deletion:**
+  - You can permanently delete your account directly inside the app: **Settings → Account → Delete Account**.
+  - Deleting your account triggers an automatic cascading deletion (`on delete cascade`) across all database tables, permanently erasing your profile, workout logs, GPS route points, saved routes, and social connections from our servers.
+- **Sign-Out:** Signing out halts active synchronization and clears active authentication tokens from secure storage.
+
+---
+
+## 8. Updates to This Policy
+
+We may update this Privacy Policy from time to time to reflect functional improvements, new integrations, or regulatory updates. Significant changes will be highlighted within the application.
+
+---
+
+## 9. Contact Us
+
+If you have questions, concerns, or requests regarding this Privacy Policy, please contact our privacy team at:
 
 - **Email:** `privacy@vyayama.app`
 - **Application:** Vyayama Fitness

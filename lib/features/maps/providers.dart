@@ -9,6 +9,7 @@ import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_sync_coordinator.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -26,6 +27,15 @@ final outdoorActivityRepositoryProvider =
 final savedRoutesRepositoryProvider = Provider<SavedRoutesRepository>((ref) {
   final storage = ref.watch(localOutdoorStorageProvider);
   return SavedRoutesRepository(storage: storage);
+});
+
+final outdoorSyncCoordinatorProvider = Provider<OutdoorSyncCoordinator>((ref) {
+  final actRepo = ref.watch(outdoorActivityRepositoryProvider);
+  final routesRepo = ref.watch(savedRoutesRepositoryProvider);
+  return OutdoorSyncCoordinator(
+    activityRepository: actRepo,
+    routesRepository: routesRepo,
+  );
 });
 
 final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {
