@@ -360,6 +360,70 @@ void main() {
       expect(stored.where((a) => a.id == act1.id), hasLength(1));
     });
 
+    test('17b. Signal gap resets baseline and prevents distance accumulation across GPS outage', () async {
+      final service = LocationTrackingService();
+      service.checkPermissionDetailedOverride =
+          ({bool requestIfNeeded = true}) async =>
+              LocationPermissionResult.granted;
+      service.getCurrentPositionOverride = () async => const LatLng(51.505, -0.090);
+
+      final controller = StreamController<Position>.broadcast();
+      service.getPositionStreamOverride = (_) => controller.stream;
+
+      await service.startRecording(OutdoorActivityType.walking);
+
+      final t0 = DateTime.now();
+
+      // Point 1: 51.50505, -0.090 (displacement ~5.5m from initial 51.505, -0.090)
+      controller.add(_makePosition(
+        latitude: 51.50505,
+        longitude: -0.090,
+        timestamp: t0.add(const Duration(seconds: 4)),
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      final distBeforeGap = service.value.distanceMeters;
+      expect(distBeforeGap, greaterThan(5.0));
+
+      // Simulate GPS signal outage: next fix arrives after 150 seconds (exceeds 120s maxAcceptableGapSeconds)
+      // and user has moved 250m down the road while signal was lost.
+      final pPostGapBaseline = _makePosition(
+        latitude: 51.50730,
+        longitude: -0.090,
+        timestamp: t0.add(const Duration(seconds: 154)),
+      );
+      controller.add(pPostGapBaseline);
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify: candidate was accepted into points as the new baseline,
+      // but NO distance was accumulated across the 150s gap!
+      expect(service.value.points, hasLength(3)); // Initial fix, point 1, post-gap fix
+      expect(service.value.distanceMeters, equals(distBeforeGap));
+
+      // Next fix arrives 4 seconds later with normal movement (~5.5m)
+      controller.add(_makePosition(
+        latitude: 51.50735,
+        longitude: -0.090,
+        timestamp: t0.add(const Duration(seconds: 158)),
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      // Distance should accumulate from the post-gap baseline only (~5.5m added)
+      expect(service.value.points, hasLength(4));
+      expect(service.value.distanceMeters, greaterThan(distBeforeGap + 5.0));
+      expect(service.value.distanceMeters, lessThan(distBeforeGap + 10.0));
+
+      // Verify that splitIntoSegments separates the points into 2 distinct segments at the gap
+      const filter = GpsFilterService();
+      final segments = filter.splitIntoSegments(service.value.points);
+      expect(segments, hasLength(2));
+      expect(segments[0], hasLength(2)); // initial fix + point 1
+      expect(segments[1], hasLength(2)); // post-gap baseline + point 3
+
+      await service.stopTracking();
+      await controller.close();
+    });
+
     test('18. Discard stops tracking and resets state without creating activity record', () async {
       final service = LocationTrackingService();
       service.checkPermissionDetailedOverride =

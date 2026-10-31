@@ -1,6 +1,7 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
@@ -165,6 +166,8 @@ class _OutdoorRecordingScreenState
       });
     }
 
+    final filter = GpsFilterService.forActivity(_selectedType);
+    final segments = filter.splitIntoSegments(trackingState?.points ?? []);
     final polylinePoints =
         trackingState?.points.map((p) => p.toLatLng()).toList() ?? [];
 
@@ -275,15 +278,16 @@ class _OutdoorRecordingScreenState
                           children: [
                             const AppMapTileLayer(),
                             const AppMapAttribution(),
-                            if (polylinePoints.isNotEmpty)
+                            if (segments.isNotEmpty)
                               PolylineLayer(
-                                polylines: [
-                                  Polyline(
-                                    points: polylinePoints,
-                                    strokeWidth: 5.0,
-                                    color: AppPalette.limeGreen,
-                                  ),
-                                ],
+                                polylines: segments
+                                    .where((s) => s.length >= 2)
+                                    .map((s) => Polyline(
+                                          points: s.map((p) => p.toLatLng()).toList(),
+                                          strokeWidth: 5.0,
+                                          color: AppPalette.limeGreen,
+                                        ))
+                                    .toList(),
                               ),
                             if (currentPos != null)
                               MarkerLayer(

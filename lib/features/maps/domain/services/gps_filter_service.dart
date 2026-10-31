@@ -123,13 +123,44 @@ class GpsFilterService {
   }
 
   /// Calculates total accumulated distance in meters across a list of GPS points.
+  ///
+  /// Skips displacement across signal gaps exceeding [maxAcceptableGapSeconds]
+  /// to avoid accumulating artificial straight-line distance across outages.
   double calculateTotalDistance(List<GpsPoint> points) {
     if (points.length < 2) return 0.0;
     double total = 0.0;
     for (int i = 0; i < points.length - 1; i++) {
+      if (isSignalGap(points[i], points[i + 1])) {
+        continue;
+      }
       total += distanceBetween(points[i], points[i + 1]);
     }
     return total;
+  }
+
+  /// Splits points into continuous track segments separated by signal gaps.
+  ///
+  /// Prevents drawing artificial straight lines across missing GPS data while
+  /// preserving existing completed route segments on either side of the outage.
+  List<List<GpsPoint>> splitIntoSegments(List<GpsPoint> points) {
+    if (points.isEmpty) return const [];
+    final segments = <List<GpsPoint>>[];
+    var currentSegment = <GpsPoint>[points.first];
+
+    for (int i = 1; i < points.length; i++) {
+      if (isSignalGap(points[i - 1], points[i])) {
+        if (currentSegment.isNotEmpty) {
+          segments.add(currentSegment);
+        }
+        currentSegment = <GpsPoint>[points[i]];
+      } else {
+        currentSegment.add(points[i]);
+      }
+    }
+    if (currentSegment.isNotEmpty) {
+      segments.add(currentSegment);
+    }
+    return segments;
   }
 
   /// Computes positive elevation gain in meters across the track.

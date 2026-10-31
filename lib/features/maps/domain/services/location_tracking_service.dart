@@ -542,13 +542,19 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
 
     final lastPoint = value.points.isNotEmpty ? value.points.last : null;
 
-    // Check if resuming from pause: if so, establish new baseline without adding distance
-    final isResuming = _hasResumedFromPause;
-    if (_filter.isValidNextPoint(lastPoint, candidate, isResumingFromPause: isResuming)) {
+    // Detect signal gap: if the outage exceeds threshold, do not accumulate distance across the gap
+    final isSignalGap =
+        lastPoint != null && _filter.isSignalGap(lastPoint, candidate);
+
+    // Check if resuming from pause or recovering from signal gap:
+    // establish candidate as new baseline without adding distance across the gap/pause.
+    final isNewBaseline = _hasResumedFromPause || isSignalGap;
+
+    if (_filter.isValidNextPoint(lastPoint, candidate, isResumingFromPause: isNewBaseline)) {
       _hasResumedFromPause = false;
 
       final updatedPoints = List<GpsPoint>.from(value.points)..add(candidate);
-      final addedDistance = (lastPoint != null && !isResuming)
+      final addedDistance = (lastPoint != null && !isNewBaseline)
           ? _filter.distanceBetween(lastPoint, candidate)
           : 0.0;
       final newDistance = value.distanceMeters + addedDistance;

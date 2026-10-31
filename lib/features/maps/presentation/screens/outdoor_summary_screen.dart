@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
@@ -110,6 +111,8 @@ class _OutdoorSummaryScreenState extends ConsumerState<OutdoorSummaryScreen> {
     final borderColor =
         isDark ? AppPalette.darkOutline : AppPalette.lightOutline;
 
+    final filter = GpsFilterService.forActivity(widget.activity.activityType);
+    final segments = filter.splitIntoSegments(widget.activity.points);
     final polylinePoints =
         widget.activity.points.map((p) => p.toLatLng()).toList();
 
@@ -170,15 +173,16 @@ class _OutdoorSummaryScreenState extends ConsumerState<OutdoorSummaryScreen> {
                       children: [
                         const AppMapTileLayer(),
                         const AppMapAttribution(),
-                        if (polylinePoints.isNotEmpty)
+                        if (segments.isNotEmpty)
                           PolylineLayer(
-                            polylines: [
-                              Polyline(
-                                points: polylinePoints,
-                                strokeWidth: 4.5,
-                                color: AppPalette.limeGreen,
-                              ),
-                            ],
+                            polylines: segments
+                                .where((s) => s.length >= 2)
+                                .map((s) => Polyline(
+                                      points: s.map((p) => p.toLatLng()).toList(),
+                                      strokeWidth: 4.5,
+                                      color: AppPalette.limeGreen,
+                                    ))
+                                .toList(),
                           ),
                         if (polylinePoints.isNotEmpty)
                           MarkerLayer(
