@@ -1000,6 +1000,51 @@ void main() {
       expect(routes, isNotEmpty);
       expect(routes.first.name, contains('Valid Park'));
     });
+
+    test('31b. Privacy audit: Diagnostic logging omits raw GPS coordinates and uses non-sensitive event descriptions', () async {
+      final capturedLogs = <String>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) {
+          capturedLogs.add(message);
+        }
+      };
+
+      try {
+        final dummyPlaces = [
+          OverpassPlace(
+            id: 101,
+            name: 'Audit Park',
+            lat: 51.5074,
+            lon: -0.1278,
+            tags: const {'leisure': 'park'},
+          ),
+        ];
+
+        final service = RealRouteDiscoveryService(
+          overpass: _StaticOverpass(dummyPlaces),
+          valhalla: _FakeValhalla(null),
+          nominatim: _StaticNominatim([]),
+        );
+
+        const testCenter = LatLng(51.5074, -0.1278);
+        await service.discoverRoutes(center: testCenter, radiusKm: 2.5);
+
+        expect(capturedLogs, isNotEmpty);
+        // Verify logs contain request IDs and non-sensitive descriptions
+        expect(capturedLogs.any((log) => log.contains('[RouteDiscovery][req-')), isTrue);
+        expect(capturedLogs.any((log) => log.contains('(radius: 2500m)')), isTrue);
+
+        // Verify NO log statement contains raw coordinates or latitude/longitude numbers
+        for (final log in capturedLogs) {
+          expect(log.contains('51.50'), isFalse, reason: 'Log must not contain latitude: $log');
+          expect(log.contains('-0.12'), isFalse, reason: 'Log must not contain longitude: $log');
+          expect(log.contains('near ('), isFalse, reason: 'Log must not contain coordinate tuple: $log');
+        }
+      } finally {
+        debugPrint = originalDebugPrint;
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------

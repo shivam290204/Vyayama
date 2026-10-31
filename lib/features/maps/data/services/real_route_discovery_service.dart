@@ -116,9 +116,8 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     if (kDebugMode) {
       debugPrint(
-        '[RouteDiscovery][req-$requestId] Starting progressive discovery near '
-        '(${center.latitude.toStringAsFixed(2)}, ${center.longitude.toStringAsFixed(2)}) '
-        'radius: ${radiusMeters.round()}m',
+        '[RouteDiscovery][req-$requestId] Starting progressive discovery '
+        '(radius: ${radiusMeters.round()}m)',
       );
     }
 
@@ -362,7 +361,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       // Individual candidate failure: log and return null to let other candidates proceed
       if (kDebugMode) {
         debugPrint(
-            '[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed: $e');
+            '[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed');
       }
       return null;
     }
