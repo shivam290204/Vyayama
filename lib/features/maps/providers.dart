@@ -204,8 +204,9 @@ final effectiveMapCenterProvider = Provider<LatLng?>((ref) {
 });
 
 /// Discovered routes near the effective center.
+/// Streams verified routes progressively as candidate batches complete.
 /// NEVER queries using arbitrary fallback coordinates.
-final discoveredRoutesProvider = FutureProvider<List<SavedRoute>>((ref) async {
+final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   final engine = ref.watch(routeDiscoveryEngineProvider);
   final center = ref.watch(effectiveMapCenterProvider);
   final filter = ref.watch(activeRouteFilterProvider);
@@ -214,12 +215,13 @@ final discoveredRoutesProvider = FutureProvider<List<SavedRoute>>((ref) async {
     engine.cancelCurrentDiscovery();
   });
 
-  // If no legitimate location is known yet, return empty list without querying the network.
+  // If no legitimate location is known yet, yield empty list without querying the network.
   if (center == null) {
-    return const [];
+    yield const [];
+    return;
   }
 
-  return engine.discoverRoutes(
+  yield* engine.discoverRoutesProgressive(
     center: center,
     filter: filter,
   );

@@ -386,6 +386,15 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
   }) async {
     return [];
   }
+
+  @override
+  Stream<List<SavedRoute>> discoverRoutesProgressive({
+    required LatLng center,
+    double radiusKm = 10.0,
+    RouteFilter? filter,
+  }) async* {
+    yield await discoverRoutes(center: center, radiusKm: radiusKm, filter: filter);
+  }
 }
 
 class _FakeTileImage extends Fake implements TileImage {}

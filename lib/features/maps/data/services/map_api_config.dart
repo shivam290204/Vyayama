@@ -154,3 +154,4 @@ class MapApiConfig {
     _hasWarnedInRelease = false;
   }
 }
+

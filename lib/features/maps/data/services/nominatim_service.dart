@@ -36,8 +36,17 @@ class NominatimResult {
 
 /// Performs geographic place search using the OpenStreetMap Nominatim API.
 ///
-/// Complies with OpenStreetMap Nominatim Usage Policy:
-/// - Max 1 request per second strictly enforced.
+/// [PRODUCTION NOTICE]:
+/// The one-request-per-second limiter currently operates per application instance (in-memory).
+/// It does NOT enforce a global aggregate limit across all active Vyayama users. For production
+/// distribution, querying nominatim.openstreetmap.org directly from distributed client devices
+/// violates the OpenStreetMap Nominatim Usage Policy. Production deployment requires either:
+/// 1. A shared backend proxy (e.g., Supabase Edge Function or Cloud Run with shared Redis queue).
+/// 2. A self-hosted Nominatim or Pelias instance.
+/// 3. A commercial geocoding provider (e.g. Stadia Maps, Mapbox, Geocode Earth).
+///
+/// Complies with OpenStreetMap Nominatim Usage Policy for interactive evaluation:
+/// - Max 1 request per second strictly enforced per client.
 /// - Legitimate User-Agent header identifying Vyayama.
 /// - In-memory LRU caching of results to prevent repeated queries.
 /// - In-flight request joining to avoid concurrent duplicate requests.
@@ -47,6 +56,7 @@ class NominatimService {
     RouteCache? cache,
     String? baseUrl,
     HttpClient Function()? clientFactory,
+    this.retryBackoff = const Duration(milliseconds: 1500),
   })  : _cache = cache ?? RouteCache.instance,
         _baseUrl = baseUrl ?? MapApiConfig.nominatimUrl,
         _clientFactory = clientFactory ?? (() => HttpClient());
@@ -54,6 +64,7 @@ class NominatimService {
   final RouteCache _cache;
   final String _baseUrl;
   final HttpClient Function() _clientFactory;
+  final Duration retryBackoff;
 
   static const Duration _timeout = Duration(seconds: 8);
 
@@ -62,19 +73,34 @@ class NominatimService {
 
   /// Active client tracking for cancellation.
   final Set<HttpClient> _activeClients = {};
+  final Map<int, Set<HttpClient>> _generationClients = {};
 
   /// In-flight request deduplication map.
   final Map<String, Future<List<NominatimResult>>> _inFlightSearches = {};
   final Map<String, Future<List<OverpassPlace>>> _inFlightNearby = {};
 
-  /// Cancels any active in-flight network requests immediately.
-  void cancelActiveRequests() {
-    for (final client in _activeClients) {
-      try {
-        client.close(force: true);
-      } catch (_) {}
+  /// Cancels active in-flight network requests.
+  /// If [requestId] is provided, cancels only clients for that generation.
+  void cancelActiveRequests([int? requestId]) {
+    if (requestId != null) {
+      final clients = _generationClients.remove(requestId);
+      if (clients != null) {
+        for (final client in clients) {
+          try {
+            client.close(force: true);
+          } catch (_) {}
+          _activeClients.remove(client);
+        }
+      }
+    } else {
+      for (final client in _activeClients) {
+        try {
+          client.close(force: true);
+        } catch (_) {}
+      }
+      _activeClients.clear();
+      _generationClients.clear();
     }
-    _activeClients.clear();
   }
 
   /// Searches for [query] and returns up to 5 results.
@@ -178,6 +204,7 @@ class NominatimService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async {
     final cacheKey = RouteCache.buildNominatimNearbyKey(center, radiusMeters);
     final cached = _cache.get<List<OverpassPlace>>(cacheKey);
@@ -187,7 +214,7 @@ class NominatimService {
       return _inFlightNearby[cacheKey]!;
     }
 
-    final future = _executeFindNearby(center, radiusMeters, cacheKey);
+    final future = _executeFindNearby(center, radiusMeters, cacheKey, requestId: requestId);
     _inFlightNearby[cacheKey] = future;
 
     try {
@@ -200,8 +227,9 @@ class NominatimService {
   Future<List<OverpassPlace>> _executeFindNearby(
     LatLng center,
     double radiusMeters,
-    String cacheKey,
-  ) async {
+    String cacheKey, {
+    int? requestId,
+  }) async {
     _checkRateLimit();
 
     // Lat/lon bounding box calculation: 1 deg lat ≈ 111,000 meters
@@ -240,6 +268,9 @@ class NominatimService {
 
         client = _clientFactory()..userAgent = MapApiConfig.userAgent;
         _activeClients.add(client);
+        if (requestId != null) {
+          _generationClients.putIfAbsent(requestId, () => {}).add(client);
+        }
 
         final request = await client.getUrl(uri).timeout(_timeout);
         request.headers.set('Accept-Language', 'en');
@@ -267,6 +298,9 @@ class NominatimService {
       } finally {
         if (client != null) {
           _activeClients.remove(client);
+          if (requestId != null) {
+            _generationClients[requestId]?.remove(client);
+          }
           try {
             client.close();
           } catch (_) {}

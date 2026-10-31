@@ -49,6 +49,7 @@ class ValhallaService {
     RouteCache? cache,
     String? baseUrl,
     HttpClient Function()? clientFactory,
+    this.retryBackoff = const Duration(milliseconds: 1500),
   })  : _cache = cache ?? RouteCache.instance,
         _baseUrl = baseUrl ?? MapApiConfig.valhallaUrl,
         _clientFactory = clientFactory ?? (() => HttpClient());
@@ -56,20 +57,36 @@ class ValhallaService {
   final RouteCache _cache;
   final String _baseUrl;
   final HttpClient Function() _clientFactory;
+  final Duration retryBackoff;
 
-  static const String _clientId = 'vyayama';
+  static const String _clientId = 'Vyayama';
   static const Duration _timeout = Duration(seconds: 12);
 
   final Set<HttpClient> _activeClients = {};
+  final Map<int, Set<HttpClient>> _generationClients = {};
 
-  /// Cancels any active in-flight network requests immediately.
-  void cancelActiveRequests() {
-    for (final client in _activeClients) {
-      try {
-        client.close(force: true);
-      } catch (_) {}
+  /// Cancels active in-flight network requests.
+  /// If [requestId] is provided, cancels only clients for that generation.
+  void cancelActiveRequests([int? requestId]) {
+    if (requestId != null) {
+      final clients = _generationClients.remove(requestId);
+      if (clients != null) {
+        for (final client in clients) {
+          try {
+            client.close(force: true);
+          } catch (_) {}
+          _activeClients.remove(client);
+        }
+      }
+    } else {
+      for (final client in _activeClients) {
+        try {
+          client.close(force: true);
+        } catch (_) {}
+      }
+      _activeClients.clear();
+      _generationClients.clear();
     }
-    _activeClients.clear();
   }
 
   /// Requests a pedestrian route from [origin] through [waypoints].
@@ -80,6 +97,7 @@ class ValhallaService {
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
+    int? requestId,
   }) async {
     if (waypoints.isEmpty) return null;
 
@@ -110,64 +128,87 @@ class ValhallaService {
       'directions_options': {'units': 'km'},
     });
 
-    HttpClient? client;
-    try {
-      client = _clientFactory()..userAgent = MapApiConfig.userAgent;
-      _activeClients.add(client);
+    for (int attempt = 0; attempt <= 1; attempt++) {
+      HttpClient? client;
+      try {
+        client = _clientFactory()..userAgent = MapApiConfig.userAgent;
+        _activeClients.add(client);
+        if (requestId != null) {
+          _generationClients.putIfAbsent(requestId, () => {}).add(client);
+        }
 
-      final uri = Uri.parse('$_baseUrl/route');
-      final request = await client.postUrl(uri).timeout(_timeout);
-      request.headers
-          .set(HttpHeaders.contentTypeHeader, 'application/json');
-      request.headers.set('X-Client-Id', _clientId);
-      request.write(body);
+        final uri = Uri.parse('$_baseUrl/route');
+        final request = await client.postUrl(uri).timeout(_timeout);
+        request.headers
+            .set(HttpHeaders.contentTypeHeader, 'application/json');
+        request.headers.set('X-Client-Id', _clientId);
+        request.write(body);
 
-      final response = await request.close().timeout(_timeout);
+        final response = await request.close().timeout(_timeout);
 
-      if (response.statusCode == 429) {
-        throw const RouteRateLimitException(
-            'Valhalla routing rate limit reached. Please wait a moment.');
-      }
+        if (response.statusCode == 429) {
+          throw const RouteRateLimitException(
+              'Valhalla routing rate limit reached. Please wait a moment.');
+        }
 
-      if (response.statusCode >= 500) {
-        throw ValhallaRoutingException(
-            'Valhalla routing service returned server error (${response.statusCode}).');
-      }
+        // 400/404: Unroutable point across barrier/water. Never retry.
+        if (response.statusCode == 400 || response.statusCode == 404) {
+          return null;
+        }
 
-      // If Valhalla returned 400 (e.g. unroutable point across water/private land),
-      // treat as unroutable candidate (null) rather than service outage.
-      if (response.statusCode == 400 || response.statusCode == 404) {
-        return null;
-      }
+        // 5xx: Server error. Retry at most once on transient server error.
+        if (response.statusCode >= 500) {
+          if (attempt == 0) {
+            await Future<void>.delayed(retryBackoff);
+            continue;
+          }
+          throw ValhallaRoutingException(
+              'Valhalla routing service returned server error (${response.statusCode}).');
+        }
 
-      if (response.statusCode != 200) {
-        throw ValhallaRoutingException(
-            'Routing service returned unexpected status (${response.statusCode}).');
-      }
+        if (response.statusCode != 200) {
+          throw ValhallaRoutingException(
+              'Routing service returned unexpected status (${response.statusCode}).');
+        }
 
-      final responseBody = await response.transform(utf8.decoder).join();
-      final parsed = _parseRoute(responseBody);
-      if (parsed != null) {
-        _cache.set(cacheKey, parsed);
-      }
-      return parsed;
-    } on SocketException catch (_) {
-      throw const RouteNetworkException();
-    } on TimeoutException catch (_) {
-      throw const RouteNetworkException(
-          'Routing service request timed out. Please try again.');
-    } on RouteDiscoveryException {
-      rethrow;
-    } catch (e) {
-      throw ValhallaRoutingException('Routing failed: $e');
-    } finally {
-      if (client != null) {
-        _activeClients.remove(client);
-        try {
-          client.close();
-        } catch (_) {}
+        final responseBody = await response.transform(utf8.decoder).join();
+        final parsed = _parseRoute(responseBody);
+        if (parsed != null) {
+          _cache.set(cacheKey, parsed);
+        }
+        return parsed;
+      } on RouteRateLimitException {
+        rethrow;
+      } on SocketException catch (_) {
+        if (attempt == 0) {
+          await Future<void>.delayed(retryBackoff);
+          continue;
+        }
+        throw const RouteNetworkException();
+      } on TimeoutException catch (_) {
+        if (attempt == 0) {
+          await Future<void>.delayed(retryBackoff);
+          continue;
+        }
+        throw const RouteNetworkException(
+            'Routing service request timed out. Please try again.');
+      } on RouteDiscoveryException {
+        rethrow;
+      } catch (e) {
+        throw ValhallaRoutingException('Routing failed: $e');
+      } finally {
+        if (client != null) {
+          _activeClients.remove(client);
+          if (requestId != null) {
+            _generationClients[requestId]?.remove(client);
+          }
+          try {
+            client.close();
+          } catch (_) {}
+        }
       }
     }
+    return null;
   }
 
   ValhallaRoute? _parseRoute(String body) {

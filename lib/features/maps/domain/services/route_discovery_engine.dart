@@ -42,6 +42,19 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
     );
   }
 
+  /// Discovers routes progressively, yielding updated sets as candidate batches resolve.
+  Stream<List<SavedRoute>> discoverRoutesProgressive({
+    required LatLng center,
+    double radiusKm = 10.0,
+    RouteFilter? filter,
+  }) {
+    return _realService.discoverRoutesProgressive(
+      center: center,
+      radiusKm: radiusKm,
+      filter: filter,
+    );
+  }
+
   /// Cancels in-flight discovery requests and invalidates active generation.
   void cancelCurrentDiscovery() {
     _realService.cancelCurrentDiscovery();

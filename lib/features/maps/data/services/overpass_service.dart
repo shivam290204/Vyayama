@@ -99,18 +99,37 @@ class OverpassService {
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
+  DateTime? _rateLimitedUntil;
+
+  /// Resets rate limit cooldown for unit tests.
+  void resetRateLimitForTesting() => _rateLimitedUntil = null;
 
   /// Active client tracking for safe cancellation.
   final Set<HttpClient> _activeClients = {};
+  final Map<int, Set<HttpClient>> _generationClients = {};
 
-  /// Cancels all active in-flight network requests immediately.
-  void cancelActiveRequests() {
-    for (final client in _activeClients) {
-      try {
-        client.close(force: true);
-      } catch (_) {}
+  /// Cancels in-flight network requests.
+  /// If [requestId] is provided, cancels only clients for that generation.
+  void cancelActiveRequests([int? requestId]) {
+    if (requestId != null) {
+      final clients = _generationClients.remove(requestId);
+      if (clients != null) {
+        for (final client in clients) {
+          try {
+            client.close(force: true);
+          } catch (_) {}
+          _activeClients.remove(client);
+        }
+      }
+    } else {
+      for (final client in _activeClients) {
+        try {
+          client.close(force: true);
+        } catch (_) {}
+      }
+      _activeClients.clear();
+      _generationClients.clear();
     }
-    _activeClients.clear();
   }
 
   /// Finds parks, recreation grounds, trails, footways, and hiking routes within [radiusMeters]
@@ -122,7 +141,14 @@ class OverpassService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async {
+    if (_rateLimitedUntil != null &&
+        DateTime.now().isBefore(_rateLimitedUntil!)) {
+      throw const RouteRateLimitException(
+          'OpenStreetMap rate limit reached. Please wait a moment.');
+    }
+
     // Validate coordinates
     if (!center.latitude.isFinite ||
         !center.longitude.isFinite ||
@@ -173,6 +199,9 @@ out center $_maxResults;
       try {
         client = _clientFactory()..userAgent = MapApiConfig.userAgent;
         _activeClients.add(client);
+        if (requestId != null) {
+          _generationClients.putIfAbsent(requestId, () => {}).add(client);
+        }
 
         final uri = Uri.parse(ep);
         final request = await client.postUrl(uri).timeout(_timeout);
@@ -182,8 +211,9 @@ out center $_maxResults;
         final response = await request.close().timeout(_timeout);
 
         if (response.statusCode == 429) {
-          lastException = const RouteRateLimitException();
-          continue;
+          _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
+          throw const RouteRateLimitException(
+              'OpenStreetMap request limit reached. Please wait a moment.');
         }
 
         if (response.statusCode >= 500) {
@@ -207,6 +237,9 @@ out center $_maxResults;
       } on TimeoutException catch (_) {
         lastException = const RouteNetworkException(
             'Connection to OpenStreetMap service timed out. Please try again.');
+      } on RouteRateLimitException {
+        // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
+        rethrow;
       } on RouteDiscoveryException catch (e) {
         lastException = e;
       } catch (e) {
@@ -215,6 +248,9 @@ out center $_maxResults;
       } finally {
         if (client != null) {
           _activeClients.remove(client);
+          if (requestId != null) {
+            _generationClients[requestId]?.remove(client);
+          }
           try {
             client.close();
           } catch (_) {}

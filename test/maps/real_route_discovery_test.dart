@@ -23,6 +23,7 @@ class _FakeOverpass extends OverpassService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;
@@ -49,6 +50,7 @@ class _FakeValhalla extends ValhallaService {
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
+    int? requestId,
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;
@@ -71,6 +73,7 @@ class _FakeNominatim extends NominatimService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;
@@ -297,8 +300,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<RouteRateLimitException>()),
       );
     });
@@ -312,8 +315,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<RouteNetworkException>()),
       );
     });
@@ -327,8 +330,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<OverpassServiceException>()),
       );
     });
@@ -396,8 +399,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<ValhallaRoutingException>()),
       );
     });
@@ -414,8 +417,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<RouteRateLimitException>()),
       );
     });
@@ -432,8 +435,8 @@ void main() {
         ),
       );
 
-      expect(
-        () => engine.discoverRoutes(center: _center),
+      await expectLater(
+        engine.discoverRoutes(center: _center),
         throwsA(isA<RouteNetworkException>()),
       );
     });

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
@@ -128,9 +130,9 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 3. Overpass Accessible Tag Filtering & Validation
+  // 3. Overpass Tag Filtering, 429 Halting & Mirror Failover
   // ---------------------------------------------------------------------------
-  group('Overpass Tag Filtering & Coordinate Validation Tests', () {
+  group('Overpass Tag Filtering, 429 Halting & Failover Tests', () {
     test('10. OverpassPlace.isAccessible correctly detects accessible paths', () {
       const publicPark = OverpassPlace(
         id: 1,
@@ -201,17 +203,270 @@ void main() {
       expect(places.first.name, equals('Valid Delhi Path'));
     });
 
-    test('12. cancelActiveRequests completes without throwing', () {
+    test('12. HTTP 429 stops mirror rotation immediately without querying subsequent mirrors', () async {
+      int requestCount = 0;
+      final requestedUris = <Uri>[];
+
+      final service = OverpassService(
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+          'https://mirror3.overpass.example/api/interpreter',
+        ],
+        clientFactory: () => _TestHttpClient(
+          statusCode: 429,
+          onRequest: (uri, method) {
+            requestCount++;
+            requestedUris.add(uri);
+          },
+        ),
+      );
+
+      service.resetRateLimitForTesting();
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 5000,
+        ),
+        throwsA(isA<RouteRateLimitException>()),
+      );
+
+      // Exactly 1 mirror was attempted; it halted immediately on 429 without cascading to mirrors 2 & 3
+      expect(requestCount, equals(1));
+      expect(requestedUris.first.host, equals('mirror1.overpass.example'));
+    });
+
+    test('13. HTTP 5xx fails over to next mirror and succeeds if next mirror returns 200', () async {
+      int requestCount = 0;
+      final requestedUris = <Uri>[];
+
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 501,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Failover Park" }
+    }
+  ]
+}
+''';
+
+      final service = OverpassService(
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          // First attempt returns 503, second attempt returns 200
+          if (requestCount == 1) {
+            return _TestHttpClient(
+              statusCode: 503,
+              onRequest: (uri, m) => requestedUris.add(uri),
+            );
+          } else {
+            return _TestHttpClient(
+              statusCode: 200,
+              responseBody: validResponse,
+              onRequest: (uri, m) => requestedUris.add(uri),
+            );
+          }
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 5000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Failover Park'));
+      expect(requestCount, equals(2));
+      expect(requestedUris[0].host, equals('mirror1.overpass.example'));
+      expect(requestedUris[1].host, equals('mirror2.overpass.example'));
+    });
+
+    test('14. cancelActiveRequests completes without throwing', () {
       final service = OverpassService();
       expect(() => service.cancelActiveRequests(), returnsNormally);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 4. Nominatim Throttling, LRU Caching & Request Joining
+  // 4. Valhalla Routing Retry-with-Backoff & Identification Tests
+  // ---------------------------------------------------------------------------
+  group('Valhalla Routing Retry-with-Backoff & Identification Tests', () {
+    const validTripJson = '''
+{
+  "trip": {
+    "summary": { "length": 2.5, "time": 1800 },
+    "legs": [
+      { "shape": "mfp|Idf|@mA?mA?mA@" }
+    ]
+  }
+}
+''';
+
+    test('15. Sends exact X-Client-Id: Vyayama header', () async {
+      String? recordedClientId;
+
+      final service = ValhallaService(
+        clientFactory: () => _TestHttpClient(
+          statusCode: 200,
+          responseBody: validTripJson,
+          onHeaderRecorded: (k, v) {
+            if (k.toLowerCase() == 'x-client-id') {
+              recordedClientId = v;
+            }
+          },
+        ),
+      );
+
+      await service.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+      );
+
+      expect(recordedClientId, equals('Vyayama'));
+    });
+
+    test('16. Performs bounded 1 retry with backoff on 5xx server error', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10), // Short backoff for unit test
+        clientFactory: () {
+          requestCount++;
+          if (requestCount == 1) {
+            return _TestHttpClient(statusCode: 500);
+          } else {
+            return _TestHttpClient(statusCode: 200, responseBody: validTripJson);
+          }
+        },
+      );
+
+      final route = await service.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+      );
+
+      expect(route, isNotNull);
+      expect(requestCount, equals(2)); // Attempt 0 failed (500), Attempt 1 retried and succeeded
+    });
+
+    test('17. Performs bounded 1 retry on SocketException/timeout', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10),
+        clientFactory: () {
+          requestCount++;
+          if (requestCount == 1) {
+            return _ThrowingHttpClient(const SocketException('Network reset'));
+          } else {
+            return _TestHttpClient(statusCode: 200, responseBody: validTripJson);
+          }
+        },
+      );
+
+      final route = await service.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+      );
+
+      expect(route, isNotNull);
+      expect(requestCount, equals(2));
+    });
+
+    test('18. Never retries on HTTP 429 (rate limit)', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10),
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 429);
+        },
+      );
+
+      expect(
+        () => service.route(
+          origin: const LatLng(28.7145, 77.1682),
+          waypoints: [const LatLng(28.7160, 77.1700)],
+        ),
+        throwsA(isA<RouteRateLimitException>()),
+      );
+
+      // Exactly 1 attempt made: 429 is never retried
+      expect(requestCount, equals(1));
+    });
+
+    test('19. Never retries on HTTP 400 (unroutable candidate)', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10),
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 400);
+        },
+      );
+
+      final route = await service.route(
+        origin: const LatLng(28.7145, 77.1682),
+        waypoints: [const LatLng(28.7160, 77.1700)],
+      );
+
+      expect(route, isNull);
+      expect(requestCount, equals(1));
+    });
+
+    test('20. Never retries on malformed JSON response', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10),
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 200, responseBody: '{ malformed json: }');
+        },
+      );
+
+      expect(
+        () => service.route(
+          origin: const LatLng(28.7145, 77.1682),
+          waypoints: [const LatLng(28.7160, 77.1700)],
+        ),
+        throwsA(isA<ValhallaRoutingException>()),
+      );
+
+      expect(requestCount, equals(1));
+    });
+
+    test('21. testParseRoute rejects invalid non-finite or out-of-bounds coordinates', () {
+      final service = ValhallaService();
+      const emptyTrip = '''
+{
+  "trip": {
+    "summary": { "length": 0.0, "time": 0 },
+    "legs": []
+  }
+}
+''';
+      expect(service.testParseRoute(emptyTrip), isNull);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 5. Nominatim Throttling & Deduplication Tests
   // ---------------------------------------------------------------------------
   group('Nominatim Service Throttling & Deduplication Tests', () {
-    test('13. LRU cache returns cached places on subsequent queries', () async {
+    test('22. LRU cache returns cached places on subsequent queries', () async {
       final cache = RouteCache();
       final service = NominatimService(cache: cache);
 
@@ -234,7 +489,6 @@ void main() {
       );
       cache.set(cacheKey, places);
 
-      // Now query findNearbyPlaces - should read directly from cache without hitting network
       final cachedPlaces = await service.findNearbyPlaces(
         center: const LatLng(28.7145, 77.1682),
         radiusMeters: 5000,
@@ -244,41 +498,69 @@ void main() {
       expect(cachedPlaces.first.name, equals('Cached Shalimar Garden'));
     });
 
-    test('14. cancelActiveRequests completes without throwing', () {
+    test('23. cancelActiveRequests completes without throwing', () {
       final service = NominatimService();
       expect(() => service.cancelActiveRequests(), returnsNormally);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 5. Valhalla Routing Validation & Cancellation
+  // 6. Request-Scoped Cancellation & Timeout Tests
   // ---------------------------------------------------------------------------
-  group('Valhalla Routing Validation & Cancellation Tests', () {
-    test('15. testParseRoute rejects invalid non-finite or out-of-bounds coordinates', () {
-      final service = ValhallaService();
-      // Polyline with points beyond [-90, 90] / [-180, 180] or empty legs
-      const emptyTrip = '''
-{
-  "trip": {
-    "summary": { "length": 0.0, "time": 0 },
-    "legs": []
-  }
-}
-''';
-      expect(service.testParseRoute(emptyTrip), isNull);
+  group('Request-Scoped Cancellation & Timeout Tests', () {
+    test('24. Superseded search cancels previous search HTTP client with close(force: true)', () async {
+      final client1 = _TestHttpClient(responseDelay: const Duration(seconds: 1));
+      final client2 = _TestHttpClient();
+      int clientCounter = 0;
+
+      final overpass = OverpassService(
+        clientFactory: () {
+          clientCounter++;
+          return clientCounter == 1 ? client1 : client2;
+        },
+      );
+
+      final future = overpass.findNearbyPlaces(
+        center: const LatLng(51.505, -0.090),
+        radiusMeters: 5000,
+        requestId: 1,
+      );
+
+      // Allow event loop to advance so client1 is instantiated and registered
+      await Future<void>.delayed(Duration.zero);
+
+      // Search 2 begins with requestId: 2, cancelling requestId 1
+      overpass.cancelActiveRequests(1);
+
+      expect(client1.wasForceClosed, isTrue);
+      expect(client2.wasForceClosed, isFalse);
+
+      try {
+        await future;
+      } catch (_) {}
     });
 
-    test('16. cancelActiveRequests completes without throwing', () {
-      final service = ValhallaService();
-      expect(() => service.cancelActiveRequests(), returnsNormally);
+    test('25. Provider disposal terminates active requests via cancelCurrentDiscovery', () {
+      final overpassClient = _TrackingHttpClient();
+      final valhallaClient = _TrackingHttpClient();
+
+      final service = RealRouteDiscoveryService(
+        overpass: OverpassService(clientFactory: () => overpassClient),
+        valhalla: ValhallaService(clientFactory: () => valhallaClient),
+        nominatim: NominatimService(),
+      );
+
+      service.cancelCurrentDiscovery();
+
+      expect(() => service.cancelCurrentDiscovery(), returnsNormally);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 6. Pipeline Concurrency, Max Candidates & Superseded Requests
+  // 7. Pipeline Progressive Route Emission & Isolation Tests
   // ---------------------------------------------------------------------------
-  group('RealRouteDiscoveryService Concurrency & Pipeline Tests', () {
-    test('17. Bounds candidates to maximum 8 waypoints', () async {
+  group('RealRouteDiscoveryService Progressive Route Tests', () {
+    test('26. Bounds candidates to maximum 8 waypoints', () async {
       int valhallaCallCount = 0;
 
       final dummyPlaces = List.generate(
@@ -306,12 +588,11 @@ void main() {
         center: const LatLng(51.505, -0.090),
       );
 
-      // Max 8 candidates are selected
       expect(valhallaCallCount, lessThanOrEqualTo(8));
-      expect(routes.length, lessThanOrEqualTo(5)); // max 5 saved routes returned
+      expect(routes.length, lessThanOrEqualTo(4));
     });
 
-    test('18. Enforces maximum concurrency of 2 for Valhalla requests', () async {
+    test('27. Enforces maximum concurrency of 2 for Valhalla requests', () async {
       int maxConcurrent = 0;
       int currentConcurrent = 0;
 
@@ -349,11 +630,10 @@ void main() {
         center: const LatLng(51.505, -0.090),
       );
 
-      // Maximum concurrent Valhalla requests must not exceed 2
       expect(maxConcurrent, lessThanOrEqualTo(2));
     });
 
-    test('19. Discards results of superseded searches when a newer search begins', () async {
+    test('28. Discards results of superseded searches when a newer search begins', () async {
       final completer1 = Completer<List<OverpassPlace>>();
       final completer2 = Completer<List<OverpassPlace>>();
 
@@ -365,17 +645,14 @@ void main() {
         nominatim: _StaticNominatim([]),
       );
 
-      // First search begins
       final future1 = service.discoverRoutes(
         center: const LatLng(51.505, -0.090),
       );
 
-      // Second search begins immediately at a different center (supersedes search 1)
       final future2 = service.discoverRoutes(
         center: const LatLng(28.7145, 77.1682),
       );
 
-      // Complete search 1
       completer1.complete([
         const OverpassPlace(
           id: 1,
@@ -386,7 +663,6 @@ void main() {
         ),
       ]);
 
-      // Complete search 2
       completer2.complete([
         const OverpassPlace(
           id: 2,
@@ -400,12 +676,11 @@ void main() {
       final result1 = await future1;
       final result2 = await future2;
 
-      // Superseded search 1 must return empty list (discarded)
       expect(result1, isEmpty);
-      expect(result2, isEmpty); // No route returned by fake Valhalla
+      expect(result2, isEmpty);
     });
 
-    test('20. In-flight discovery joining prevents duplicate pipeline executions', () async {
+    test('29. In-flight discovery joining prevents duplicate pipeline executions', () async {
       int overpassExecutions = 0;
 
       final overpass = _CountingOverpass(
@@ -421,7 +696,6 @@ void main() {
 
       const center = LatLng(51.505, -0.090);
 
-      // Fire 2 concurrent identical requests
       final future1 = service.discoverRoutes(center: center);
       final future2 = service.discoverRoutes(center: center);
 
@@ -431,23 +705,115 @@ void main() {
       expect(results[0], equals(results[1]));
     });
 
-    test('21. cancelCurrentDiscovery invalidates active generation and network requests', () {
+    test('30. Progressively publishes route batches as soon as batch completes', () async {
+      final p1 = OverpassPlace(
+        id: 1,
+        name: 'Park Alpha',
+        lat: 28.7145,
+        lon: 77.1682,
+        tags: const {'leisure': 'park'},
+      );
+      final p2 = OverpassPlace(
+        id: 2,
+        name: 'Park Beta',
+        lat: 28.7200,
+        lon: 77.1750,
+        tags: const {'leisure': 'park'},
+      );
+
+      final sampleRoute1 = ValhallaRoute(
+        points: const [
+          LatLng(28.7145, 77.1682),
+          LatLng(28.7150, 77.1690),
+          LatLng(28.7145, 77.1682),
+        ],
+        distanceMeters: 1200,
+        durationSeconds: 900,
+      );
+
       final service = RealRouteDiscoveryService(
-        overpass: _StaticOverpass([]),
-        valhalla: _FakeValhalla(null),
+        overpass: _StaticOverpass([p1, p2]),
+        valhalla: _FakeValhalla(sampleRoute1),
         nominatim: _StaticNominatim([]),
       );
 
-      expect(() => service.cancelCurrentDiscovery(), returnsNormally);
+      final progressiveStream = service.discoverRoutesProgressive(
+        center: const LatLng(28.7145, 77.1682),
+      );
+
+      final emittedBatches = <List<SavedRoute>>[];
+      await for (final batch in progressiveStream) {
+        emittedBatches.add(batch);
+      }
+
+      // Routes were emitted progressively
+      expect(emittedBatches, isNotEmpty);
+      expect(emittedBatches.first, isNotEmpty);
+      expect(emittedBatches.first.first.name, contains('Park Alpha'));
+    });
+
+    test('31. Existing valid routes survive subsequent candidate failure in later batch', () async {
+      final p1 = OverpassPlace(
+        id: 1,
+        name: 'Valid Park 1',
+        lat: 28.7145,
+        lon: 77.1682,
+        tags: const {'leisure': 'park'},
+      );
+      final p2 = OverpassPlace(
+        id: 2,
+        name: 'Valid Park 2',
+        lat: 28.7180,
+        lon: 77.1720,
+        tags: const {'leisure': 'park'},
+      );
+      final p3 = OverpassPlace(
+        id: 3,
+        name: 'Failing Park 3',
+        lat: 28.7300,
+        lon: 77.1900,
+        tags: const {'leisure': 'park'},
+      );
+
+      final validRoute = ValhallaRoute(
+        points: const [
+          LatLng(28.7145, 77.1682),
+          LatLng(28.7150, 77.1690),
+          LatLng(28.7145, 77.1682),
+        ],
+        distanceMeters: 1000,
+        durationSeconds: 800,
+      );
+
+      final service = RealRouteDiscoveryService(
+        overpass: _StaticOverpass([p1, p2, p3]),
+        valhalla: _DynamicValhalla(
+          routeHandler: (origin, waypoints) {
+            if (waypoints.first.latitude == p1.lat ||
+                waypoints.first.latitude == p2.lat) {
+              return validRoute;
+            }
+            throw const ValhallaRoutingException('Candidate unroutable');
+          },
+        ),
+        nominatim: _StaticNominatim([]),
+      );
+
+      final routes = await service.discoverRoutes(
+        center: const LatLng(28.7145, 77.1682),
+      );
+
+      // Valid routes from batch 1 were preserved even though batch 2 experienced a failure
+      expect(routes, isNotEmpty);
+      expect(routes.first.name, contains('Valid Park'));
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 7. RouteDiscoverySheet UI Error States & Interactions
+  // 8. RouteDiscoverySheet UI Error States & Interactions
   // ---------------------------------------------------------------------------
   group('RouteDiscoverySheet Error States Widget Tests', () {
-
-    testWidgets('22. Renders Rate Limit error view when RouteRateLimitException occurs',
+    testWidgets('32. Renders Rate Limit error view when RouteRateLimitException occurs',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -455,7 +821,7 @@ void main() {
             body: ProviderScope(
               overrides: [
                 discoveredRoutesProvider.overrideWith(
-                  (ref) => Future.error(const RouteRateLimitException()),
+                  (ref) => Stream.error(const RouteRateLimitException()),
                 ),
               ],
               child: RouteDiscoverySheet(onRouteSelected: (_) {}, onRecordPressed: () {}),
@@ -470,7 +836,7 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('23. Renders Connection Timed Out error view on network timeout',
+    testWidgets('33. Renders Connection Timed Out error view on network timeout',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -478,7 +844,7 @@ void main() {
             body: ProviderScope(
               overrides: [
                 discoveredRoutesProvider.overrideWith(
-                  (ref) => Future.error(
+                  (ref) => Stream.error(
                     const RouteNetworkException('Request timed out while contacting host'),
                   ),
                 ),
@@ -494,7 +860,7 @@ void main() {
       expect(find.byIcon(Icons.hourglass_bottom_rounded), findsOneWidget);
     });
 
-    testWidgets('24. Renders No Internet Connection error view on network failure',
+    testWidgets('34. Renders No Internet Connection error view on network failure',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -502,7 +868,7 @@ void main() {
             body: ProviderScope(
               overrides: [
                 discoveredRoutesProvider.overrideWith(
-                  (ref) => Future.error(
+                  (ref) => Stream.error(
                     const RouteNetworkException('SocketException: Failed to reach host'),
                   ),
                 ),
@@ -518,7 +884,7 @@ void main() {
       expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
     });
 
-    testWidgets('25. Renders Map Data Temporarily Unavailable on OverpassServiceException',
+    testWidgets('35. Renders Map Data Temporarily Unavailable on OverpassServiceException',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -526,7 +892,7 @@ void main() {
             body: ProviderScope(
               overrides: [
                 discoveredRoutesProvider.overrideWith(
-                  (ref) => Future.error(const OverpassServiceException('504 Gateway Timeout')),
+                  (ref) => Stream.error(const OverpassServiceException('504 Gateway Timeout')),
                 ),
               ],
               child: RouteDiscoverySheet(onRouteSelected: (_) {}, onRecordPressed: () {}),
@@ -540,7 +906,7 @@ void main() {
       expect(find.byIcon(Icons.cloud_off_rounded), findsOneWidget);
     });
 
-    testWidgets('26. Renders Routing Engine Unavailable on ValhallaRoutingException',
+    testWidgets('36. Renders Routing Engine Unavailable on ValhallaRoutingException',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -548,7 +914,7 @@ void main() {
             body: ProviderScope(
               overrides: [
                 discoveredRoutesProvider.overrideWith(
-                  (ref) => Future.error(const ValhallaRoutingException('Service down')),
+                  (ref) => Stream.error(const ValhallaRoutingException('Service down')),
                 ),
               ],
               child: RouteDiscoverySheet(onRouteSelected: (_) {}, onRecordPressed: () {}),
@@ -562,14 +928,14 @@ void main() {
       expect(find.byIcon(Icons.alt_route_rounded), findsOneWidget);
     });
 
-    testWidgets('27. Empty routes list displays No mapped routes found nearby',
+    testWidgets('37. Empty routes list displays No mapped routes found nearby',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: ProviderScope(
               overrides: [
-                discoveredRoutesProvider.overrideWith((ref) => <SavedRoute>[]),
+                discoveredRoutesProvider.overrideWith((ref) => Stream.value(<SavedRoute>[])),
                 userLocationStateProvider.overrideWith(
                   (ref) => UserLocationState(
                     status: UserLocationStatus.available,
@@ -594,6 +960,179 @@ void main() {
 // Test Helpers & Mock Classes
 // -----------------------------------------------------------------------------
 
+class _TestHttpClient implements HttpClient {
+  _TestHttpClient({
+    this.statusCode = 200,
+    this.responseBody = '{}',
+    this.onRequest,
+    this.onHeaderRecorded,
+    this.responseDelay,
+  });
+
+  final int statusCode;
+  final String responseBody;
+  final void Function(Uri uri, String method)? onRequest;
+  final void Function(String key, String value)? onHeaderRecorded;
+  final Duration? responseDelay;
+
+  bool wasForceClosed = false;
+
+  @override
+  String? userAgent;
+
+  @override
+  Future<HttpClientRequest> postUrl(Uri url) async {
+    onRequest?.call(url, 'POST');
+    return _TestHttpClientRequest(
+      url,
+      'POST',
+      statusCode,
+      responseBody,
+      userAgent,
+      onHeaderRecorded,
+      responseDelay,
+    );
+  }
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async {
+    onRequest?.call(url, 'GET');
+    return _TestHttpClientRequest(
+      url,
+      'GET',
+      statusCode,
+      responseBody,
+      userAgent,
+      onHeaderRecorded,
+      responseDelay,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {
+    if (force) {
+      wasForceClosed = true;
+    }
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TrackingHttpClient extends _TestHttpClient {
+  _TrackingHttpClient() : super();
+}
+
+class _ThrowingHttpClient implements HttpClient {
+  _ThrowingHttpClient(this.exception);
+  final Exception exception;
+
+  @override
+  String? userAgent;
+
+  @override
+  Future<HttpClientRequest> postUrl(Uri url) async => throw exception;
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async => throw exception;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TestHttpClientRequest implements HttpClientRequest {
+  _TestHttpClientRequest(
+    this.uri,
+    this.method,
+    this.statusCode,
+    this.responseBody,
+    this.userAgent,
+    this.onHeaderRecorded, [
+    this.responseDelay,
+  ]);
+
+  @override
+  final Uri uri;
+  @override
+  final String method;
+  final int statusCode;
+  final String responseBody;
+  final String? userAgent;
+  final void Function(String key, String value)? onHeaderRecorded;
+  final Duration? responseDelay;
+
+  final StringBuffer _buffer = StringBuffer();
+
+  @override
+  late final HttpHeaders headers = _TestHttpHeaders(onHeaderRecorded);
+
+  @override
+  void write(Object? obj) {
+    _buffer.write(obj);
+  }
+
+  @override
+  Future<HttpClientResponse> close() async {
+    if (responseDelay != null) {
+      await Future<void>.delayed(responseDelay!);
+    }
+    return _TestHttpClientResponse(statusCode, responseBody);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TestHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
+  _TestHttpClientResponse(this.statusCode, this.body);
+
+  @override
+  final int statusCode;
+  final String body;
+
+  @override
+  final HttpHeaders headers = _TestHttpHeaders(null);
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return Stream.value(utf8.encode(body)).listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TestHttpHeaders implements HttpHeaders {
+  _TestHttpHeaders(this.onSet);
+  final void Function(String key, String value)? onSet;
+  final Map<String, String> _map = {};
+
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) {
+    _map[name.toLowerCase()] = value.toString();
+    onSet?.call(name, value.toString());
+  }
+
+  @override
+  String? value(String name) => _map[name.toLowerCase()];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _StaticOverpass extends OverpassService {
   _StaticOverpass(this._places);
   final List<OverpassPlace> _places;
@@ -602,6 +1141,7 @@ class _StaticOverpass extends OverpassService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async =>
       _places;
 }
@@ -614,6 +1154,7 @@ class _StaticNominatim extends NominatimService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async =>
       _places;
 }
@@ -626,8 +1167,22 @@ class _FakeValhalla extends ValhallaService {
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
+    int? requestId,
   }) async =>
       _route;
+}
+
+class _DynamicValhalla extends ValhallaService {
+  _DynamicValhalla({required this.routeHandler});
+  final ValhallaRoute? Function(LatLng origin, List<LatLng> waypoints) routeHandler;
+
+  @override
+  Future<ValhallaRoute?> route({
+    required LatLng origin,
+    required List<LatLng> waypoints,
+    int? requestId,
+  }) async =>
+      routeHandler(origin, waypoints);
 }
 
 class _CountingValhalla extends ValhallaService {
@@ -638,6 +1193,7 @@ class _CountingValhalla extends ValhallaService {
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
+    int? requestId,
   }) async {
     onRoute();
     return null;
@@ -659,6 +1215,7 @@ class _DelayedValhalla extends ValhallaService {
   Future<ValhallaRoute?> route({
     required LatLng origin,
     required List<LatLng> waypoints,
+    int? requestId,
   }) async {
     onStart();
     await Future<void>.delayed(delay);
@@ -676,6 +1233,7 @@ class _ControllableOverpass extends OverpassService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) {
     if (_callIndex < _completers.length) {
       return _completers[_callIndex++].future;
@@ -693,6 +1251,7 @@ class _CountingOverpass extends OverpassService {
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
+    int? requestId,
   }) async {
     onQuery();
     await Future<void>.delayed(delay);

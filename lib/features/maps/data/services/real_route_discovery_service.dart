@@ -66,12 +66,188 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   /// Map of in-flight discoveries to deduplicate concurrent identical calls.
   final Map<String, Future<List<SavedRoute>>> _inFlightDiscoveries = {};
 
+  void _cancelGeneration(int? reqId) {
+    if (reqId == null || reqId <= 0) return;
+    _overpass.cancelActiveRequests(reqId);
+    _valhalla.cancelActiveRequests(reqId);
+    _nominatim.cancelActiveRequests(reqId);
+  }
+
   /// Cancels all ongoing in-flight HTTP requests and increments the request generation.
   void cancelCurrentDiscovery() {
+    final activeId = _activeRequestId;
     _activeRequestId = ++_currentRequestId;
+    _cancelGeneration(activeId);
     _overpass.cancelActiveRequests();
     _valhalla.cancelActiveRequests();
     _nominatim.cancelActiveRequests();
+  }
+
+  /// Discovers routes progressively, yielding updated route sets as candidate batches resolve.
+  Stream<List<SavedRoute>> discoverRoutesProgressive({
+    required LatLng center,
+    double radiusKm = 10.0,
+    RouteFilter? filter,
+  }) async* {
+    final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
+
+    final cacheKey = RouteCache.buildAreaKey(
+      center: center,
+      radiusMeters: radiusMeters,
+      activityType: filter?.activityType,
+      filter: filter,
+    );
+
+    // 1. Check in-memory LRU cache
+    final cached = _cache.get<List<SavedRoute>>(cacheKey);
+    if (cached != null) {
+      yield cached;
+      return;
+    }
+
+    // 2. Mark new generation and cancel outdated network tasks
+    final previousRequestId = _activeRequestId;
+    final requestId = ++_currentRequestId;
+    _activeRequestId = requestId;
+    if (previousRequestId > 0) {
+      _cancelGeneration(previousRequestId);
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[RouteDiscovery][req-$requestId] Starting progressive discovery near '
+        '(${center.latitude.toStringAsFixed(2)}, ${center.longitude.toStringAsFixed(2)}) '
+        'radius: ${radiusMeters.round()}m',
+      );
+    }
+
+    try {
+      // 1. Query OSM Overpass for nearby mapped features
+      List<OverpassPlace> places = [];
+      Object? overpassFailure;
+
+      try {
+        places = await _overpass.findNearbyPlaces(
+          center: center,
+          radiusMeters: radiusMeters,
+          requestId: requestId,
+        );
+      } catch (e) {
+        overpassFailure = e;
+      }
+
+      if (requestId != _activeRequestId) return;
+
+      // Fall back to Nominatim place discovery if Overpass failed or found 0 places
+      if (places.isEmpty) {
+        try {
+          final nominatimPlaces = await _nominatim.findNearbyPlaces(
+            center: center,
+            radiusMeters: radiusMeters,
+            requestId: requestId,
+          );
+          if (nominatimPlaces.isNotEmpty) {
+            places = nominatimPlaces;
+            overpassFailure = null;
+          }
+        } catch (nomErr) {
+          if (nomErr is RouteRateLimitException) {
+            overpassFailure = nomErr;
+          }
+        }
+      }
+
+      if (requestId != _activeRequestId) return;
+
+      if (overpassFailure != null && places.isEmpty) {
+        _cancelGeneration(requestId);
+        if (overpassFailure is RouteDiscoveryException) {
+          throw overpassFailure;
+        }
+        throw OverpassServiceException(
+            'Failed to discover routes: $overpassFailure');
+      }
+
+      if (places.isEmpty) {
+        yield const [];
+        return;
+      }
+
+      // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
+      final candidates = _pickCandidateWaypoints(center, places);
+      if (candidates.isEmpty) {
+        yield const [];
+        return;
+      }
+
+      // 3. Concurrently route candidates with maximum concurrency of 2
+      final routes = <SavedRoute>[];
+      final seenOsmPairs = <String>{};
+
+      for (int i = 0; i < candidates.length && routes.length < _maxRoutes; i += 2) {
+        if (requestId != _activeRequestId) return;
+
+        final batch = candidates.skip(i).take(2).toList();
+        final batchFutures = batch.map((p) => _routeCandidate(
+              center: center,
+              primary: p,
+              pool: candidates,
+              seenOsmPairs: seenOsmPairs,
+              existingRoutes: routes,
+              requestId: requestId,
+            ));
+
+        List<_CandidateRouteResult?> batchResults;
+        try {
+          batchResults = await Future.wait(batchFutures);
+        } on RouteDiscoveryException {
+          _cancelGeneration(requestId);
+          // If some valid routes were already found in earlier batches, preserve them!
+          if (routes.isNotEmpty) {
+            final filtered = filter != null
+                ? routes.where((r) => filter.matches(r)).toList()
+                : routes;
+            yield List<SavedRoute>.unmodifiable(filtered);
+            return;
+          }
+          rethrow;
+        }
+
+        if (requestId != _activeRequestId) return;
+
+        bool newlyAdded = false;
+        for (final result in batchResults) {
+          if (result != null && routes.length < _maxRoutes) {
+            if (!_isGeometricDuplicate(result.routed, routes)) {
+              seenOsmPairs.add(result.pairKey);
+              routes.add(result.route);
+              newlyAdded = true;
+            }
+          }
+        }
+
+        // Progressive publication of route batches as soon as batch completes
+        if (newlyAdded) {
+          final filtered = filter != null
+              ? routes.where((r) => filter.matches(r)).toList()
+              : List<SavedRoute>.from(routes);
+          yield List<SavedRoute>.unmodifiable(filtered);
+        }
+      }
+
+      if (routes.isEmpty) {
+        yield const [];
+      } else {
+        final filtered = filter != null
+            ? routes.where((r) => filter.matches(r)).toList()
+            : routes;
+        if (filtered.isNotEmpty) {
+          _cache.set(cacheKey, filtered);
+        }
+      }
+    } finally {
+      _cancelGeneration(requestId);
+    }
   }
 
   @override
@@ -98,149 +274,44 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       return _inFlightDiscoveries[cacheKey]!;
     }
 
-    // 3. Mark new generation and cancel outdated network tasks
-    final requestId = ++_currentRequestId;
-    _activeRequestId = requestId;
+    final completer = Completer<List<SavedRoute>>();
+    _inFlightDiscoveries[cacheKey] = completer.future;
+    completer.future.ignore();
 
-    final discoveryFuture = _executeDiscoveryPipeline(
-      center: center,
-      radiusMeters: radiusMeters,
-      filter: filter,
-      requestId: requestId,
-      cacheKey: cacheKey,
-    );
-
-    _inFlightDiscoveries[cacheKey] = discoveryFuture;
+    final requestId = _currentRequestId + 1;
 
     try {
-      return await discoveryFuture.timeout(_overallTimeout, onTimeout: () {
-        if (requestId == _activeRequestId) {
-          throw const RouteNetworkException(
-              'Route discovery timed out. Please check connection and try again.');
-        }
-        return [];
-      });
+      final progressiveStream = discoverRoutesProgressive(
+        center: center,
+        radiusKm: radiusKm,
+        filter: filter,
+      );
+
+      List<SavedRoute> lastEmitted = const [];
+      await for (final routes in progressiveStream.timeout(
+        _overallTimeout,
+        onTimeout: (sink) {
+          _cancelGeneration(requestId);
+          sink.addError(const RouteNetworkException(
+              'Route discovery timed out. Please check connection and try again.'));
+        },
+      )) {
+        lastEmitted = routes;
+      }
+
+      if (!completer.isCompleted) {
+        completer.complete(lastEmitted);
+      }
+      return lastEmitted;
+    } catch (e, st) {
+      _cancelGeneration(requestId);
+      if (!completer.isCompleted) {
+        completer.completeError(e, st);
+      }
+      rethrow;
     } finally {
       _inFlightDiscoveries.remove(cacheKey);
     }
-  }
-
-  Future<List<SavedRoute>> _executeDiscoveryPipeline({
-    required LatLng center,
-    required double radiusMeters,
-    required RouteFilter? filter,
-    required int requestId,
-    required String cacheKey,
-  }) async {
-    if (kDebugMode) {
-      debugPrint(
-        '[RouteDiscovery][req-$requestId] Starting discovery near '
-        '(${center.latitude.toStringAsFixed(2)}, ${center.longitude.toStringAsFixed(2)}) '
-        'radius: ${radiusMeters.round()}m',
-      );
-    }
-
-    // 1. Query OSM Overpass for nearby mapped features (parks, trails, paths).
-    // Fall back to Nominatim feature discovery if Overpass fails.
-    List<OverpassPlace> places = [];
-    Object? overpassFailure;
-
-    try {
-      places = await _overpass.findNearbyPlaces(
-        center: center,
-        radiusMeters: radiusMeters,
-      );
-    } catch (e) {
-      overpassFailure = e;
-    }
-
-    // Check if this request was superseded while querying Overpass
-    if (requestId != _activeRequestId) {
-      if (kDebugMode) {
-        debugPrint('[RouteDiscovery][req-$requestId] Discarded (superseded by newer search).');
-      }
-      return [];
-    }
-
-    // Fall back to Nominatim real place discovery if Overpass failed or found 0 places
-    if (places.isEmpty) {
-      try {
-        final nominatimPlaces = await _nominatim.findNearbyPlaces(
-          center: center,
-          radiusMeters: radiusMeters,
-        );
-        if (nominatimPlaces.isNotEmpty) {
-          places = nominatimPlaces;
-          overpassFailure = null; // Successfully discovered genuine places via fallback
-        }
-      } catch (nomErr) {
-        // If Nominatim rate-limited, prioritize reporting rate limit
-        if (nomErr is RouteRateLimitException) {
-          overpassFailure = nomErr;
-        }
-      }
-    }
-
-    // Check if superseded while querying fallback
-    if (requestId != _activeRequestId) return [];
-
-    if (overpassFailure != null && places.isEmpty) {
-      if (overpassFailure is RouteDiscoveryException) {
-        throw overpassFailure;
-      }
-      throw OverpassServiceException(
-          'Failed to discover routes: $overpassFailure');
-    }
-
-    if (places.isEmpty) return [];
-
-    // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
-    final candidates = _pickCandidateWaypoints(center, places);
-    if (candidates.isEmpty) return [];
-
-    // 3. Concurrently route candidates with maximum concurrency of 2
-    final routes = <SavedRoute>[];
-    final seenOsmPairs = <String>{};
-
-    for (int i = 0; i < candidates.length && routes.length < _maxRoutes; i += 2) {
-      if (requestId != _activeRequestId) return [];
-
-      final batch = candidates.skip(i).take(2).toList();
-      final batchFutures = batch.map((p) => _routeCandidate(
-            center: center,
-            primary: p,
-            pool: candidates,
-            seenOsmPairs: seenOsmPairs,
-            existingRoutes: routes,
-            requestId: requestId,
-          ));
-
-      final batchResults = await Future.wait(batchFutures);
-
-      if (requestId != _activeRequestId) return [];
-
-      for (final result in batchResults) {
-        if (result != null && routes.length < _maxRoutes) {
-          // Double-check geometric overlap against newly added batch routes
-          if (!_isGeometricDuplicate(result.routed, routes)) {
-            seenOsmPairs.add(result.pairKey);
-            routes.add(result.route);
-          }
-        }
-      }
-    }
-
-    // 4. Apply user filters
-    final filtered = filter != null
-        ? routes.where((r) => filter.matches(r)).toList()
-        : routes;
-
-    // Cache the filtered results for this area
-    if (filtered.isNotEmpty) {
-      _cache.set(cacheKey, filtered);
-    }
-
-    return filtered;
   }
 
   /// Calculates a route for a single primary candidate waypoint.
@@ -267,6 +338,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         routed = await _valhalla.route(
           origin: center,
           waypoints: [primary.latLng, companion.latLng, center],
+          requestId: requestId,
         );
         if (routed != null) {
           actualSecondary = companion;
@@ -278,6 +350,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         routed = await _valhalla.route(
           origin: center,
           waypoints: [primary.latLng, center],
+          requestId: requestId,
         );
         actualSecondary = null;
       }
@@ -287,7 +360,8 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     } catch (e) {
       // Individual candidate failure: log and return null to let other candidates proceed
       if (kDebugMode) {
-        debugPrint('[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed: $e');
+        debugPrint(
+            '[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed: $e');
       }
       return null;
     }

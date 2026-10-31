@@ -607,4 +607,13 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
   }) {
     return onDiscover(center, filter);
   }
+
+  @override
+  Stream<List<SavedRoute>> discoverRoutesProgressive({
+    required LatLng center,
+    double radiusKm = 10.0,
+    RouteFilter? filter,
+  }) async* {
+    yield await onDiscover(center, filter);
+  }
 }
