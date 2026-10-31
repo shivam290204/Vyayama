@@ -1,6 +1,8 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
@@ -29,18 +31,159 @@ class _OutdoorRecordingScreenState
   void initState() {
     super.initState();
     _selectedType = widget.initialType ?? OutdoorActivityType.walking;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForCrashRecovery();
+    });
+  }
+
+  Future<void> _checkForCrashRecovery() async {
+    final service = ref.read(locationTrackingServiceProvider);
+    if (service.value.status == OutdoorActivityStatus.active ||
+        service.value.status == OutdoorActivityStatus.paused) {
+      return;
+    }
+
+    final recoveryService = ref.read(outdoorSessionRecoveryServiceProvider);
+    final checkpoint = await recoveryService.getActiveCheckpoint();
+    if (checkpoint == null || !mounted) return;
+
+    final durationMins = checkpoint.durationSeconds ~/ 60;
+    final durationSecs = checkpoint.durationSeconds % 60;
+    final timeStr =
+        '${durationMins.toString().padLeft(2, '0')}:${durationSecs.toString().padLeft(2, '0')}';
+    final distKm = (checkpoint.distanceMeters / 1000.0).toStringAsFixed(2);
+
+    final action = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unfinished Workout Detected'),
+        content: Text(
+          'Vyayama recovered an unfinished ${checkpoint.activityType.label} workout ($distKm km, $timeStr) from your last session.\n\nWould you like to resume, save, or discard it?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('discard'),
+            style: TextButton.styleFrom(foregroundColor: AppPalette.deepCoral),
+            child: const Text('Discard'),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop('save'),
+            child: const Text('Save Portion'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop('resume'),
+            style: FilledButton.styleFrom(backgroundColor: AppPalette.forestGreen),
+            child: const Text('Resume'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || action == null) return;
+
+    if (action == 'resume') {
+      await service.restoreSession(checkpoint);
+    } else if (action == 'save') {
+      final repo = ref.read(outdoorActivityRepositoryProvider);
+      final activity = OutdoorActivity(
+        id: checkpoint.activityId,
+        userId: 'local_user',
+        activityType: checkpoint.activityType,
+        startTime: checkpoint.startTime,
+        endTime: DateTime.now(),
+        durationSeconds: checkpoint.durationSeconds,
+        distanceMeters: checkpoint.distanceMeters,
+        averagePaceSecondsPerKm: GpsFilterService.forActivity(checkpoint.activityType)
+            .calculateAveragePaceSeconds(
+                checkpoint.distanceMeters, checkpoint.durationSeconds),
+        averageSpeedKmh: GpsFilterService.forActivity(checkpoint.activityType)
+            .calculateAverageSpeedKmh(
+                checkpoint.distanceMeters, checkpoint.durationSeconds),
+        points: checkpoint.points,
+        elevationGainMeters: checkpoint.elevationGainMeters,
+        caloriesBurned: (checkpoint.activityType.met *
+                70.0 *
+                (checkpoint.durationSeconds / 3600.0))
+            .round(),
+        status: OutdoorActivityStatus.completed,
+        title: '${checkpoint.activityType.label} Workout',
+        isSynced: false,
+      );
+      await repo.saveActivity(activity);
+      await recoveryService.clearCheckpoint();
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => OutdoorSummaryScreen(activity: activity),
+          ),
+        );
+      }
+    } else if (action == 'discard') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Confirm Discard'),
+          content: const Text(
+            'Are you sure you want to discard this recovered workout? All tracked data will be permanently removed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppPalette.deepCoral),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Discard Permanently'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await recoveryService.clearCheckpoint();
+      }
+    }
   }
 
   void _onStart() async {
     final service = ref.read(locationTrackingServiceProvider);
+
+    // Display plain-language rationale dialog before system prompt if not yet granted
+    final permCheck =
+        await service.checkPermissionDetailed(requestIfNeeded: false);
+    if (permCheck == LocationPermissionResult.denied && mounted) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Location Access for Outdoor Tracking'),
+          content: const Text(
+            'Vyayama needs access to your GPS location while recording to map your path, measure distance, and track pace and speed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppPalette.forestGreen),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     final started = await service.startRecording(_selectedType);
     if (!started && mounted) {
+      final errorMsg = service.value.initializationError ??
+          'Location permission or GPS is required to record outdoor activities.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Location permission is required to record outdoor activities. Please grant permission in Settings.',
-          ),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text(errorMsg),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -54,16 +197,16 @@ class _OutdoorRecordingScreenState
     ref.read(locationTrackingServiceProvider).resumeRecording();
   }
 
-  void _onFinish() {
+  void _onFinish() async {
     final service = ref.read(locationTrackingServiceProvider);
-    final activity = service.finishRecording();
+    final activity = await service.finishRecording();
     if (activity != null && mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => OutdoorSummaryScreen(activity: activity),
         ),
       );
-    } else {
+    } else if (mounted) {
       Navigator.of(context).pop();
     }
   }
@@ -259,11 +402,12 @@ class _OutdoorRecordingScreenState
                                         color: AppPalette.limeGreen,
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                            color: Colors.white, width: 3.0),
-                                        boxShadow: const [
+                                            color: AppPalette.offWhite, width: 3.0),
+                                        boxShadow: [
                                           BoxShadow(
-                                              color: Colors.black38,
-                                              blurRadius: 6),
+                                            color: AppPalette.darkSurface.withValues(alpha: 0.38),
+                                            blurRadius: 6,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -369,11 +513,25 @@ class _OutdoorRecordingScreenState
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          onPressed: _onStart,
-                          icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                          label: const Text(
-                            'START WORKOUT',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          onPressed: trackingState?.isInitializingGps == true
+                              ? null
+                              : _onStart,
+                          icon: trackingState?.isInitializingGps == true
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppPalette.limeGreen,
+                                  ),
+                                )
+                              : const Icon(Icons.play_arrow_rounded, size: 28),
+                          label: Text(
+                            trackingState?.isInitializingGps == true
+                                ? 'ACQUIRING GPS...'
+                                : 'START WORKOUT',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800),
                           ),
                         ),
                       )
@@ -387,7 +545,7 @@ class _OutdoorRecordingScreenState
                               icon: Icons.pause_rounded,
                               label: 'Pause',
                               backgroundColor: AppPalette.deepGreen,
-                              iconColor: Colors.white,
+                              iconColor: AppPalette.offWhite,
                               onPressed: _onPause,
                             )
                           else
@@ -496,7 +654,7 @@ class _ControlButton extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
+                  color: AppPalette.darkSurface.withValues(alpha: 0.18),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),

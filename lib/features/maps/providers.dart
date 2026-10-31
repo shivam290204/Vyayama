@@ -8,6 +8,7 @@ import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -31,10 +32,25 @@ final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {
   return RouteDiscoveryEngine();
 });
 
+final outdoorSessionRecoveryServiceProvider =
+    Provider<OutdoorSessionRecoveryService>((ref) {
+  return OutdoorSessionRecoveryService();
+});
+
+final activeOutdoorCheckpointProvider =
+    FutureProvider<OutdoorSessionCheckpoint?>((ref) async {
+  final recoveryService = ref.watch(outdoorSessionRecoveryServiceProvider);
+  return recoveryService.getActiveCheckpoint();
+});
+
 final locationTrackingServiceProvider =
     Provider<LocationTrackingService>((ref) {
+  final repository = ref.watch(outdoorActivityRepositoryProvider);
+  final recoveryService = ref.watch(outdoorSessionRecoveryServiceProvider);
   final service = LocationTrackingService(
     filterService: const GpsFilterService(),
+    repository: repository,
+    recoveryService: recoveryService,
   );
   ref.onDispose(service.dispose);
   return service;

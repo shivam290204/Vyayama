@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,6 +39,10 @@ class TrackingState {
     required this.currentSpeedKmh,
     required this.currentPosition,
     this.startTime,
+    this.activityId,
+    this.isInitializingGps = false,
+    this.initializationError,
+    this.fixesPerMinute = 0,
   });
 
   final OutdoorActivityStatus status;
@@ -48,6 +54,10 @@ class TrackingState {
   final double currentSpeedKmh;
   final LatLng? currentPosition;
   final DateTime? startTime;
+  final String? activityId;
+  final bool isInitializingGps;
+  final String? initializationError;
+  final int fixesPerMinute;
 
   double get distanceKm => distanceMeters / 1000.0;
 
@@ -82,6 +92,10 @@ class TrackingState {
     double? currentSpeedKmh,
     LatLng? currentPosition,
     DateTime? startTime,
+    String? activityId,
+    bool? isInitializingGps,
+    String? initializationError,
+    int? fixesPerMinute,
   }) =>
       TrackingState(
         status: status ?? this.status,
@@ -94,6 +108,10 @@ class TrackingState {
         currentSpeedKmh: currentSpeedKmh ?? this.currentSpeedKmh,
         currentPosition: currentPosition ?? this.currentPosition,
         startTime: startTime ?? this.startTime,
+        activityId: activityId ?? this.activityId,
+        isInitializingGps: isInitializingGps ?? this.isInitializingGps,
+        initializationError: initializationError ?? this.initializationError,
+        fixesPerMinute: fixesPerMinute ?? this.fixesPerMinute,
       );
 
   static const initial = TrackingState(
@@ -105,25 +123,66 @@ class TrackingState {
     currentPaceSecondsPerKm: 0,
     currentSpeedKmh: 0.0,
     currentPosition: null,
+    activityId: null,
+    isInitializingGps: false,
+    initializationError: null,
+    fixesPerMinute: 0,
   );
 }
 
-/// Service managing GPS subscription, pause/resume, and state changes.
+/// Service managing GPS subscription, pause/resume, checkpointing, and lifecycle.
 class LocationTrackingService extends ValueNotifier<TrackingState> {
-  LocationTrackingService({GpsFilterService? filterService})
-      : _filter = filterService ?? const GpsFilterService(),
+  LocationTrackingService({
+    GpsFilterService? filterService,
+    OutdoorActivityRepository? repository,
+    OutdoorSessionRecoveryService? recoveryService,
+  })  : _filter = filterService ?? const GpsFilterService(),
+        _repository = repository,
+        _recoveryService = recoveryService,
         super(TrackingState.initial);
 
-  final GpsFilterService _filter;
+  GpsFilterService _filter;
+  final OutdoorActivityRepository? _repository;
+  final OutdoorSessionRecoveryService? _recoveryService;
+
   StreamSubscription<Position>? _positionSub;
   Timer? _durationTimer;
+  Timer? _checkpointTimer;
   DateTime? _activityStartTime;
+  String? _currentActivityId;
+  OutdoorActivity? _lastFinishedActivity;
+
+  /// Flag set when resuming from pause so next coordinate establishes a fresh baseline
+  /// without accumulating false distance across the paused duration.
+  bool _hasResumedFromPause = false;
+
+  /// Counter of new points added since last checkpoint was persisted.
+  int _pointsSinceLastCheckpoint = 0;
+
+  /// Rolling timestamps of received GPS fixes for diagnostic fixes/min calculation.
+  final List<DateTime> _recentFixTimestamps = [];
 
   Future<LatLng?>? _inFlightPositionQuery;
   int _positionRequestGeneration = 0;
 
   /// Monotonically increasing counter incremented every time a new live position request is started.
   int get positionRequestGeneration => _positionRequestGeneration;
+
+  /// Returns the number of GPS fixes received in the last 60 seconds (rate diagnostic).
+  int get fixesPerMinute {
+    _pruneFixTimestamps();
+    return _recentFixTimestamps.length;
+  }
+
+  void _recordFixReceived() {
+    _recentFixTimestamps.add(DateTime.now());
+    _pruneFixTimestamps();
+  }
+
+  void _pruneFixTimestamps() {
+    final cutoff = DateTime.now().subtract(const Duration(seconds: 60));
+    _recentFixTimestamps.removeWhere((t) => t.isBefore(cutoff));
+  }
 
   @visibleForTesting
   Future<LocationPermissionResult> Function({bool requestIfNeeded})?
@@ -135,9 +194,11 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   @visibleForTesting
   Future<LatLng?> Function()? getLastKnownPositionOverride;
 
+  @visibleForTesting
+  Stream<Position> Function(LocationSettings settings)?
+      getPositionStreamOverride;
+
   /// Performs a detailed check of location services and permissions.
-  /// When [requestIfNeeded] is false, does not invoke the system permission prompt
-  /// so the app can display a plain-language explanation to the user first.
   Future<LocationPermissionResult> checkPermissionDetailed({
     bool requestIfNeeded = true,
   }) async {
@@ -199,7 +260,6 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   }
 
   /// Obtains current GPS position with single in-flight deduplication.
-  /// Concurrent callers will await the same in-flight query rather than spawning duplicate GPS requests.
   Future<LatLng?> getCurrentPosition() async {
     if (getCurrentPositionOverride != null) {
       return getCurrentPositionOverride!();
@@ -237,17 +297,18 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     }
   }
 
-  /// Starts live outdoor recording session.
-  Future<bool> startRecording(OutdoorActivityType type) async {
-    final hasPerm = await checkAndRequestPermission();
-    if (!hasPerm) return false;
-
+  /// Starts live outdoor recording session after verifying permissions, service status,
+  /// and acquiring an initial valid GPS satellite fix.
+  Future<bool> startRecording(
+    OutdoorActivityType type, {
+    Duration initialFixTimeout = const Duration(seconds: 12),
+  }) async {
     await stopTracking();
+    _lastFinishedActivity = null;
 
-    _activityStartTime = DateTime.now();
-
+    // 1. Indicate initialization state
     value = TrackingState(
-      status: OutdoorActivityStatus.active,
+      status: OutdoorActivityStatus.discarded,
       activityType: type,
       points: [],
       distanceMeters: 0.0,
@@ -255,10 +316,103 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
       currentPaceSecondsPerKm: 0,
       currentSpeedKmh: 0.0,
       currentPosition: null,
-      startTime: _activityStartTime,
+      isInitializingGps: true,
+      initializationError: null,
     );
 
-    // Start 1-second elapsed duration timer
+    // 2. Check location hardware & service enabled
+    final permResult = await checkPermissionDetailed(requestIfNeeded: true);
+    if (permResult == LocationPermissionResult.serviceDisabled) {
+      value = value.copyWith(
+        isInitializingGps: false,
+        initializationError:
+            'Location services are disabled on this device. Please turn on GPS in your device settings.',
+      );
+      return false;
+    }
+
+    if (permResult != LocationPermissionResult.granted) {
+      value = value.copyWith(
+        isInitializingGps: false,
+        initializationError:
+            'Location permission is required to track outdoor workouts.',
+      );
+      return false;
+    }
+
+    // 3. Acquire initial valid GPS fix before starting workout clock
+    LatLng? initialPosition;
+    try {
+      if (getCurrentPositionOverride != null) {
+        initialPosition = await getCurrentPositionOverride!();
+      } else {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: initialFixTimeout,
+          ),
+        );
+        initialPosition = LatLng(pos.latitude, pos.longitude);
+      }
+    } catch (_) {
+      initialPosition = null;
+    }
+
+    if (initialPosition == null) {
+      value = value.copyWith(
+        isInitializingGps: false,
+        initializationError:
+            'Unable to acquire GPS fix. Please ensure you are outdoors with a clear view of the sky and try again.',
+      );
+      return false;
+    }
+
+    // 4. Successful initialization: configure filter, assign stable activityId, and start recording
+    _currentActivityId = 'outdoor_${DateTime.now().millisecondsSinceEpoch}';
+    _activityStartTime = DateTime.now();
+    _filter = GpsFilterService.forActivity(type);
+    _hasResumedFromPause = false;
+    _pointsSinceLastCheckpoint = 0;
+
+    final initialPoint = GpsPoint(
+      latitude: initialPosition.latitude,
+      longitude: initialPosition.longitude,
+      timestamp: _activityStartTime!,
+      accuracy: 5.0,
+    );
+
+    value = TrackingState(
+      status: OutdoorActivityStatus.active,
+      activityType: type,
+      points: [initialPoint],
+      distanceMeters: 0.0,
+      durationSeconds: 0,
+      currentPaceSecondsPerKm: 0,
+      currentSpeedKmh: 0.0,
+      currentPosition: initialPosition,
+      startTime: _activityStartTime,
+      activityId: _currentActivityId,
+      isInitializingGps: false,
+      initializationError: null,
+      fixesPerMinute: 1,
+    );
+    _recordFixReceived();
+
+    // 5. Start active duration timer
+    _startDurationTimer();
+
+    // 6. Start periodic 30-second checkpoint timer for crash recovery
+    _startCheckpointTimer();
+    _saveCheckpoint();
+
+    // 7. Start live high-accuracy GPS position stream (exactly one subscription)
+    _startPositionStream(type);
+
+    return true;
+  }
+
+  void _startDurationTimer() {
+    _durationTimer?.cancel();
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (value.status == OutdoorActivityStatus.active) {
         final newDuration = value.durationSeconds + 1;
@@ -275,31 +429,79 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
           durationSeconds: newDuration,
           currentPaceSecondsPerKm: pace,
           currentSpeedKmh: speed,
+          fixesPerMinute: fixesPerMinute,
         );
       }
     });
+  }
 
-    // Start high-accuracy GPS stream with platform-specific foreground and background settings
-    final locationSettings = _buildLocationSettings();
+  void _startCheckpointTimer() {
+    _checkpointTimer?.cancel();
+    _checkpointTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (value.status == OutdoorActivityStatus.active ||
+          value.status == OutdoorActivityStatus.paused) {
+        _saveCheckpoint();
+      }
+    });
+  }
 
-    _positionSub = Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen(
+  Future<void> _saveCheckpoint() async {
+    if (_recoveryService == null || _currentActivityId == null) return;
+    final checkpoint = OutdoorSessionCheckpoint(
+      activityId: _currentActivityId!,
+      activityType: value.activityType,
+      status: value.status,
+      startTime: _activityStartTime ?? DateTime.now(),
+      durationSeconds: value.durationSeconds,
+      distanceMeters: value.distanceMeters,
+      points: List.unmodifiable(value.points),
+      elevationGainMeters: _filter.calculateElevationGain(value.points),
+      lastCheckpointTime: DateTime.now(),
+    );
+    await _recoveryService.saveCheckpoint(checkpoint);
+    _pointsSinceLastCheckpoint = 0;
+  }
+
+  void _startPositionStream(OutdoorActivityType type) {
+    _positionSub?.cancel();
+    final settings = _buildLocationSettings(type);
+
+    final Stream<Position> stream = getPositionStreamOverride != null
+        ? getPositionStreamOverride!(settings)
+        : Geolocator.getPositionStream(locationSettings: settings);
+
+    _positionSub = stream.listen(
       _onPositionUpdate,
       onError: (err) {
         debugPrint('[LocationTrackingService] GPS stream error: $err');
       },
     );
-
-    return true;
   }
 
-  LocationSettings _buildLocationSettings() {
+  /// Builds activity-tailored location settings for optimal battery and tracking precision.
+  LocationSettings _buildLocationSettings(OutdoorActivityType type) {
+    int distanceFilter;
+    Duration interval;
+    const accuracy = LocationAccuracy.bestForNavigation;
+
+    switch (type) {
+      case OutdoorActivityType.walking:
+      case OutdoorActivityType.hiking:
+        distanceFilter = 4; // 4 meters
+        interval = const Duration(seconds: 3);
+        break;
+      case OutdoorActivityType.running:
+        distanceFilter = 3; // 3 meters
+        interval = const Duration(seconds: 2);
+        break;
+    }
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       return AndroidSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 2,
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
         forceLocationManager: false,
-        intervalDuration: const Duration(seconds: 2),
+        intervalDuration: interval,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'Vyayama — Outdoor Tracking',
           notificationText: 'Tracking your outdoor activity with live GPS.',
@@ -310,20 +512,22 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     } else if (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
       return AppleSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 2,
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
         activityType: ActivityType.fitness,
         pauseLocationUpdatesAutomatically: false,
         showBackgroundLocationIndicator: true,
       );
     }
-    return const LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 2,
+    return LocationSettings(
+      accuracy: accuracy,
+      distanceFilter: distanceFilter,
     );
   }
 
   void _onPositionUpdate(Position pos) {
+    _recordFixReceived();
+
     if (value.status != OutdoorActivityStatus.active) return;
 
     final candidate = GpsPoint(
@@ -337,10 +541,15 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
 
     final lastPoint = value.points.isNotEmpty ? value.points.last : null;
 
-    if (_filter.isValidNextPoint(lastPoint, candidate)) {
+    // Check if resuming from pause: if so, establish new baseline without adding distance
+    final isResuming = _hasResumedFromPause;
+    if (_filter.isValidNextPoint(lastPoint, candidate, isResumingFromPause: isResuming)) {
+      _hasResumedFromPause = false;
+
       final updatedPoints = List<GpsPoint>.from(value.points)..add(candidate);
-      final addedDistance =
-          lastPoint != null ? _filter.distanceBetween(lastPoint, candidate) : 0.0;
+      final addedDistance = (lastPoint != null && !isResuming)
+          ? _filter.distanceBetween(lastPoint, candidate)
+          : 0.0;
       final newDistance = value.distanceMeters + addedDistance;
 
       final pace = _filter.calculateAveragePaceSeconds(
@@ -358,32 +567,103 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
         currentPosition: candidate.toLatLng(),
         currentPaceSecondsPerKm: pace,
         currentSpeedKmh: speed,
+        fixesPerMinute: fixesPerMinute,
       );
+
+      _pointsSinceLastCheckpoint++;
+      if (_pointsSinceLastCheckpoint >= 10) {
+        _saveCheckpoint();
+      }
     } else {
-      // Still update current visual position marker even if point was filtered for drift
+      // Update visual marker even if point was rejected for drift/jitter
       value = value.copyWith(
         currentPosition: candidate.toLatLng(),
+        fixesPerMinute: fixesPerMinute,
       );
     }
   }
 
-  /// Pauses the recording session.
+  /// Pauses the recording session: stops timer, sets pause status, and saves checkpoint.
   void pauseRecording() {
     if (value.status == OutdoorActivityStatus.active) {
+      _durationTimer?.cancel();
+      _durationTimer = null;
+      _hasResumedFromPause = true;
+
       value = value.copyWith(status: OutdoorActivityStatus.paused);
+      _saveCheckpoint();
     }
   }
 
-  /// Resumes the paused recording session.
+  /// Resumes the paused recording session: restarts timer and marks pause baseline.
   void resumeRecording() {
     if (value.status == OutdoorActivityStatus.paused) {
+      _hasResumedFromPause = true;
+      _startDurationTimer();
+
       value = value.copyWith(status: OutdoorActivityStatus.active);
+      _saveCheckpoint();
     }
   }
 
-  /// Finishes recording and compiles the completed OutdoorActivity.
-  OutdoorActivity? finishRecording({String? title, String userId = 'local_user'}) {
-    if (value.status == OutdoorActivityStatus.discarded) return null;
+  /// Restores an unfinished session from a crash-recovery checkpoint.
+  Future<bool> restoreSession(OutdoorSessionCheckpoint checkpoint) async {
+    await stopTracking();
+
+    _currentActivityId = checkpoint.activityId;
+    _activityStartTime = checkpoint.startTime;
+    _filter = GpsFilterService.forActivity(checkpoint.activityType);
+    _hasResumedFromPause = true;
+
+    final lastPos = checkpoint.points.isNotEmpty
+        ? checkpoint.points.last.toLatLng()
+        : null;
+
+    final pace = _filter.calculateAveragePaceSeconds(
+      checkpoint.distanceMeters,
+      checkpoint.durationSeconds,
+    );
+    final speed = _filter.calculateAverageSpeedKmh(
+      checkpoint.distanceMeters,
+      checkpoint.durationSeconds,
+    );
+
+    // Restores in paused state so user can choose when to restart moving
+    value = TrackingState(
+      status: OutdoorActivityStatus.paused,
+      activityType: checkpoint.activityType,
+      points: checkpoint.points,
+      distanceMeters: checkpoint.distanceMeters,
+      durationSeconds: checkpoint.durationSeconds,
+      currentPaceSecondsPerKm: pace,
+      currentSpeedKmh: speed,
+      currentPosition: lastPos,
+      startTime: checkpoint.startTime,
+      activityId: checkpoint.activityId,
+      isInitializingGps: false,
+      initializationError: null,
+    );
+
+    _startCheckpointTimer();
+    _startPositionStream(checkpoint.activityType);
+    return true;
+  }
+
+  /// Finishes recording, compiles the completed OutdoorActivity, and saves locally immediately.
+  /// Idempotent: repeated finish calls return the saved activity without duplicate entries.
+  Future<OutdoorActivity?> finishRecording({
+    String? title,
+    String userId = 'local_user',
+  }) async {
+    if (_lastFinishedActivity != null) {
+      return _lastFinishedActivity;
+    }
+
+    if (value.status == OutdoorActivityStatus.discarded &&
+        value.points.isEmpty &&
+        value.durationSeconds == 0) {
+      return null;
+    }
 
     final endTime = DateTime.now();
     final startTime = _activityStartTime ?? endTime;
@@ -391,8 +671,10 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     final durationSec = value.durationSeconds;
 
     final elevationGain = _filter.calculateElevationGain(value.points);
-    final avgPace = _filter.calculateAveragePaceSeconds(totalDistance, durationSec);
-    final avgSpeed = _filter.calculateAverageSpeedKmh(totalDistance, durationSec);
+    final avgPace =
+        _filter.calculateAveragePaceSeconds(totalDistance, durationSec);
+    final avgSpeed =
+        _filter.calculateAverageSpeedKmh(totalDistance, durationSec);
 
     // Estimate calories: MET * weightKg (default 70kg) * hours
     final met = value.activityType.met;
@@ -400,7 +682,7 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     final calories = (met * 70.0 * hours).round();
 
     final activity = OutdoorActivity(
-      id: 'outdoor_${DateTime.now().millisecondsSinceEpoch}',
+      id: _currentActivityId ?? 'outdoor_${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       activityType: value.activityType,
       startTime: startTime,
@@ -417,20 +699,38 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
       isSynced: false,
     );
 
-    stopTracking();
+    _lastFinishedActivity = activity;
+
+    // Immediately persist locally (offline-first guarantee)
+    if (_repository != null) {
+      await _repository.saveActivity(activity);
+    }
+
+    // Clean up crash recovery checkpoint
+    if (_recoveryService != null) {
+      await _recoveryService.clearCheckpoint();
+    }
+
+    await stopTracking();
+    value = value.copyWith(status: OutdoorActivityStatus.completed);
     return activity;
   }
 
-  /// Discards the current session without saving.
+  /// Discards the current session without saving and cleans the checkpoint.
   void discardRecording() {
     stopTracking();
+    _recoveryService?.clearCheckpoint();
+    _currentActivityId = null;
+    _lastFinishedActivity = null;
     value = TrackingState.initial;
   }
 
-  /// Shuts down stream and timers.
+  /// Shuts down stream, timers, and background tasks.
   Future<void> stopTracking() async {
     _durationTimer?.cancel();
     _durationTimer = null;
+    _checkpointTimer?.cancel();
+    _checkpointTimer = null;
     await _positionSub?.cancel();
     _positionSub = null;
   }
@@ -441,4 +741,3 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     super.dispose();
   }
 }
-

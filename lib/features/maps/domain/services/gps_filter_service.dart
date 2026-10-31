@@ -1,4 +1,5 @@
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Pure domain logic for GPS coordinate filtering, drift rejection,
@@ -8,9 +9,11 @@ class GpsFilterService {
     this.maxAllowedAccuracyMeters = 20.0,
     this.minDisplacementMeters = 3.0,
     this.maxRealisticSpeedMps = 12.5, // 45 km/h max for running/hiking
+    this.maxAcceptableGapSeconds = 120.0, // 2 minutes threshold for signal gaps
   });
 
   /// Maximum acceptable horizontal accuracy reported by GPS (in meters).
+  /// Preserved at 20.0m to avoid discarding valid outdoor fixes under light foliage.
   final double maxAllowedAccuracyMeters;
 
   /// Minimum distance required to accept a new coordinate, avoiding stationary jitter.
@@ -19,7 +22,31 @@ class GpsFilterService {
   /// Maximum realistic speed in meters/second to filter out GPS teleports/jumps.
   final double maxRealisticSpeedMps;
 
+  /// Maximum gap in seconds between consecutive fixes before flagging a signal outage.
+  final double maxAcceptableGapSeconds;
+
   static const Distance _distance = Distance();
+
+  /// Constructs a tuned filter profile appropriate for the specific outdoor activity.
+  factory GpsFilterService.forActivity(OutdoorActivityType type) {
+    switch (type) {
+      case OutdoorActivityType.walking:
+      case OutdoorActivityType.hiking:
+        return const GpsFilterService(
+          maxAllowedAccuracyMeters: 20.0,
+          minDisplacementMeters: 3.0,
+          maxRealisticSpeedMps: 8.5, // ~30 km/h
+          maxAcceptableGapSeconds: 120.0,
+        );
+      case OutdoorActivityType.running:
+        return const GpsFilterService(
+          maxAllowedAccuracyMeters: 20.0,
+          minDisplacementMeters: 3.0,
+          maxRealisticSpeedMps: 12.5, // 45 km/h
+          maxAcceptableGapSeconds: 90.0,
+        );
+    }
+  }
 
   /// Calculates geodesic distance between two points in meters using Haversine/Vincenty.
   double distanceBetween(GpsPoint a, GpsPoint b) {
@@ -30,28 +57,57 @@ class GpsFilterService {
     );
   }
 
+  /// Returns true if the time gap between [lastPoint] and [candidate] exceeds [maxAcceptableGapSeconds].
+  bool isSignalGap(GpsPoint lastPoint, GpsPoint candidate) {
+    final diffSec = candidate.timestamp.difference(lastPoint.timestamp).inMilliseconds / 1000.0;
+    return diffSec > maxAcceptableGapSeconds;
+  }
+
   /// Evaluates whether a new candidate GPS point is valid to append to the active track.
-  bool isValidNextPoint(GpsPoint? lastPoint, GpsPoint candidate) {
+  bool isValidNextPoint(
+    GpsPoint? lastPoint,
+    GpsPoint candidate, {
+    bool isResumingFromPause = false,
+  }) {
     // 1. Accuracy check: reject poor accuracy fixes (> 20 meters error)
     if (candidate.accuracy > maxAllowedAccuracyMeters && candidate.accuracy > 0) {
       return false;
     }
 
-    // If it's the very first point, it is valid as long as accuracy is acceptable
-    if (lastPoint == null) return true;
+    // 2. Reject non-finite coordinates or out-of-bounds latitude/longitude
+    if (!candidate.latitude.isFinite || !candidate.longitude.isFinite) {
+      return false;
+    }
+    if (candidate.latitude < -90.0 || candidate.latitude > 90.0) return false;
+    if (candidate.longitude < -180.0 || candidate.longitude > 180.0) return false;
 
-    // 2. Reject duplicate timestamps or backward time travel
+    // If it's the very first point or establishing a fresh baseline after pause,
+    // accept as long as accuracy is valid.
+    if (lastPoint == null || isResumingFromPause) return true;
+
+    // 3. Reject duplicate timestamps, backward time travel, or future timestamps
     final timeDiffMs =
         candidate.timestamp.difference(lastPoint.timestamp).inMilliseconds;
     if (timeDiffMs <= 0) return false;
 
-    // 3. Minimum displacement check: avoid stationary GPS jitter
+    final now = DateTime.now();
+    if (candidate.timestamp.isAfter(now.add(const Duration(minutes: 5)))) {
+      return false;
+    }
+
+    // 4. Reject exact duplicate coordinates (zero displacement)
+    if (candidate.latitude == lastPoint.latitude &&
+        candidate.longitude == lastPoint.longitude) {
+      return false;
+    }
+
+    // 5. Minimum displacement check: avoid stationary GPS jitter
     final displacement = distanceBetween(lastPoint, candidate);
     if (displacement < minDisplacementMeters) {
       return false;
     }
 
-    // 4. Maximum speed / jump check: reject unrealistic teleport jumps
+    // 6. Maximum speed / jump check: reject unrealistic teleport jumps
     final timeDiffSeconds = timeDiffMs / 1000.0;
     final calculatedSpeedMps = displacement / timeDiffSeconds;
     if (calculatedSpeedMps > maxRealisticSpeedMps) {
@@ -96,7 +152,7 @@ class GpsFilterService {
     if (distanceMeters <= 50 || durationSeconds <= 0) return 0;
     final distanceKm = distanceMeters / 1000.0;
     final paceSec = durationSeconds / distanceKm;
-    if (paceSec > 3600) return 0; // slower than 60 min/km -> 0
+    if (paceSec > 3600 || paceSec < 0) return 0; // slower than 60 min/km -> 0
     return paceSec.round();
   }
 
@@ -104,7 +160,7 @@ class GpsFilterService {
   double calculateAverageSpeedKmh(double distanceMeters, int durationSeconds) {
     if (distanceMeters <= 0 || durationSeconds <= 0) return 0.0;
     final hours = durationSeconds / 3600.0;
-    return (distanceMeters / 1000.0) / hours;
+    final speed = (distanceMeters / 1000.0) / hours;
+    return speed < 0 ? 0.0 : speed;
   }
 }
-
