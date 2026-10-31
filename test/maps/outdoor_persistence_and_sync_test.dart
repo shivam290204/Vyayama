@@ -781,6 +781,75 @@ void main() {
       final localTombstonesRoute = await storage.getTombstones();
       expect(localTombstonesRoute.firstWhere((t) => t.id == 'route_del_test').isRemoteSynced, isTrue);
     });
+
+    test('13b. Cross-device route deletion sync: Device A deletes route, Device B purges stale copy on reconnect and never resurrects', () async {
+      // Shared remote Supabase state (simulating cloud database)
+      final remoteTombstonesTable = <Map<String, dynamic>>[];
+      final remoteRoutesTable = <String, Map<String, dynamic>>{};
+
+      // 1. Both devices start knowing about route_cross_1
+      final r = makeSampleRoute(id: 'route_cross_1', userId: 'user_123');
+      remoteRoutesTable['route_cross_1'] = r.toJson()..['user_id'] = 'user_123';
+
+      // Device A storage & repo
+      final prefsA = await SharedPreferences.getInstance();
+      final storageA = LocalOutdoorStorage(preferences: prefsA);
+      final repoA = SavedRoutesRepository(storage: storageA);
+      repoA.currentUserIdOverride = () => 'user_123';
+      repoA.remoteUpsertTombstoneOverride = (table, payload) async {
+        remoteTombstonesTable.add(payload);
+      };
+      repoA.remoteDeleteOverride = (table, id, userId) async {
+        remoteRoutesTable.remove(id);
+      };
+
+      // Device B storage & repo (independent storage)
+      final tempDirB = Directory.systemTemp.createTempSync('device_b_route_test_');
+      final journalFileB = File('${tempDirB.path}/route_tombstones_b.json');
+      SharedPreferences.setMockInitialValues({});
+      final prefsB = await SharedPreferences.getInstance();
+      final storageB = LocalOutdoorStorage(
+        preferences: prefsB,
+        tombstoneJournal: OutdoorTombstoneJournal(storageFile: journalFileB),
+      );
+      final repoB = SavedRoutesRepository(storage: storageB);
+      repoB.currentUserIdOverride = () => 'user_123';
+
+      // Device B currently has a stale local copy of route_cross_1
+      await storageB.saveRoute(r);
+      expect((await repoB.getSavedRoutes(userId: 'user_123')), hasLength(1));
+
+      // 2. Device A goes offline, deletes route_cross_1 locally, then comes online and syncs
+      await repoA.deleteRoute('route_cross_1');
+      expect((await repoA.getSavedRoutes(userId: 'user_123')), isEmpty);
+      // Device A uploaded tombstone to Supabase and deleted remote row
+      expect(remoteTombstonesTable.any((t) => t['id'] == 'route_cross_1' && t['entity_type'] == 'route'), isTrue);
+      expect(remoteRoutesTable.containsKey('route_cross_1'), isFalse);
+
+      // 3. Device B reconnects to Supabase and triggers sync
+      repoB.remoteFetchTombstonesOverride = (table, userId) async {
+        return remoteTombstonesTable.where((t) => t['user_id'] == userId).toList();
+      };
+      final uploadedFromB = <String>[];
+      repoB.remoteUpsertOverride = (table, payload) async {
+        uploadedFromB.add(payload['id'] as String);
+      };
+
+      await repoB.syncPendingRoutes();
+
+      // Verification:
+      // a) Device B pulled remote tombstone and purged route_cross_1 from local storage!
+      expect((await repoB.getSavedRoutes(userId: 'user_123')), isEmpty);
+      // b) Device B did NOT upload/resurrect route_cross_1 to Supabase!
+      expect(uploadedFromB, isEmpty);
+      expect(remoteRoutesTable.containsKey('route_cross_1'), isFalse);
+
+      if (tempDirB.existsSync()) {
+        try {
+          tempDirB.deleteSync(recursive: true);
+        } catch (_) {}
+      }
+    });
   });
 
   // ===========================================================================
@@ -855,6 +924,87 @@ void main() {
       expect(remaining, hasLength(1));
       expect(remaining.first.id, equals('act_keep'));
     });
+
+    test('17b. Complete Sync Audit: Full guest-to-auth lifecycle, account switching, logout/login, and account deletion', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      final cloudActivities = <String, Map<String, dynamic>>{};
+      final cloudRoutes = <String, Map<String, dynamic>>{};
+
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        cloudActivities[payload['id'] as String] = payload;
+      };
+      routesRepo.remoteUpsertOverride = (table, payload) async {
+        cloudRoutes[payload['id'] as String] = payload;
+      };
+
+      // 1. Guest Mode: user records workout and saves route while not logged in
+      String? activeUserId; // null = guest
+      actRepo.currentUserIdOverride = () => activeUserId;
+      routesRepo.currentUserIdOverride = () => activeUserId;
+
+      await storage.saveActivity(makeSampleActivity(id: 'guest_run', userId: 'local_user', isSynced: false));
+      await storage.saveRoute(makeSampleRoute(id: 'guest_path', userId: 'local_user'));
+
+      // Guest sync attempts do nothing (offline-first, no leakage to cloud)
+      final guestActSyncCount = await actRepo.syncPendingActivities();
+      final guestRouteSyncCount = await routesRepo.syncPendingRoutes();
+      expect(guestActSyncCount, equals(0));
+      expect(guestRouteSyncCount, equals(0));
+      expect(cloudActivities, isEmpty);
+      expect(cloudRoutes, isEmpty);
+
+      // 2. Authentication: User signs in as Alice
+      activeUserId = 'alice_uuid';
+      await storage.adoptGuestData('alice_uuid');
+
+      // Verify guest data adopted by Alice
+      final aliceLocalActs = await storage.getAllActivities(userId: 'alice_uuid');
+      final aliceLocalRoutes = await storage.getSavedRoutes(userId: 'alice_uuid');
+      expect(aliceLocalActs, hasLength(1));
+      expect(aliceLocalActs.first.userId, equals('alice_uuid'));
+      expect(aliceLocalRoutes, hasLength(1));
+      expect(aliceLocalRoutes.first.userId, equals('alice_uuid'));
+
+      // Alice syncs to Supabase
+      final aliceActSyncCount = await actRepo.syncPendingActivities();
+      final aliceRouteSyncCount = await routesRepo.syncPendingRoutes();
+      expect(aliceActSyncCount, equals(1));
+      expect(aliceRouteSyncCount, equals(1));
+      expect(cloudActivities.containsKey('guest_run'), isTrue);
+      expect(cloudActivities['guest_run']!['user_id'], equals('alice_uuid'));
+      expect(cloudRoutes.containsKey('guest_path'), isTrue);
+      expect(cloudRoutes['guest_path']!['user_id'], equals('alice_uuid'));
+
+      // 3. Logout Alice & Account Switching: Bob signs in on the same device
+      activeUserId = 'bob_uuid';
+
+      // Bob cannot see Alice's records
+      final bobLocalActs = await storage.getAllActivities(userId: 'bob_uuid');
+      final bobLocalRoutes = await storage.getSavedRoutes(userId: 'bob_uuid');
+      expect(bobLocalActs, isEmpty);
+      expect(bobLocalRoutes, isEmpty);
+
+      // Bob syncs - must not touch or re-upload Alice's records
+      final bobActSyncCount = await actRepo.syncPendingActivities();
+      final bobRouteSyncCount = await routesRepo.syncPendingRoutes();
+      expect(bobActSyncCount, equals(0));
+      expect(bobRouteSyncCount, equals(0));
+
+      // 4. Bob logs out. Alice logs back in and deletes her account
+      activeUserId = 'alice_uuid';
+      await storage.clearUserData('alice_uuid');
+
+      // All of Alice's local records and tombstones are purged
+      final remainingActs = await storage.getAllActivities(userId: 'alice_uuid');
+      final remainingRoutes = await storage.getSavedRoutes(userId: 'alice_uuid');
+      final remainingTombstones = await storage.getTombstones(userId: 'alice_uuid');
+      expect(remainingActs, isEmpty);
+      expect(remainingRoutes, isEmpty);
+      expect(remainingTombstones, isEmpty);
+    });
   });
 
   // ===========================================================================
@@ -886,6 +1036,45 @@ void main() {
       expect(result.activitiesSynced, equals(1));
       expect(result.routesSynced, equals(1));
       expect(result.isAlreadyRunning, isFalse);
+    });
+
+    test('18b. Simultaneous sync requests safely coalesce without data corruption or duplicate uploads', () async {
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_simul', isSynced: false));
+
+      actRepo.currentUserIdOverride = () => 'user_123';
+      var uploadCount = 0;
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        uploadCount++;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      };
+
+      routesRepo.currentUserIdOverride = () => 'user_123';
+      routesRepo.remoteUpsertOverride = (table, payload) async {};
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+      );
+
+      // Launch two sync requests simultaneously
+      final future1 = coordinator.syncAll(trigger: 'trigger_1');
+      final future2 = coordinator.syncAll(trigger: 'trigger_2');
+
+      final results = await Future.wait([future1, future2]);
+
+      // future1 completes successfully and syncs the activity
+      expect(results[0].isSuccess, isTrue);
+      expect(results[0].activitiesSynced, equals(1));
+
+      // future2 was safely coalesced into the active cycle
+      expect(results[1].isAlreadyRunning, isTrue);
+
+      // Activity is uploaded exactly once without duplicate cloud rows
+      expect(uploadCount, equals(1));
     });
 
     test('19. ConnectivityMonitor debounces rapid network status transitions', () async {
