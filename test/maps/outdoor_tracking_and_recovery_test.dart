@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
 import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
@@ -9,6 +10,7 @@ import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -379,8 +381,24 @@ void main() {
   // 5. Crash Recovery & Checkpoint Tests
   // ---------------------------------------------------------------------------
   group('Crash Recovery & Checkpointing Tests', () {
+    late Directory tempDir;
+    late File tempFile;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('vyayama_recovery_test_');
+      tempFile = File('${tempDir.path}/${OutdoorSessionRecoveryService.checkpointFileName}');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        try {
+          tempDir.deleteSync(recursive: true);
+        } catch (_) {}
+      }
+    });
+
     test('19. Saves and retrieves valid session checkpoint from persistent storage', () async {
-      final recoveryService = OutdoorSessionRecoveryService();
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
       final now = DateTime.now();
 
       final checkpoint = OutdoorSessionCheckpoint(
@@ -398,6 +416,8 @@ void main() {
 
       await recoveryService.saveCheckpoint(checkpoint);
 
+      expect(tempFile.existsSync(), isTrue);
+
       final retrieved = await recoveryService.getActiveCheckpoint();
       expect(retrieved, isNotNull);
       expect(retrieved!.activityId, equals('outdoor_test_123'));
@@ -408,7 +428,7 @@ void main() {
     });
 
     test('20. Clears checkpoint on explicit clearCheckpoint', () async {
-      final recoveryService = OutdoorSessionRecoveryService();
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
       final checkpoint = OutdoorSessionCheckpoint(
         activityId: 'outdoor_test_456',
         activityType: OutdoorActivityType.running,
@@ -425,22 +445,115 @@ void main() {
 
       await recoveryService.clearCheckpoint();
       expect(await recoveryService.getActiveCheckpoint(), isNull);
+      expect(tempFile.existsSync(), isFalse);
     });
 
-    test('21. Discards corrupted or invalid checkpoint data safely', () async {
+    test('21. Discards corrupted or invalid checkpoint data safely (corrupt JSON and bad CRC-32)', () async {
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
+
+      // 1. Malformed JSON
+      await tempFile.writeAsString('{ malformed invalid json');
+      expect(await recoveryService.getActiveCheckpoint(), isNull);
+      expect(tempFile.existsSync(), isFalse); // Cleaned up corrupted file
+
+      // 2. Invalid CRC-32 checksum
+      final validPayload = jsonEncode({
+        'activity_id': 'bad_crc_id',
+        'activity_type': 'running',
+        'status': 'active',
+        'start_time': DateTime.now().toIso8601String(),
+        'duration_seconds': 100,
+        'distance_meters': 500.0,
+        'elevation_gain_meters': 0.0,
+        'points': [],
+        'last_checkpoint_time': DateTime.now().toIso8601String(),
+      });
+
+      final tamperedEnvelope = jsonEncode({
+        'schema_version': 1,
+        'crc32': 99999999, // Intentional mismatch
+        'payload': validPayload,
+      });
+
+      await tempFile.writeAsString(tamperedEnvelope);
+      expect(await recoveryService.getActiveCheckpoint(), isNull);
+      expect(tempFile.existsSync(), isFalse); // Corrupted file safely removed
+    });
+
+    test('21b. Rejects out-of-order stale async checkpoint writes', () async {
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
+      final now = DateTime.now();
+
+      final cp1 = OutdoorSessionCheckpoint(
+        activityId: 'order_test_1',
+        activityType: OutdoorActivityType.running,
+        status: OutdoorActivityStatus.active,
+        startTime: now,
+        durationSeconds: 10,
+        distanceMeters: 50.0,
+        points: [],
+        lastCheckpointTime: now,
+      );
+
+      final cp2 = OutdoorSessionCheckpoint(
+        activityId: 'order_test_1',
+        activityType: OutdoorActivityType.running,
+        status: OutdoorActivityStatus.active,
+        startTime: now,
+        durationSeconds: 20,
+        distanceMeters: 100.0,
+        points: [],
+        lastCheckpointTime: now.add(const Duration(seconds: 10)),
+      );
+
+      // Sequential writes in order
+      await recoveryService.saveCheckpoint(cp1);
+      await recoveryService.saveCheckpoint(cp2);
+
+      final active = await recoveryService.getActiveCheckpoint();
+      expect(active, isNotNull);
+      expect(active!.durationSeconds, equals(20));
+      expect(active.distanceMeters, equals(100.0));
+    });
+
+    test('21c. Migrates legacy SharedPreferences checkpoint to file-based storage seamlessly', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(OutdoorSessionRecoveryService.checkpointKey, '{ corrupt json');
+      final now = DateTime.now();
 
-      final recoveryService = OutdoorSessionRecoveryService(prefs: prefs);
-      final checkpoint = await recoveryService.getActiveCheckpoint();
+      final legacyCheckpoint = OutdoorSessionCheckpoint(
+        activityId: 'legacy_migrated_1',
+        activityType: OutdoorActivityType.hiking,
+        status: OutdoorActivityStatus.active,
+        startTime: now.subtract(const Duration(minutes: 5)),
+        durationSeconds: 300,
+        distanceMeters: 800.0,
+        points: [],
+        lastCheckpointTime: now,
+      );
 
-      expect(checkpoint, isNull);
-      // Cleaned up corrupt key
-      expect(prefs.containsKey(OutdoorSessionRecoveryService.checkpointKey), isFalse);
+      await prefs.setString(
+        OutdoorSessionRecoveryService.legacyCheckpointKey,
+        jsonEncode(legacyCheckpoint.toJson()),
+      );
+
+      final recoveryService = OutdoorSessionRecoveryService(
+        storageFile: tempFile,
+        legacyPrefs: prefs,
+      );
+
+      // Verify active checkpoint is recovered via migration
+      final recovered = await recoveryService.getActiveCheckpoint();
+      expect(recovered, isNotNull);
+      expect(recovered!.activityId, equals('legacy_migrated_1'));
+      expect(recovered.durationSeconds, equals(300));
+
+      // Verify written to file and cleared from SharedPreferences
+      expect(tempFile.existsSync(), isTrue);
+      expect(prefs.containsKey(OutdoorSessionRecoveryService.legacyCheckpointKey), isFalse);
     });
 
     test('22. restoreSession restores in-memory state in paused mode for safe resume', () async {
-      final recoveryService = OutdoorSessionRecoveryService();
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
       final service = LocationTrackingService(recoveryService: recoveryService);
 
       final now = DateTime.now();
@@ -500,25 +613,93 @@ void main() {
     test('24. GpsFilterService.forActivity configures activity-tailored parameters', () {
       final walkFilter = GpsFilterService.forActivity(OutdoorActivityType.walking);
       expect(walkFilter.maxAllowedAccuracyMeters, equals(20.0));
-      expect(walkFilter.maxRealisticSpeedMps, equals(8.5)); // ~30 km/h
+      expect(walkFilter.maxRealisticSpeedMps, equals(4.5)); // ~16.2 km/h
 
       final runFilter = GpsFilterService.forActivity(OutdoorActivityType.running);
       expect(runFilter.maxAllowedAccuracyMeters, equals(20.0));
-      expect(runFilter.maxRealisticSpeedMps, equals(12.5)); // ~45 km/h
+      expect(runFilter.maxRealisticSpeedMps, equals(8.5)); // ~30.6 km/h
 
       final hikeFilter = GpsFilterService.forActivity(OutdoorActivityType.hiking);
       expect(hikeFilter.maxAllowedAccuracyMeters, equals(20.0));
-      expect(hikeFilter.maxRealisticSpeedMps, equals(8.5));
+      expect(hikeFilter.maxRealisticSpeedMps, equals(4.5)); // ~16.2 km/h
+    });
+
+    test('24b. Walking speed boundary test accepts valid walking speeds and rejects motor vehicle speeds', () {
+      final walkFilter = GpsFilterService.forActivity(OutdoorActivityType.walking);
+      final t0 = DateTime(2026, 10, 31, 10, 0, 0);
+      final p0 = GpsPoint(latitude: 51.500000, longitude: -0.090000, timestamp: t0, accuracy: 5.0);
+
+      // 1. Valid brisk walking movement: 20 meters over 5.0 seconds = 4.0 m/s (~14.4 km/h) <= 4.5 m/s threshold
+      // ~0.000180 degrees latitude ~= 20.0 meters
+      final pBriskWalk = GpsPoint(
+        latitude: 51.500180,
+        longitude: -0.090000,
+        timestamp: t0.add(const Duration(seconds: 5)),
+        accuracy: 5.0,
+      );
+      expect(walkFilter.isValidNextPoint(p0, pBriskWalk), isTrue);
+
+      // 2. Motor vehicle speed during walking session: 35 meters over 5.0 seconds = 7.0 m/s (> 4.5 m/s threshold)
+      // ~0.000315 degrees latitude ~= 35.0 meters
+      final pVehicleSpeed = GpsPoint(
+        latitude: 51.500315,
+        longitude: -0.090000,
+        timestamp: t0.add(const Duration(seconds: 5)),
+        accuracy: 5.0,
+      );
+      expect(walkFilter.isValidNextPoint(p0, pVehicleSpeed), isFalse);
+    });
+
+    test('24c. Running speed boundary test accepts fast sprints and rejects vehicular transit', () {
+      final runFilter = GpsFilterService.forActivity(OutdoorActivityType.running);
+      final t0 = DateTime(2026, 10, 31, 10, 0, 0);
+      final p0 = GpsPoint(latitude: 51.500000, longitude: -0.090000, timestamp: t0, accuracy: 5.0);
+
+      // 1. Fast human sprint: 38 meters over 5.0 seconds = 7.6 m/s (~27.4 km/h) <= 8.5 m/s threshold
+      // ~0.000342 degrees latitude ~= 38.0 meters
+      final pFastSprint = GpsPoint(
+        latitude: 51.500342,
+        longitude: -0.090000,
+        timestamp: t0.add(const Duration(seconds: 5)),
+        accuracy: 5.0,
+      );
+      expect(runFilter.isValidNextPoint(p0, pFastSprint), isTrue);
+
+      // 2. Car transit or jump: 60 meters over 5.0 seconds = 12.0 m/s (~43.2 km/h) > 8.5 m/s threshold
+      // ~0.000540 degrees latitude ~= 60.0 meters
+      final pCarTransit = GpsPoint(
+        latitude: 51.500540,
+        longitude: -0.090000,
+        timestamp: t0.add(const Duration(seconds: 5)),
+        accuracy: 5.0,
+      );
+      expect(runFilter.isValidNextPoint(p0, pCarTransit), isFalse);
     });
   });
 
   // ---------------------------------------------------------------------------
-  // 7. Widget Crash Recovery Dialog Test
+  // 7. Crash Recovery Dialog & Startup Recovery Tests
   // ---------------------------------------------------------------------------
-  group('OutdoorRecordingScreen Crash Recovery Widget Tests', () {
-    testWidgets('25. Detects active checkpoint on open and prompts user with recovery dialog',
+  group('Outdoor Recovery Dialog & App Startup Tests', () {
+    late Directory tempDir;
+    late File tempFile;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('recovery_dialog_test_');
+      tempFile = File('${tempDir.path}/${OutdoorSessionRecoveryService.checkpointFileName}');
+    });
+
+    tearDown(() {
+      if (tempDir.existsSync()) {
+        try {
+          tempDir.deleteSync(recursive: true);
+        } catch (_) {}
+      }
+    });
+
+    testWidgets('25. Detects active checkpoint on open and prompts user with recovery dialog, Discard cleans up',
         (tester) async {
-      final prefs = await SharedPreferences.getInstance();
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
       final now = DateTime.now();
       final checkpoint = OutdoorSessionCheckpoint(
         activityId: 'outdoor_ui_recover',
@@ -530,12 +711,7 @@ void main() {
         points: const [],
         lastCheckpointTime: now,
       );
-      await prefs.setString(
-        OutdoorSessionRecoveryService.checkpointKey,
-        jsonEncode(checkpoint.toJson()),
-      );
-
-      final recoveryService = OutdoorSessionRecoveryService(prefs: prefs);
+      await recoveryService.saveCheckpoint(checkpoint);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -571,6 +747,209 @@ void main() {
       // Verify checkpoint was discarded from persistent storage
       final remaining = await recoveryService.getActiveCheckpoint();
       expect(remaining, isNull);
+    });
+
+    testWidgets('26. App launch recovery detection enforces hasPromptedThisLaunch to avoid duplicate prompts',
+        (tester) async {
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
+      final now = DateTime.now();
+      final checkpoint = OutdoorSessionCheckpoint(
+        activityId: 'launch_prompt_test',
+        activityType: OutdoorActivityType.walking,
+        status: OutdoorActivityStatus.active,
+        startTime: now.subtract(const Duration(minutes: 5)),
+        durationSeconds: 300,
+        distanceMeters: 750.0,
+        points: const [],
+        lastCheckpointTime: now,
+      );
+      await recoveryService.saveCheckpoint(checkpoint);
+
+      late BuildContext capturedContext;
+      late WidgetRef capturedRef;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            outdoorSessionRecoveryServiceProvider.overrideWithValue(recoveryService),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  capturedContext = context;
+                  capturedRef = ref;
+                  return const Text('Home Screen');
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(recoveryService.hasPromptedThisLaunch, isFalse);
+
+      // First call presents prompt
+      final prompt1 = OutdoorSessionRecoveryDialog.promptIfNeeded(capturedContext, capturedRef);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Unfinished Workout Detected'), findsOneWidget);
+      expect(recoveryService.hasPromptedThisLaunch, isTrue);
+
+      // Dismiss dialog
+      await tester.tap(find.text('Discard'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Confirm Discard'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await prompt1;
+
+      // Second call during same launch returns false immediately without displaying dialog
+      final secondResult = await OutdoorSessionRecoveryDialog.promptIfNeeded(capturedContext, capturedRef);
+      expect(secondResult, isFalse);
+      expect(find.text('Unfinished Workout Detected'), findsNothing);
+    });
+
+    testWidgets('27. Recovery dialog Resume action restores session in paused state',
+        (tester) async {
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
+      final trackingService = LocationTrackingService(recoveryService: recoveryService);
+
+      final now = DateTime.now();
+      final checkpoint = OutdoorSessionCheckpoint(
+        activityId: 'resume_test_77',
+        activityType: OutdoorActivityType.hiking,
+        status: OutdoorActivityStatus.active,
+        startTime: now.subtract(const Duration(minutes: 15)),
+        durationSeconds: 900,
+        distanceMeters: 2500.0,
+        points: [
+          GpsPoint(latitude: 51.505, longitude: -0.090, timestamp: now),
+        ],
+        lastCheckpointTime: now,
+      );
+      await recoveryService.saveCheckpoint(checkpoint);
+
+      var navigatedToRecord = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            outdoorSessionRecoveryServiceProvider.overrideWithValue(recoveryService),
+            locationTrackingServiceProvider.overrideWithValue(trackingService),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  return ElevatedButton(
+                    onPressed: () => OutdoorSessionRecoveryDialog.promptIfNeeded(
+                      context,
+                      ref,
+                      onNavigateToRecord: () {
+                        navigatedToRecord = true;
+                      },
+                    ),
+                    child: const Text('Check'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Check'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Unfinished Workout Detected'), findsOneWidget);
+
+      // Tap Resume
+      await tester.tap(find.text('Resume'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Session restored into memory in PAUSED state (clock not running, GPS not recording)
+      expect(trackingService.value.status, equals(OutdoorActivityStatus.paused));
+      expect(trackingService.value.activityId, equals('resume_test_77'));
+      expect(trackingService.value.durationSeconds, equals(900));
+      expect(trackingService.value.distanceMeters, equals(2500.0));
+      expect(trackingService.value.points, hasLength(1));
+      expect(navigatedToRecord, isTrue);
+
+      await trackingService.stopTracking();
+    });
+
+    testWidgets('28. Recovery dialog Save Portion action saves to repository and clears checkpoint',
+        (tester) async {
+      final recoveryService = OutdoorSessionRecoveryService(storageFile: tempFile);
+      final storage = const LocalOutdoorStorage();
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      final now = DateTime.now();
+      final checkpoint = OutdoorSessionCheckpoint(
+        activityId: 'save_portion_88',
+        activityType: OutdoorActivityType.walking,
+        status: OutdoorActivityStatus.active,
+        startTime: now.subtract(const Duration(minutes: 20)),
+        durationSeconds: 1200,
+        distanceMeters: 1800.0,
+        points: [
+          GpsPoint(latitude: 51.505, longitude: -0.090, timestamp: now),
+        ],
+        lastCheckpointTime: now,
+      );
+      await recoveryService.saveCheckpoint(checkpoint);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            outdoorSessionRecoveryServiceProvider.overrideWithValue(recoveryService),
+            outdoorActivityRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  return ElevatedButton(
+                    onPressed: () => OutdoorSessionRecoveryDialog.promptIfNeeded(context, ref),
+                    child: const Text('Check'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Check'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Unfinished Workout Detected'), findsOneWidget);
+
+      // Tap Save Portion
+      await tester.tap(find.text('Save Portion'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify checkpoint cleared from disk
+      final activeCheckpoint = await recoveryService.getActiveCheckpoint();
+      expect(activeCheckpoint, isNull);
+
+      // Verify activity was saved to OutdoorActivityRepository
+      final savedActivities = await repo.getAllActivities();
+      expect(savedActivities.where((a) => a.id == 'save_portion_88'), hasLength(1));
+      final saved = savedActivities.firstWhere((a) => a.id == 'save_portion_88');
+      expect(saved.distanceMeters, equals(1800.0));
+      expect(saved.durationSeconds, equals(1200));
+      expect(saved.status, equals(OutdoorActivityStatus.completed));
     });
   });
 }

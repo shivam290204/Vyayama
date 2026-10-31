@@ -4,6 +4,8 @@ import 'package:fitbuddy/features/maps/domain/services/location_tracking_service
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('LocationTrackingService State Machine Tests', () {
     test('1. TrackingState initial values are zeroed', () {
       final state = TrackingState.initial;

@@ -517,6 +517,7 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
         activityType: ActivityType.fitness,
         pauseLocationUpdatesAutomatically: false,
         showBackgroundLocationIndicator: true,
+        allowBackgroundLocationUpdates: true,
       );
     }
     return LocationSettings(
@@ -600,6 +601,12 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
     if (value.status == OutdoorActivityStatus.paused) {
       _hasResumedFromPause = true;
       _startDurationTimer();
+      if (_positionSub == null && _currentActivityId != null) {
+        _startPositionStream(value.activityType);
+      }
+      if (_checkpointTimer == null && _currentActivityId != null) {
+        _startCheckpointTimer();
+      }
 
       value = value.copyWith(status: OutdoorActivityStatus.active);
       _saveCheckpoint();
@@ -607,6 +614,10 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
   }
 
   /// Restores an unfinished session from a crash-recovery checkpoint.
+  ///
+  /// Restores in-memory state in [OutdoorActivityStatus.paused] mode.
+  /// GPS position streaming and clock timers remain stopped until user explicitly
+  /// calls [resumeRecording].
   Future<bool> restoreSession(OutdoorSessionCheckpoint checkpoint) async {
     await stopTracking();
 
@@ -644,8 +655,8 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
       initializationError: null,
     );
 
-    _startCheckpointTimer();
-    _startPositionStream(checkpoint.activityType);
+    // Keep duration timer, GPS position stream, and checkpoint timer STOPPED.
+    // They are only started when user explicitly calls resumeRecording().
     return true;
   }
 

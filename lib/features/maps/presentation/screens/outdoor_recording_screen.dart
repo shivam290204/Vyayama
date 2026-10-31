@@ -1,9 +1,9 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
-import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
@@ -37,113 +37,8 @@ class _OutdoorRecordingScreenState
   }
 
   Future<void> _checkForCrashRecovery() async {
-    final service = ref.read(locationTrackingServiceProvider);
-    if (service.value.status == OutdoorActivityStatus.active ||
-        service.value.status == OutdoorActivityStatus.paused) {
-      return;
-    }
-
-    final recoveryService = ref.read(outdoorSessionRecoveryServiceProvider);
-    final checkpoint = await recoveryService.getActiveCheckpoint();
-    if (checkpoint == null || !mounted) return;
-
-    final durationMins = checkpoint.durationSeconds ~/ 60;
-    final durationSecs = checkpoint.durationSeconds % 60;
-    final timeStr =
-        '${durationMins.toString().padLeft(2, '0')}:${durationSecs.toString().padLeft(2, '0')}';
-    final distKm = (checkpoint.distanceMeters / 1000.0).toStringAsFixed(2);
-
-    final action = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Unfinished Workout Detected'),
-        content: Text(
-          'Vyayama recovered an unfinished ${checkpoint.activityType.label} workout ($distKm km, $timeStr) from your last session.\n\nWould you like to resume, save, or discard it?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop('discard'),
-            style: TextButton.styleFrom(foregroundColor: AppPalette.deepCoral),
-            child: const Text('Discard'),
-          ),
-          OutlinedButton(
-            onPressed: () => Navigator.of(ctx).pop('save'),
-            child: const Text('Save Portion'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop('resume'),
-            style: FilledButton.styleFrom(backgroundColor: AppPalette.forestGreen),
-            child: const Text('Resume'),
-          ),
-        ],
-      ),
-    );
-
-    if (!mounted || action == null) return;
-
-    if (action == 'resume') {
-      await service.restoreSession(checkpoint);
-    } else if (action == 'save') {
-      final repo = ref.read(outdoorActivityRepositoryProvider);
-      final activity = OutdoorActivity(
-        id: checkpoint.activityId,
-        userId: 'local_user',
-        activityType: checkpoint.activityType,
-        startTime: checkpoint.startTime,
-        endTime: DateTime.now(),
-        durationSeconds: checkpoint.durationSeconds,
-        distanceMeters: checkpoint.distanceMeters,
-        averagePaceSecondsPerKm: GpsFilterService.forActivity(checkpoint.activityType)
-            .calculateAveragePaceSeconds(
-                checkpoint.distanceMeters, checkpoint.durationSeconds),
-        averageSpeedKmh: GpsFilterService.forActivity(checkpoint.activityType)
-            .calculateAverageSpeedKmh(
-                checkpoint.distanceMeters, checkpoint.durationSeconds),
-        points: checkpoint.points,
-        elevationGainMeters: checkpoint.elevationGainMeters,
-        caloriesBurned: (checkpoint.activityType.met *
-                70.0 *
-                (checkpoint.durationSeconds / 3600.0))
-            .round(),
-        status: OutdoorActivityStatus.completed,
-        title: '${checkpoint.activityType.label} Workout',
-        isSynced: false,
-      );
-      await repo.saveActivity(activity);
-      await recoveryService.clearCheckpoint();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => OutdoorSummaryScreen(activity: activity),
-          ),
-        );
-      }
-    } else if (action == 'discard') {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Confirm Discard'),
-          content: const Text(
-            'Are you sure you want to discard this recovered workout? All tracked data will be permanently removed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppPalette.deepCoral),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Discard Permanently'),
-            ),
-          ],
-        ),
-      );
-      if (confirm == true) {
-        await recoveryService.clearCheckpoint();
-      }
-    }
+    if (!mounted) return;
+    await OutdoorSessionRecoveryDialog.promptIfNeeded(context, ref);
   }
 
   void _onStart() async {
@@ -672,4 +567,3 @@ class _ControlButton extends StatelessWidget {
     );
   }
 }
-

@@ -13,6 +13,7 @@ import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/push_notification_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:fitbuddy/features/snaps/providers.dart';
@@ -66,6 +67,7 @@ class _AppShellState extends ConsumerState<AppShell>
       if (currentId.isNotEmpty && currentId != 'u-me') {
         BackgroundSyncService.instance.syncCurrentUserId(currentId);
       }
+      OutdoorSessionRecoveryDialog.promptIfNeeded(context, ref);
     });
   }
 

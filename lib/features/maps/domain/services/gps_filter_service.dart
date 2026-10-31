@@ -8,7 +8,7 @@ class GpsFilterService {
   const GpsFilterService({
     this.maxAllowedAccuracyMeters = 20.0,
     this.minDisplacementMeters = 3.0,
-    this.maxRealisticSpeedMps = 12.5, // 45 km/h max for running/hiking
+    this.maxRealisticSpeedMps = 8.5, // ~30.6 km/h max for running
     this.maxAcceptableGapSeconds = 120.0, // 2 minutes threshold for signal gaps
   });
 
@@ -28,6 +28,11 @@ class GpsFilterService {
   static const Distance _distance = Distance();
 
   /// Constructs a tuned filter profile appropriate for the specific outdoor activity.
+  ///
+  /// Walking & Hiking: 4.5 m/s (~16.2 km/h) accommodates fast power-walking, steep downhill
+  /// hiking, and realistic GPS noise over 3-second intervals while rejecting motor vehicles.
+  /// Running: 8.5 m/s (~30.6 km/h) accommodates fast sprinting and noise over 2-second intervals
+  /// while rejecting vehicle transit and unrealistic teleportation jumps.
   factory GpsFilterService.forActivity(OutdoorActivityType type) {
     switch (type) {
       case OutdoorActivityType.walking:
@@ -35,14 +40,14 @@ class GpsFilterService {
         return const GpsFilterService(
           maxAllowedAccuracyMeters: 20.0,
           minDisplacementMeters: 3.0,
-          maxRealisticSpeedMps: 8.5, // ~30 km/h
+          maxRealisticSpeedMps: 4.5, // ~16.2 km/h
           maxAcceptableGapSeconds: 120.0,
         );
       case OutdoorActivityType.running:
         return const GpsFilterService(
           maxAllowedAccuracyMeters: 20.0,
           minDisplacementMeters: 3.0,
-          maxRealisticSpeedMps: 12.5, // 45 km/h
+          maxRealisticSpeedMps: 8.5, // ~30.6 km/h
           maxAcceptableGapSeconds: 90.0,
         );
     }
