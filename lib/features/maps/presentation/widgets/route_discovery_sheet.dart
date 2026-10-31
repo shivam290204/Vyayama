@@ -161,17 +161,17 @@ class RouteDiscoverySheet extends ConsumerWidget {
 
               // Routes List, Error State, or Empty State
               routesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 36),
+                loading: () => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 36),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 12),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
                         Text(
                           'Discovering real mapped routes...',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: TextStyle(fontSize: 13, color: textMuted),
                         ),
                       ],
                     ),
@@ -472,21 +472,28 @@ class _RouteErrorView extends StatelessWidget {
       title = 'Rate Limit Reached';
       message = 'OpenStreetMap request limit reached. Please wait a moment and try again.';
     } else if (error is RouteNetworkException) {
-      icon = Icons.wifi_off_rounded;
-      title = 'No Internet Connection';
-      message = 'Unable to reach routing services. Please verify your connection.';
+      final isTimeout = error.toString().toLowerCase().contains('time');
+      if (isTimeout) {
+        icon = Icons.hourglass_bottom_rounded;
+        title = 'Connection Timed Out';
+        message = 'The request to external mapping services timed out. Tap below to retry.';
+      } else {
+        icon = Icons.wifi_off_rounded;
+        title = 'No Internet Connection';
+        message = 'Unable to reach routing services. Please verify your connection.';
+      }
     } else if (error is OverpassServiceException) {
       icon = Icons.cloud_off_rounded;
       title = 'Map Data Temporarily Unavailable';
-      message = 'OpenStreetMap data server is currently busy. Tap below to retry.';
+      message = 'OpenStreetMap data server is currently busy or experiencing an outage. Tap below to retry.';
     } else if (error is ValhallaRoutingException) {
       icon = Icons.alt_route_rounded;
       title = 'Routing Engine Unavailable';
       message = 'Pedestrian routing service is temporarily unavailable. Tap below to retry.';
     } else {
       icon = Icons.error_outline_rounded;
-      title = 'Route Discovery Error';
-      message = 'Could not load routes right now. Tap below to retry.';
+      title = 'Unexpected Server Response';
+      message = 'Could not load routes right now due to an unexpected response. Tap below to retry.';
     }
 
     return Padding(

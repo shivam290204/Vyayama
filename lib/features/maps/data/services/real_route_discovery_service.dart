@@ -1,37 +1,78 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
 import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
+import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Real route discovery using OpenStreetMap data (Overpass) and Valhalla routing.
+/// Helper result container for a candidate routing attempt.
+class _CandidateRouteResult {
+  const _CandidateRouteResult({
+    required this.route,
+    required this.routed,
+    required this.pairKey,
+  });
+
+  final SavedRoute route;
+  final ValhallaRoute routed;
+  final String pairKey;
+}
+
+/// Real route discovery using OpenStreetMap data (Overpass/Nominatim) and Valhalla routing.
 ///
-/// Discovers genuine nearby routes along mapped pedestrian paths and parks.
-/// Computes actual loops when multiple geographically diverse waypoints are found,
-/// and labels out-and-back routes honestly when retraced.
-///
-/// Propagates network and service errors so the UI can distinguish genuine empty
-/// results from connectivity or rate limit failures.
+/// Features:
+/// - Request-generation tracking and stale request rejection.
+/// - In-flight duplicate request joining.
+/// - Concurrency bounded to max 2 simultaneous Valhalla requests.
+/// - Overall 25-second discovery budget.
+/// - Graceful candidate failure isolation (one failed candidate does not discard others).
+/// - Early exit on service-wide rate limiting or outages.
+/// - LRU response caching with isolated geographic area keys.
+/// - Privacy-preserving diagnostic logging (no exact GPS coordinates).
 class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   RealRouteDiscoveryService({
     OverpassService? overpass,
     ValhallaService? valhalla,
     NominatimService? nominatim,
+    RouteCache? cache,
   })  : _overpass = overpass ?? OverpassService(),
         _valhalla = valhalla ?? ValhallaService(),
-        _nominatim = nominatim ?? NominatimService();
+        _nominatim = nominatim ?? NominatimService(),
+        _cache = cache ?? RouteCache.instance;
 
   final OverpassService _overpass;
   final ValhallaService _valhalla;
   final NominatimService _nominatim;
+  final RouteCache _cache;
 
   static const int _maxRoutes = 4;
+  static const int _maxCandidateWaypoints = 8;
   static const double _maxSearchRadiusMeters = 5000;
+  static const Duration _overallTimeout = Duration(seconds: 25);
+
+  /// Global request generation counter.
+  int _currentRequestId = 0;
+
+  /// Active request ID. Earlier searches with a lower ID are discarded.
+  int _activeRequestId = 0;
+
+  /// Map of in-flight discoveries to deduplicate concurrent identical calls.
+  final Map<String, Future<List<SavedRoute>>> _inFlightDiscoveries = {};
+
+  /// Cancels all ongoing in-flight HTTP requests and increments the request generation.
+  void cancelCurrentDiscovery() {
+    _activeRequestId = ++_currentRequestId;
+    _overpass.cancelActiveRequests();
+    _valhalla.cancelActiveRequests();
+    _nominatim.cancelActiveRequests();
+  }
 
   @override
   Future<List<SavedRoute>> discoverRoutes({
@@ -41,9 +82,66 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   }) async {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
+    final cacheKey = RouteCache.buildAreaKey(
+      center: center,
+      radiusMeters: radiusMeters,
+      activityType: filter?.activityType,
+      filter: filter,
+    );
+
+    // 1. Check in-memory LRU cache
+    final cached = _cache.get<List<SavedRoute>>(cacheKey);
+    if (cached != null) return cached;
+
+    // 2. Join in-flight identical request if active
+    if (_inFlightDiscoveries.containsKey(cacheKey)) {
+      return _inFlightDiscoveries[cacheKey]!;
+    }
+
+    // 3. Mark new generation and cancel outdated network tasks
+    final requestId = ++_currentRequestId;
+    _activeRequestId = requestId;
+
+    final discoveryFuture = _executeDiscoveryPipeline(
+      center: center,
+      radiusMeters: radiusMeters,
+      filter: filter,
+      requestId: requestId,
+      cacheKey: cacheKey,
+    );
+
+    _inFlightDiscoveries[cacheKey] = discoveryFuture;
+
+    try {
+      return await discoveryFuture.timeout(_overallTimeout, onTimeout: () {
+        if (requestId == _activeRequestId) {
+          throw const RouteNetworkException(
+              'Route discovery timed out. Please check connection and try again.');
+        }
+        return [];
+      });
+    } finally {
+      _inFlightDiscoveries.remove(cacheKey);
+    }
+  }
+
+  Future<List<SavedRoute>> _executeDiscoveryPipeline({
+    required LatLng center,
+    required double radiusMeters,
+    required RouteFilter? filter,
+    required int requestId,
+    required String cacheKey,
+  }) async {
+    if (kDebugMode) {
+      debugPrint(
+        '[RouteDiscovery][req-$requestId] Starting discovery near '
+        '(${center.latitude.toStringAsFixed(2)}, ${center.longitude.toStringAsFixed(2)}) '
+        'radius: ${radiusMeters.round()}m',
+      );
+    }
+
     // 1. Query OSM Overpass for nearby mapped features (parks, trails, paths).
-    // If Overpass is unavailable (server busy, 5xx, timeout, 429), fall back to
-    // real OpenStreetMap feature discovery via Nominatim before surfacing errors.
+    // Fall back to Nominatim feature discovery if Overpass fails.
     List<OverpassPlace> places = [];
     Object? overpassFailure;
 
@@ -56,6 +154,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       overpassFailure = e;
     }
 
+    // Check if this request was superseded while querying Overpass
+    if (requestId != _activeRequestId) {
+      if (kDebugMode) {
+        debugPrint('[RouteDiscovery][req-$requestId] Discarded (superseded by newer search).');
+      }
+      return [];
+    }
+
     // Fall back to Nominatim real place discovery if Overpass failed or found 0 places
     if (places.isEmpty) {
       try {
@@ -65,12 +171,18 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         );
         if (nominatimPlaces.isNotEmpty) {
           places = nominatimPlaces;
-          overpassFailure = null; // Discovered genuine OSM places via fallback!
+          overpassFailure = null; // Successfully discovered genuine places via fallback
         }
-      } catch (_) {
-        // Fallback failed as well
+      } catch (nomErr) {
+        // If Nominatim rate-limited, prioritize reporting rate limit
+        if (nomErr is RouteRateLimitException) {
+          overpassFailure = nomErr;
+        }
       }
     }
+
+    // Check if superseded while querying fallback
+    if (requestId != _activeRequestId) return [];
 
     if (overpassFailure != null && places.isEmpty) {
       if (overpassFailure is RouteDiscoveryException) {
@@ -82,79 +194,137 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     if (places.isEmpty) return [];
 
-    // 2. Select candidates prioritized by geographic diversity and feature type
+    // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
     final candidates = _pickCandidateWaypoints(center, places);
     if (candidates.isEmpty) return [];
 
-    // 3. Generate pedestrian routes (loops or honest out-and-backs)
+    // 3. Concurrently route candidates with maximum concurrency of 2
     final routes = <SavedRoute>[];
     final seenOsmPairs = <String>{};
 
-    for (int i = 0; i < candidates.length && routes.length < _maxRoutes; i++) {
-      final p1 = candidates[i];
+    for (int i = 0; i < candidates.length && routes.length < _maxRoutes; i += 2) {
+      if (requestId != _activeRequestId) return [];
 
-      // Try finding a complementary second waypoint to create a genuine loop
-      final p2 = _findLoopCompanion(center, p1, candidates);
+      final batch = candidates.skip(i).take(2).toList();
+      final batchFutures = batch.map((p) => _routeCandidate(
+            center: center,
+            primary: p,
+            pool: candidates,
+            seenOsmPairs: seenOsmPairs,
+            existingRoutes: routes,
+            requestId: requestId,
+          ));
 
-      ValhallaRoute? routed;
-      OverpassPlace? actualSecondary;
+      final batchResults = await Future.wait(batchFutures);
 
-      if (p2 != null) {
-        // Multi-point loop: Center -> Waypoint 1 -> Waypoint 2 -> Center
-        // Propagate network errors, HTTP 429 and server errors correctly.
-        routed = await _valhalla.route(
-          origin: center,
-          waypoints: [p1.latLng, p2.latLng, center],
-        );
-        if (routed != null) {
-          actualSecondary = p2;
+      if (requestId != _activeRequestId) return [];
+
+      for (final result in batchResults) {
+        if (result != null && routes.length < _maxRoutes) {
+          // Double-check geometric overlap against newly added batch routes
+          if (!_isGeometricDuplicate(result.routed, routes)) {
+            seenOsmPairs.add(result.pairKey);
+            routes.add(result.route);
+          }
         }
       }
-
-      // If multi-point was unroutable (null) or p2 was null, fall back to single waypoint
-      if (routed == null) {
-        routed = await _valhalla.route(
-          origin: center,
-          waypoints: [p1.latLng, center],
-        );
-        actualSecondary = null;
-      }
-
-      if (routed == null) continue;
-      if (routed.distanceMeters < 300) continue;
-      if (routed.points.length < 5) continue;
-
-      // Deduplicate using geometric similarity & spatial overlap
-      if (_isGeometricDuplicate(routed, routes)) continue;
-
-      // Check OSM element pairs (only using the actual waypoints used)
-      final pairKey = '${p1.id}:${actualSecondary?.id ?? 0}';
-      final reversePairKey = '${actualSecondary?.id ?? 0}:${p1.id}';
-      if (seenOsmPairs.contains(pairKey) ||
-          seenOsmPairs.contains(reversePairKey)) {
-        continue;
-      }
-
-      // Loop status strictly derived from returned route geometry
-      final isLoop = routed.isLoop;
-      final routeName = _determineRouteName(p1, actualSecondary, isLoop);
-
-      seenOsmPairs.add(pairKey);
-
-      final route = _buildRoute(
-        id: 'osm_${p1.id}_${actualSecondary?.id ?? 0}',
-        name: routeName,
-        primaryPlace: p1,
-        secondaryPlace: actualSecondary,
-        routed: routed,
-        isLoop: isLoop,
-      );
-      routes.add(route);
     }
 
     // 4. Apply user filters
-    if (filter == null) return routes;
-    return routes.where((r) => filter.matches(r)).toList();
+    final filtered = filter != null
+        ? routes.where((r) => filter.matches(r)).toList()
+        : routes;
+
+    // Cache the filtered results for this area
+    if (filtered.isNotEmpty) {
+      _cache.set(cacheKey, filtered);
+    }
+
+    return filtered;
+  }
+
+  /// Calculates a route for a single primary candidate waypoint.
+  ///
+  /// Isolates failures: returns null if unroutable, without failing the entire batch.
+  /// Rethrows service-wide failures (HTTP 429) to halt discovery early.
+  Future<_CandidateRouteResult?> _routeCandidate({
+    required LatLng center,
+    required OverpassPlace primary,
+    required List<OverpassPlace> pool,
+    required Set<String> seenOsmPairs,
+    required List<SavedRoute> existingRoutes,
+    required int requestId,
+  }) async {
+    if (requestId != _activeRequestId) return null;
+
+    final companion = _findLoopCompanion(center, primary, pool);
+    ValhallaRoute? routed;
+    OverpassPlace? actualSecondary;
+
+    try {
+      if (companion != null) {
+        // Multi-point loop: Center -> Waypoint 1 -> Waypoint 2 -> Center
+        routed = await _valhalla.route(
+          origin: center,
+          waypoints: [primary.latLng, companion.latLng, center],
+        );
+        if (routed != null) {
+          actualSecondary = companion;
+        }
+      }
+
+      // If multi-point was unroutable (null) or companion was null, try single waypoint
+      if (routed == null) {
+        routed = await _valhalla.route(
+          origin: center,
+          waypoints: [primary.latLng, center],
+        );
+        actualSecondary = null;
+      }
+    } on RouteDiscoveryException {
+      // Service-wide rate limit, outage, or network failure: rethrow so pipeline stops early
+      rethrow;
+    } catch (e) {
+      // Individual candidate failure: log and return null to let other candidates proceed
+      if (kDebugMode) {
+        debugPrint('[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed: $e');
+      }
+      return null;
+    }
+
+    if (routed == null) return null;
+    if (routed.distanceMeters < 300) return null;
+    if (routed.points.length < 2) return null;
+
+    // Check OSM element pairs
+    final pairKey = '${primary.id}:${actualSecondary?.id ?? 0}';
+    final reversePairKey = '${actualSecondary?.id ?? 0}:${primary.id}';
+    if (seenOsmPairs.contains(pairKey) || seenOsmPairs.contains(reversePairKey)) {
+      return null;
+    }
+
+    // Check geometric similarity against existing routes
+    if (_isGeometricDuplicate(routed, existingRoutes)) {
+      return null;
+    }
+
+    final isLoop = routed.isLoop;
+    final routeName = _determineRouteName(primary, actualSecondary, isLoop);
+
+    final route = _buildRoute(
+      id: 'osm_${primary.id}_${actualSecondary?.id ?? 0}',
+      name: routeName,
+      primaryPlace: primary,
+      secondaryPlace: actualSecondary,
+      routed: routed,
+      isLoop: isLoop,
+    );
+
+    return _CandidateRouteResult(
+      route: route,
+      routed: routed,
+      pairKey: pairKey,
+    );
   }
 
   /// Calculates centroid of a coordinate list.
@@ -219,7 +389,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     return false;
   }
 
-  /// Picks geographically distributed candidates around [center].
+  /// Picks geographically distributed candidates around [center] (bounded to max 8).
   List<OverpassPlace> _pickCandidateWaypoints(
     LatLng center,
     List<OverpassPlace> places,
@@ -237,7 +407,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     final ordered = [...namedPlaces, ...unnamedPlaces];
     final seen = <int>{};
-    return ordered.where((p) => seen.add(p.id)).take(12).toList();
+    return ordered.where((p) => seen.add(p.id)).take(_maxCandidateWaypoints).toList();
   }
 
   /// Finds a second waypoint [p2] separated by an angular divergence of 40°-160°
@@ -321,7 +491,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       difficulty: diffResult.difficulty,
       isDifficultyEstimated: diffResult.isEstimated,
       points: gpsPoints,
-      elevationGainMeters: null, // Elevation is omitted unless provided by elevation API
+      elevationGainMeters: null,
       surfaceType: surface,
       elevationProfile: RouteElevation.unknown,
       description: _buildDescription(primaryPlace, secondaryPlace, routed, isLoop),
@@ -359,7 +529,6 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     if (surface == 'fine_gravel' || surface == 'compacted') {
       return RouteSurface.mixed;
     }
-    // Do not invent surface information when untagged
     return RouteSurface.unknown;
   }
 
@@ -367,7 +536,6 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     double distanceMeters,
     OverpassPlace place,
   ) {
-    // 1. Check verified OSM SAC hiking scale
     final sacScale = place.tags['sac_scale']?.toLowerCase();
     if (sacScale != null) {
       if (sacScale == 'mountain_hiking' ||
@@ -381,7 +549,6 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       return (difficulty: RouteDifficulty.easy, isEstimated: false);
     }
 
-    // 2. Check explicit difficulty tag in OSM
     final osmDifficulty = place.tags['difficulty']?.toLowerCase();
     if (osmDifficulty != null) {
       if (osmDifficulty == 'hard' ||
@@ -397,7 +564,6 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
     }
 
-    // 3. Without explicit terrain classification, clearly mark as estimate
     final RouteDifficulty estimated;
     if (place.isHikingRoute) {
       estimated = distanceMeters > 5000

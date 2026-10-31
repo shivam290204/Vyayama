@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:latlong2/latlong.dart';
@@ -44,6 +45,13 @@ class OverpassPlace {
       tags['highway'] == 'track' ||
       tags['sac_scale'] != null;
 
+  /// Whether this feature is publicly accessible for walking/hiking.
+  bool get isAccessible {
+    final access = tags['access']?.toLowerCase();
+    final foot = tags['foot']?.toLowerCase();
+    return access != 'no' && access != 'private' && foot != 'no';
+  }
+
   /// Returns a truthful descriptive name derived from OSM tags without inventing fictional proper nouns.
   static String deriveDescriptiveName(Map<String, String> tags) {
     final rawName = tags['name'];
@@ -68,31 +76,42 @@ class OverpassPlace {
 /// Queries the OpenStreetMap Overpass API for real nearby geographic features.
 ///
 /// Uses public Overpass API mirrors with automatic failover.
-/// Implements TTL caching and request throttling to avoid excessive server requests.
+/// Implements LRU caching and request throttling to avoid excessive server requests.
 class OverpassService {
   OverpassService({
     RouteCache? cache,
     String? endpoint,
     List<String>? endpoints,
+    HttpClient Function()? clientFactory,
   })  : _cache = cache ?? RouteCache.instance,
         _endpoints = endpoints ??
             (endpoint != null
                 ? [endpoint]
-                : defaultEndpoints);
+                : MapApiConfig.overpassEndpoints),
+        _clientFactory = clientFactory ?? (() => HttpClient());
 
-  static const List<String> defaultEndpoints = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter',
-  ];
+  static List<String> get defaultEndpoints => MapApiConfig.overpassEndpoints;
 
   final List<String> _endpoints;
-  static const String _userAgent = 'Vyayama/1.0 (com.vyayama.fitbuddy)';
-  static const Duration _timeout = Duration(seconds: 6);
+  final HttpClient Function() _clientFactory;
+  static const Duration _timeout = Duration(seconds: 8);
   static const int _maxResults = 50;
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
+
+  /// Active client tracking for safe cancellation.
+  final Set<HttpClient> _activeClients = {};
+
+  /// Cancels all active in-flight network requests immediately.
+  void cancelActiveRequests() {
+    for (final client in _activeClients) {
+      try {
+        client.close(force: true);
+      } catch (_) {}
+    }
+    _activeClients.clear();
+  }
 
   /// Finds parks, recreation grounds, trails, footways, and hiking routes within [radiusMeters]
   /// of [center].
@@ -104,8 +123,17 @@ class OverpassService {
     required LatLng center,
     required double radiusMeters,
   }) async {
-    final cacheKey = 'overpass_${center.latitude.toStringAsFixed(3)}_'
-        '${center.longitude.toStringAsFixed(3)}_${radiusMeters.round()}';
+    // Validate coordinates
+    if (!center.latitude.isFinite ||
+        !center.longitude.isFinite ||
+        center.latitude < -90 ||
+        center.latitude > 90 ||
+        center.longitude < -180 ||
+        center.longitude > 180) {
+      return [];
+    }
+
+    final cacheKey = RouteCache.buildOverpassKey(center, radiusMeters);
 
     final cached = _cache.get<List<OverpassPlace>>(cacheKey);
     if (cached != null) return cached;
@@ -114,12 +142,12 @@ class OverpassService {
 
     final lat = center.latitude;
     final lon = center.longitude;
-    final r = radiusMeters.round();
+    final r = radiusMeters.clamp(300, 5000).round();
 
     // Overpass QL: index-accelerated exact tag matching for parks, recreation grounds,
     // walking paths, footways, pedestrian roads, tracks, and hiking relations.
     final query = '''
-[out:json][timeout:6];
+[out:json][timeout:8];
 (
   node["leisure"="park"](around:$r,$lat,$lon);
   way["leisure"="park"](around:$r,$lat,$lon);
@@ -143,7 +171,9 @@ out center $_maxResults;
     for (final ep in _endpoints) {
       HttpClient? client;
       try {
-        client = HttpClient()..userAgent = _userAgent;
+        client = _clientFactory()..userAgent = MapApiConfig.userAgent;
+        _activeClients.add(client);
+
         final uri = Uri.parse(ep);
         final request = await client.postUrl(uri).timeout(_timeout);
         request.headers.set(
@@ -183,7 +213,12 @@ out center $_maxResults;
         lastException =
             OverpassServiceException('Failed to process OpenStreetMap data: $e');
       } finally {
-        client?.close();
+        if (client != null) {
+          _activeClients.remove(client);
+          try {
+            client.close();
+          } catch (_) {}
+        }
       }
     }
 
@@ -222,15 +257,22 @@ out center $_maxResults;
         }
 
         if (lat == null || lon == null) continue;
+        if (!lat.isFinite || !lon.isFinite) continue;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
-        results.add(OverpassPlace(
+        final place = OverpassPlace(
           id: (map['id'] as num).toInt(),
           name: name,
           lat: lat,
           lon: lon,
           tags: tags,
           isNamed: isNamed,
-        ));
+        );
+
+        // Filter out non-accessible ways (e.g. access=no, access=private, foot=no)
+        if (!place.isAccessible) continue;
+
+        results.add(place);
       }
 
       return results;
@@ -243,7 +285,7 @@ out center $_maxResults;
     final now = DateTime.now();
     if (_lastRequestTime != null) {
       final elapsed = now.difference(_lastRequestTime!);
-      const minInterval = Duration(seconds: 4);
+      const minInterval = Duration(milliseconds: 1500);
       if (elapsed < minInterval) {
         await Future<void>.delayed(minInterval - elapsed);
       }

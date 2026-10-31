@@ -42,6 +42,11 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
     );
   }
 
+  /// Cancels in-flight discovery requests and invalidates active generation.
+  void cancelCurrentDiscovery() {
+    _realService.cancelCurrentDiscovery();
+  }
+
   // ---------------------------------------------------------------------------
   // TEST FIXTURES ONLY — not called from production discoverRoutes()
   // ---------------------------------------------------------------------------

@@ -210,6 +210,10 @@ final discoveredRoutesProvider = FutureProvider<List<SavedRoute>>((ref) async {
   final center = ref.watch(effectiveMapCenterProvider);
   final filter = ref.watch(activeRouteFilterProvider);
 
+  ref.onDispose(() {
+    engine.cancelCurrentDiscovery();
+  });
+
   // If no legitimate location is known yet, return empty list without querying the network.
   if (center == null) {
     return const [];

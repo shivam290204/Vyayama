@@ -1,9 +1,11 @@
-// lib/features/maps/data/services/nominatim_service.dart
-
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
+import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
+import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:latlong2/latlong.dart';
 
 /// A geocoded place result from Nominatim.
@@ -32,55 +34,122 @@ class NominatimResult {
   }
 }
 
-/// Performs geographic place search using the public Nominatim API.
+/// Performs geographic place search using the OpenStreetMap Nominatim API.
 ///
-/// Rate limited to one request per second per the OSM Nominatim usage policy.
-/// Caches results in memory per query string.
+/// Complies with OpenStreetMap Nominatim Usage Policy:
+/// - Max 1 request per second strictly enforced.
+/// - Legitimate User-Agent header identifying Vyayama.
+/// - In-memory LRU caching of results to prevent repeated queries.
+/// - In-flight request joining to avoid concurrent duplicate requests.
+/// - Intelligent rate-limit backoff on HTTP 429.
 class NominatimService {
-  NominatimService();
+  NominatimService({
+    RouteCache? cache,
+    String? baseUrl,
+    HttpClient Function()? clientFactory,
+  })  : _cache = cache ?? RouteCache.instance,
+        _baseUrl = baseUrl ?? MapApiConfig.nominatimUrl,
+        _clientFactory = clientFactory ?? (() => HttpClient());
 
-  static const String _endpoint = 'https://nominatim.openstreetmap.org/search';
-  static const String _userAgent = 'Vyayama/1.0 (com.vyayama.fitbuddy)';
-  static const Duration _timeout = Duration(seconds: 10);
+  final RouteCache _cache;
+  final String _baseUrl;
+  final HttpClient Function() _clientFactory;
 
-  final Map<String, List<NominatimResult>> _cache = {};
+  static const Duration _timeout = Duration(seconds: 8);
+
   DateTime? _lastRequestTime;
+  DateTime? _rateLimitedUntil;
+
+  /// Active client tracking for cancellation.
+  final Set<HttpClient> _activeClients = {};
+
+  /// In-flight request deduplication map.
+  final Map<String, Future<List<NominatimResult>>> _inFlightSearches = {};
+  final Map<String, Future<List<OverpassPlace>>> _inFlightNearby = {};
+
+  /// Cancels any active in-flight network requests immediately.
+  void cancelActiveRequests() {
+    for (final client in _activeClients) {
+      try {
+        client.close(force: true);
+      } catch (_) {}
+    }
+    _activeClients.clear();
+  }
 
   /// Searches for [query] and returns up to 5 results.
+  ///
   /// Returns empty list on error or no results.
-  /// Returns cached result if same query was searched before.
+  /// Joins duplicate in-flight requests and returns cached results when available.
   Future<List<NominatimResult>> search(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
 
-    if (_cache.containsKey(trimmed)) return _cache[trimmed]!;
+    final cacheKey = RouteCache.buildNominatimSearchKey(trimmed);
+    final cached = _cache.get<List<NominatimResult>>(cacheKey);
+    if (cached != null) return cached;
 
-    await _throttle();
+    // Join duplicate in-flight requests
+    if (_inFlightSearches.containsKey(cacheKey)) {
+      return _inFlightSearches[cacheKey]!;
+    }
+
+    final future = _executeSearch(trimmed, cacheKey);
+    _inFlightSearches[cacheKey] = future;
 
     try {
-      final uri = Uri.parse(_endpoint).replace(queryParameters: {
-        'q': trimmed,
+      return await future;
+    } finally {
+      _inFlightSearches.remove(cacheKey);
+    }
+  }
+
+  Future<List<NominatimResult>> _executeSearch(
+    String query,
+    String cacheKey,
+  ) async {
+    _checkRateLimit();
+    await _throttle();
+
+    HttpClient? client;
+    try {
+      final uri = Uri.parse('$_baseUrl/search').replace(queryParameters: {
+        'q': query,
         'format': 'json',
         'limit': '5',
         'addressdetails': '0',
       });
 
-      final client = HttpClient();
-      client.userAgent = _userAgent;
+      client = _clientFactory()..userAgent = MapApiConfig.userAgent;
+      _activeClients.add(client);
+
       final request = await client.getUrl(uri).timeout(_timeout);
       request.headers.set('Accept-Language', 'en');
       final response = await request.close().timeout(_timeout);
 
-      final body = await response.transform(utf8.decoder).join();
-      client.close();
+      if (response.statusCode == 429) {
+        _handleRateLimit();
+        throw const RouteRateLimitException(
+            'Nominatim rate limit reached. Please wait a moment.');
+      }
 
       if (response.statusCode != 200) return [];
 
+      final body = await response.transform(utf8.decoder).join();
       final results = _parse(body);
-      _cache[trimmed] = results;
+      _cache.set(cacheKey, results);
       return results;
+    } on RouteRateLimitException {
+      rethrow;
     } catch (_) {
       return [];
+    } finally {
+      if (client != null) {
+        _activeClients.remove(client);
+        try {
+          client.close();
+        } catch (_) {}
+      }
     }
   }
 
@@ -101,30 +170,46 @@ class NominatimService {
     }
   }
 
-  Future<void> _throttle() async {
-    final now = DateTime.now();
-    if (_lastRequestTime != null) {
-      final elapsed = now.difference(_lastRequestTime!);
-      const minInterval = Duration(seconds: 1);
-      if (elapsed < minInterval) {
-        await Future<void>.delayed(minInterval - elapsed);
-      }
-    }
-    _lastRequestTime = DateTime.now();
-  }
-
   /// Discovers real OpenStreetMap places (parks, gardens, recreation grounds)
   /// within [radiusMeters] around [center].
+  ///
+  /// Limits category requests to at most 2 per discovery to avoid abuse.
+  /// Joins in-flight identical requests and respects rate limiting.
   Future<List<OverpassPlace>> findNearbyPlaces({
     required LatLng center,
     required double radiusMeters,
   }) async {
-    // Lat/lon bounding box calculation:
-    // 1 deg latitude ≈ 111,000 meters
-    final latDelta = radiusMeters / 111000.0;
+    final cacheKey = RouteCache.buildNominatimNearbyKey(center, radiusMeters);
+    final cached = _cache.get<List<OverpassPlace>>(cacheKey);
+    if (cached != null) return cached;
+
+    if (_inFlightNearby.containsKey(cacheKey)) {
+      return _inFlightNearby[cacheKey]!;
+    }
+
+    final future = _executeFindNearby(center, radiusMeters, cacheKey);
+    _inFlightNearby[cacheKey] = future;
+
+    try {
+      return await future;
+    } finally {
+      _inFlightNearby.remove(cacheKey);
+    }
+  }
+
+  Future<List<OverpassPlace>> _executeFindNearby(
+    LatLng center,
+    double radiusMeters,
+    String cacheKey,
+  ) async {
+    _checkRateLimit();
+
+    // Lat/lon bounding box calculation: 1 deg lat ≈ 111,000 meters
+    final clampedRadius = radiusMeters.clamp(300, 5000);
+    final latDelta = clampedRadius / 111000.0;
     final cosLat = math.cos(center.latitudeInRad);
     final lonDelta =
-        radiusMeters / (111000.0 * (cosLat.abs() > 0.01 ? cosLat.abs() : 1.0));
+        clampedRadius / (111000.0 * (cosLat.abs() > 0.01 ? cosLat.abs() : 1.0));
 
     final minLon = center.longitude - lonDelta;
     final maxLon = center.longitude + lonDelta;
@@ -133,47 +218,66 @@ class NominatimService {
     final viewbox =
         '${minLon.toStringAsFixed(5)},${maxLat.toStringAsFixed(5)},${maxLon.toStringAsFixed(5)},${minLat.toStringAsFixed(5)}';
 
-    await _throttle();
-
-    final categories = ['park', 'garden', 'recreation_ground'];
+    // Prioritize 'park', only query 'recreation_ground' if needed
+    final categories = ['park', 'recreation_ground'];
     final allPlaces = <OverpassPlace>[];
     final seenIds = <int>{};
 
-    HttpClient? client;
-    try {
-      client = HttpClient()..userAgent = _userAgent;
+    for (int i = 0; i < categories.length; i++) {
+      final category = categories[i];
+      await _throttle();
 
-      for (final query in categories) {
-        final uri = Uri.parse(_endpoint).replace(queryParameters: {
-          'q': query,
+      HttpClient? client;
+      try {
+        final uri = Uri.parse('$_baseUrl/search').replace(queryParameters: {
+          'q': category,
           'format': 'json',
           'bounded': '1',
           'viewbox': viewbox,
-          'limit': '10',
+          'limit': '8',
           'addressdetails': '1',
         });
+
+        client = _clientFactory()..userAgent = MapApiConfig.userAgent;
+        _activeClients.add(client);
 
         final request = await client.getUrl(uri).timeout(_timeout);
         request.headers.set('Accept-Language', 'en');
         final response = await request.close().timeout(_timeout);
 
+        if (response.statusCode == 429) {
+          _handleRateLimit();
+          break;
+        }
+
         if (response.statusCode != 200) continue;
 
         final body = await response.transform(utf8.decoder).join();
-        final places = parseNominatimPlaces(body, query);
+        final places = parseNominatimPlaces(body, category);
         for (final p in places) {
           if (seenIds.add(p.id)) {
             allPlaces.add(p);
           }
         }
-        if (allPlaces.length >= 8) break;
+
+        // If primary category yielded sufficient candidates, stop without extra requests
+        if (allPlaces.length >= 4) break;
+      } catch (_) {
+        // Continue to next category or return whatever found so far
+      } finally {
+        if (client != null) {
+          _activeClients.remove(client);
+          try {
+            client.close();
+          } catch (_) {}
+        }
       }
-      return allPlaces;
-    } catch (_) {
-      return allPlaces;
-    } finally {
-      client?.close();
     }
+
+    if (allPlaces.isNotEmpty) {
+      _cache.set(cacheKey, allPlaces);
+    }
+    return allPlaces;
   }
 
   /// Parses Nominatim search JSON response into a list of [OverpassPlace] objects.
@@ -193,6 +297,8 @@ class NominatimService {
         final lat = double.tryParse(latStr);
         final lon = double.tryParse(lonStr);
         if (lat == null || lon == null) continue;
+        if (!lat.isFinite || !lon.isFinite) continue;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
         final rawName = m['name'] as String? ?? '';
         final displayName = m['display_name'] as String? ?? '';
@@ -230,5 +336,32 @@ class NominatimService {
     } catch (_) {
       return [];
     }
+  }
+
+  void _checkRateLimit() {
+    if (_rateLimitedUntil != null) {
+      if (DateTime.now().isBefore(_rateLimitedUntil!)) {
+        throw const RouteRateLimitException(
+            'Nominatim rate limit cooldown active. Please wait a moment.');
+      } else {
+        _rateLimitedUntil = null;
+      }
+    }
+  }
+
+  void _handleRateLimit() {
+    _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
+  }
+
+  Future<void> _throttle() async {
+    final now = DateTime.now();
+    if (_lastRequestTime != null) {
+      final elapsed = now.difference(_lastRequestTime!);
+      const minInterval = Duration(milliseconds: 1050); // > 1 sec per OSM policy
+      if (elapsed < minInterval) {
+        await Future<void>.delayed(minInterval - elapsed);
+      }
+    }
+    _lastRequestTime = DateTime.now();
   }
 }
