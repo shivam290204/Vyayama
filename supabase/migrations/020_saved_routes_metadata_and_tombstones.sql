@@ -1,5 +1,5 @@
 -- 020: Saved Routes Metadata Alignment & Tombstone Infrastructure
--- PROPOSED ADDITIVE MIGRATION for Vyayama Maps (Phase 5)
+-- PROPOSED ADDITIVE MIGRATION for Vyayama Maps (Phase 5 / Security Hardening)
 -- IMPORTANT: Do not apply to live Supabase project without administrative sign-off.
 --
 -- Purpose:
@@ -8,9 +8,10 @@
 -- 2. Relaxes 'surface_type' and 'elevation_profile' check constraints to permit
 --    'unknown' fallback without failing inserts when OSM tag data is incomplete.
 -- 3. Relaxes 'elevation_gain_meters' to allow NULL when elevation cannot be calculated.
--- 4. Provides server-side soft-deletion tombstone tracking.
--- 5. Implements PostgreSQL transaction-scoped advisory locking triggers to eliminate
---    server-side resurrection races between stale upserts and tombstone creations.
+-- 4. Establishes strictly append-only, immutable outdoor deletion tombstones.
+-- 5. Implements hardened SECURITY DEFINER triggers with SET search_path = '',
+--    strict caller ownership verification (IS DISTINCT FROM), deterministic advisory
+--    locks, and explicit database exceptions (TOMBSTONE_EXISTS) to eliminate resurrection.
 
 -- 1. Add missing metadata fields to saved_routes
 alter table public.saved_routes
@@ -43,7 +44,7 @@ alter table public.saved_routes
 create index if not exists idx_saved_routes_user_updated
   on public.saved_routes(user_id, created_at desc);
 
--- 6. Outdoor Deletion Tombstones Table (Cross-Device Deletion Synchronization)
+-- 6. Outdoor Deletion Tombstones Table (Append-Only, Cross-Device Synchronization)
 -- Prevents stale local records on secondary/offline devices from resurrecting deleted workouts or routes.
 create table if not exists public.outdoor_tombstones (
   id text not null,
@@ -56,6 +57,13 @@ create table if not exists public.outdoor_tombstones (
 
 alter table public.outdoor_tombstones enable row level security;
 
+-- Drop previous policies to ensure clean state
+drop policy if exists "read own outdoor tombstones" on public.outdoor_tombstones;
+drop policy if exists "insert own outdoor tombstones" on public.outdoor_tombstones;
+drop policy if exists "update own outdoor tombstones" on public.outdoor_tombstones;
+drop policy if exists "delete own outdoor tombstones" on public.outdoor_tombstones;
+
+-- Only SELECT and INSERT policies for authenticated clients (strictly append-only)
 create policy "read own outdoor tombstones" on public.outdoor_tombstones
   for select to authenticated
   using (auth.uid() = user_id);
@@ -64,14 +72,11 @@ create policy "insert own outdoor tombstones" on public.outdoor_tombstones
   for insert to authenticated
   with check (auth.uid() = user_id);
 
-create policy "update own outdoor tombstones" on public.outdoor_tombstones
-  for update to authenticated
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
-
-create policy "delete own outdoor tombstones" on public.outdoor_tombstones
-  for delete to authenticated
-  using (auth.uid() = user_id);
+-- Explicitly revoke UPDATE and DELETE table privileges from PUBLIC, anon, and authenticated
+revoke all on table public.outdoor_tombstones from public, anon;
+revoke update, delete on table public.outdoor_tombstones from authenticated;
+grant select, insert on table public.outdoor_tombstones to authenticated;
+grant all on table public.outdoor_tombstones to service_role;
 
 create index if not exists idx_outdoor_tombstones_user_deleted
   on public.outdoor_tombstones(user_id, deleted_at desc);
@@ -80,10 +85,16 @@ comment on table public.saved_routes is
   'User saved and custom outdoor routes with loop detection and difficulty estimation metadata.';
 
 comment on table public.outdoor_tombstones is
-  'Cross-device deletion tombstones preventing stale local records from resurrecting deleted workouts or routes.';
+  'Append-only cross-device deletion tombstones preventing stale local records from resurrecting deleted workouts or routes.';
+
+-- Note on Safe Tombstone Retention:
+-- Automatic 90-day truncation is deliberately omitted to prevent data resurrection on dormant/offline
+-- secondary devices (e.g. tablet used infrequently for outdoor workouts). Tombstones average <100 bytes
+-- each and are retained indefinitely until account deletion (cascaded via public.profiles on auth.users deletion)
+-- or future multi-device acknowledgement protocol.
 
 -- ============================================================================
--- 7. Anti-Resurrection Concurrency Serialization (Advisory Lock Triggers)
+-- 7. Anti-Resurrection Concurrency Serialization (Hardened Advisory Lock Triggers)
 -- ============================================================================
 -- Under PostgreSQL default Read Committed isolation, a race exists where Device B
 -- deletes an entity and inserts a tombstone, while offline Device A reconnects
@@ -91,24 +102,30 @@ comment on table public.outdoor_tombstones is
 --
 -- By acquiring a deterministic 64-bit transaction-scoped advisory lock:
 --   hashtextextended('outdoor_lock:' || user_id::text || ':' || entity_type || ':' || id, 0)
--- conflicting operations for the same entity are strictly serialized:
--- 1. If tombstone commits first, the upsert trigger sees it and returns NULL (dropping the stale write).
--- 2. If upsert commits first, the tombstone trigger unblocks and immediately purges the newly inserted row.
--- In all interleavings, the final database state never contains an entity whose tombstone exists.
+-- conflicting operations for the same entity are strictly serialized.
+-- When a tombstone is present, the trigger raises a distinct TOMBSTONE_EXISTS exception
+-- so client applications immediately discard stale local records rather than treating
+-- silent drops as successful synchronizations.
 
 -- 7.1. Check Outdoor Activities for Tombstone on INSERT / UPDATE
 create or replace function public.check_outdoor_activity_tombstone()
 returns trigger
 language plpgsql
 security definer
+set search_path = ''
 as $$
 declare
   v_lock_key bigint;
   v_tombstone_exists boolean;
 begin
-  -- Deterministic advisory transaction lock scoped to user, entity type, and ID
-  v_lock_key := hashtextextended('outdoor_lock:' || NEW.user_id::text || ':activity:' || NEW.id, 0);
-  perform pg_advisory_xact_lock(v_lock_key);
+  -- Authenticated ownership check before acquiring locks or executing privileged operations
+  if auth.role() = 'authenticated' and NEW.user_id is distinct from auth.uid() then
+    raise exception 'Unauthorized: user_id mismatch' using errcode = '42501';
+  end if;
+
+  -- Fully qualified 64-bit advisory transaction lock scoped to user, entity type, and ID
+  v_lock_key := pg_catalog.hashtextextended('outdoor_lock:' || NEW.user_id::text || ':activity:' || NEW.id, 0);
+  perform pg_catalog.pg_advisory_xact_lock(v_lock_key);
 
   select exists (
     select 1
@@ -119,8 +136,8 @@ begin
   ) into v_tombstone_exists;
 
   if v_tombstone_exists then
-    -- Stale write detected: cancel insert/update
-    return null;
+    raise exception 'Activity % has been deleted by an active tombstone', NEW.id
+      using errcode = 'P0001', detail = 'TOMBSTONE_EXISTS';
   end if;
 
   return NEW;
@@ -138,14 +155,20 @@ create or replace function public.check_saved_route_tombstone()
 returns trigger
 language plpgsql
 security definer
+set search_path = ''
 as $$
 declare
   v_lock_key bigint;
   v_tombstone_exists boolean;
 begin
-  -- Deterministic advisory transaction lock scoped to user, entity type, and ID
-  v_lock_key := hashtextextended('outdoor_lock:' || NEW.user_id::text || ':route:' || NEW.id, 0);
-  perform pg_advisory_xact_lock(v_lock_key);
+  -- Authenticated ownership check before acquiring locks or executing privileged operations
+  if auth.role() = 'authenticated' and NEW.user_id is distinct from auth.uid() then
+    raise exception 'Unauthorized: user_id mismatch' using errcode = '42501';
+  end if;
+
+  -- Fully qualified 64-bit advisory transaction lock scoped to user, entity type, and ID
+  v_lock_key := pg_catalog.hashtextextended('outdoor_lock:' || NEW.user_id::text || ':route:' || NEW.id, 0);
+  perform pg_catalog.pg_advisory_xact_lock(v_lock_key);
 
   select exists (
     select 1
@@ -156,8 +179,8 @@ begin
   ) into v_tombstone_exists;
 
   if v_tombstone_exists then
-    -- Stale write detected: cancel insert/update
-    return null;
+    raise exception 'Route % has been deleted by an active tombstone', NEW.id
+      using errcode = 'P0001', detail = 'TOMBSTONE_EXISTS';
   end if;
 
   return NEW;
@@ -175,13 +198,19 @@ create or replace function public.process_outdoor_tombstone()
 returns trigger
 language plpgsql
 security definer
+set search_path = ''
 as $$
 declare
   v_lock_key bigint;
 begin
-  -- Acquire the exact same deterministic transaction lock
-  v_lock_key := hashtextextended('outdoor_lock:' || NEW.user_id::text || ':' || NEW.entity_type || ':' || NEW.id, 0);
-  perform pg_advisory_xact_lock(v_lock_key);
+  -- Authenticated ownership check before acquiring locks or executing privileged operations
+  if auth.role() = 'authenticated' and NEW.user_id is distinct from auth.uid() then
+    raise exception 'Unauthorized: user_id mismatch' using errcode = '42501';
+  end if;
+
+  -- Fully qualified 64-bit advisory transaction lock scoped to user, entity type, and ID
+  v_lock_key := pg_catalog.hashtextextended('outdoor_lock:' || NEW.user_id::text || ':' || NEW.entity_type || ':' || NEW.id, 0);
+  perform pg_catalog.pg_advisory_xact_lock(v_lock_key);
 
   if NEW.entity_type = 'activity' then
     delete from public.outdoor_activities
@@ -197,9 +226,14 @@ $$;
 
 drop trigger if exists trg_process_outdoor_tombstone on public.outdoor_tombstones;
 create trigger trg_process_outdoor_tombstone
-  before insert or update on public.outdoor_tombstones
+  before insert on public.outdoor_tombstones
   for each row
   execute function public.process_outdoor_tombstone();
+
+-- 7.4. Function Privileges and Access Control
+revoke all on function public.check_outdoor_activity_tombstone() from public, anon;
+revoke all on function public.check_saved_route_tombstone() from public, anon;
+revoke all on function public.process_outdoor_tombstone() from public, anon;
 
 grant execute on function public.check_outdoor_activity_tombstone() to authenticated, service_role;
 grant execute on function public.check_saved_route_tombstone() to authenticated, service_role;

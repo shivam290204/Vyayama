@@ -90,10 +90,30 @@ class OutdoorActivityRepository {
           userId: effectiveUser,
         ));
       } catch (e) {
-        // Log clean diagnostic without exposing raw coordinates or auth tokens
-        debugPrint('[OutdoorActivityRepository] Remote sync deferred: network unreachable or server busy.');
+        if (isTombstoneRejection(e)) {
+          await _storage.deleteActivity(activity.id);
+          await _storage.recordTombstone(OutdoorTombstone(
+            id: activity.id,
+            entityType: 'activity',
+            userId: effectiveUser,
+            deletedAt: DateTime.now(),
+            isRemoteSynced: true,
+          ));
+          debugPrint('[OutdoorActivityRepository] Stale activity rejected by server tombstone; purged local copy.');
+        } else {
+          // Log clean diagnostic without exposing raw coordinates or auth tokens
+          debugPrint('[OutdoorActivityRepository] Remote sync deferred: network unreachable or server busy.');
+        }
       }
     }
+  }
+
+  /// Checks if an error represents an active tombstone rejection from PostgreSQL.
+  static bool isTombstoneRejection(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('tombstone_exists') ||
+        msg.contains('active tombstone') ||
+        msg.contains('deleted by an active tombstone');
   }
 
   /// Deletes an activity using a strict, crash-safe 4-step sequence:
@@ -133,7 +153,11 @@ class OutdoorActivityRepository {
           await _retryWithBackoff(
             () => _supabase!
                 .from('outdoor_tombstones')
-                .upsert(tombstone.toRemotePayload()),
+                .upsert(
+                  tombstone.toRemotePayload(),
+                  onConflict: 'id,entity_type,user_id',
+                  ignoreDuplicates: true,
+                ),
           );
         }
 
@@ -222,7 +246,11 @@ class OutdoorActivityRepository {
             await _retryWithBackoff(
               () => _supabase!
                   .from('outdoor_tombstones')
-                  .upsert(t.toRemotePayload()),
+                  .upsert(
+                    t.toRemotePayload(),
+                    onConflict: 'id,entity_type,user_id',
+                    ignoreDuplicates: true,
+                  ),
             );
           }
 
@@ -277,7 +305,20 @@ class OutdoorActivityRepository {
           ));
           syncedCount++;
         } catch (e) {
-          debugPrint('[OutdoorActivityRepository] Sync retry failed for activity.');
+          if (isTombstoneRejection(e)) {
+            // Stale activity rejected by tombstone on server: purge local copy immediately and record tombstone
+            await _storage.deleteActivity(act.id);
+            await _storage.recordTombstone(OutdoorTombstone(
+              id: act.id,
+              entityType: 'activity',
+              userId: effectiveUser,
+              deletedAt: DateTime.now(),
+              isRemoteSynced: true,
+            ));
+            debugPrint('[OutdoorActivityRepository] Stale activity rejected by server tombstone; purged local copy.');
+          } else {
+            debugPrint('[OutdoorActivityRepository] Sync retry failed for activity.');
+          }
         }
       }
 
@@ -301,7 +342,7 @@ class OutdoorActivityRepository {
       try {
         return await operation();
       } catch (e) {
-        if (attempts >= maxAttempts) {
+        if (isTombstoneRejection(e) || attempts >= maxAttempts) {
           rethrow;
         }
         await Future<void>.delayed(delay);

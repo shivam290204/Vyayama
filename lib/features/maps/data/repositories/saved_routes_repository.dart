@@ -53,6 +53,14 @@ class SavedRoutesRepository {
     return _storage.getSavedRoutes(userId: effectiveUserId);
   }
 
+  /// Checks if an error represents an active tombstone rejection from PostgreSQL.
+  static bool isTombstoneRejection(Object error) {
+    final msg = error.toString().toLowerCase();
+    return msg.contains('tombstone_exists') ||
+        msg.contains('active tombstone') ||
+        msg.contains('deleted by an active tombstone');
+  }
+
   /// Saves a route locally and attempts remote synchronization if authenticated.
   Future<void> saveRoute(SavedRoute route) async {
     if (await _storage.isTombstoned(route.id, 'route')) {
@@ -73,7 +81,19 @@ class SavedRoutesRepository {
           await _retryWithBackoff(() => _supabase!.from('saved_routes').upsert(payload));
         }
       } catch (e) {
-        debugPrint('[SavedRoutesRepository] Remote route sync deferred: network unreachable or busy.');
+        if (isTombstoneRejection(e)) {
+          await _storage.deleteRoute(route.id);
+          await _storage.recordTombstone(OutdoorTombstone(
+            id: route.id,
+            entityType: 'route',
+            userId: effectiveUser,
+            deletedAt: DateTime.now(),
+            isRemoteSynced: true,
+          ));
+          debugPrint('[SavedRoutesRepository] Stale route rejected by server tombstone; purged local copy.');
+        } else {
+          debugPrint('[SavedRoutesRepository] Remote route sync deferred: network unreachable or busy.');
+        }
       }
     }
   }
@@ -137,7 +157,11 @@ class SavedRoutesRepository {
             await _retryWithBackoff(
               () => _supabase!
                   .from('outdoor_tombstones')
-                  .upsert(t.toRemotePayload()),
+                  .upsert(
+                    t.toRemotePayload(),
+                    onConflict: 'id,entity_type,user_id',
+                    ignoreDuplicates: true,
+                  ),
             );
           }
 
@@ -183,7 +207,20 @@ class SavedRoutesRepository {
           }
           syncedCount++;
         } catch (e) {
-          debugPrint('[SavedRoutesRepository] Route sync retry failed for route.');
+          if (isTombstoneRejection(e)) {
+            // Stale route rejected by server tombstone: purge local copy immediately and record local tombstone
+            await _storage.deleteRoute(r.id);
+            await _storage.recordTombstone(OutdoorTombstone(
+              id: r.id,
+              entityType: 'route',
+              userId: effectiveUser,
+              deletedAt: DateTime.now(),
+              isRemoteSynced: true,
+            ));
+            debugPrint('[SavedRoutesRepository] Stale route rejected by server tombstone; purged local copy.');
+          } else {
+            debugPrint('[SavedRoutesRepository] Route sync retry failed for route.');
+          }
         }
       }
 
@@ -229,7 +266,11 @@ class SavedRoutesRepository {
           await _retryWithBackoff(
             () => _supabase!
                 .from('outdoor_tombstones')
-                .upsert(tombstone.toRemotePayload()),
+                .upsert(
+                  tombstone.toRemotePayload(),
+                  onConflict: 'id,entity_type,user_id',
+                  ignoreDuplicates: true,
+                ),
           );
         }
 
@@ -317,7 +358,7 @@ class SavedRoutesRepository {
       try {
         return await operation();
       } catch (e) {
-        if (attempts >= maxAttempts) {
+        if (isTombstoneRejection(e) || attempts >= maxAttempts) {
           rethrow;
         }
         await Future<void>.delayed(delay);
