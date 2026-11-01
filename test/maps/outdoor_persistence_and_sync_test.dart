@@ -848,6 +848,185 @@ void main() {
       final t = await storage.getTombstones(userId: 'user_123');
       expect(t.any((item) => item.id == 'route_typed_1' && item.isRemoteSynced), isTrue);
     });
+
+    test('10m. Serialization failure (SQLSTATE 40001) is classified as retryable and retried with backoff using a fresh request', () async {
+      final serEx = PostgrestException(
+        message: 'could not serialize access due to concurrent update',
+        code: '40001',
+      );
+      expect(OutdoorActivityRepository.isRetryableSyncError(serEx), isTrue);
+      expect(SavedRoutesRepository.isRetryableSyncError(serEx), isTrue);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+      await storage.saveActivity(makeSampleActivity(id: 'act_ser_retry', userId: 'user_123', isSynced: false));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        if (attempts < 2) {
+          throw serEx; // Fails on first attempt with 40001
+        }
+        // Succeeds on second attempt with fresh transaction/snapshot
+      };
+
+      final syncedCount = await repo.syncPendingActivities();
+      expect(syncedCount, equals(1));
+      expect(attempts, equals(2));
+
+      final act = await repo.getActivityById('act_ser_retry');
+      expect(act, isNotNull);
+      expect(act!.isSynced, isTrue);
+    });
+
+    test('10n. Deadlock detected (SQLSTATE 40P01) is classified as retryable and retried with backoff', () async {
+      final deadlockEx = PostgrestException(
+        message: 'deadlock detected',
+        code: '40P01',
+      );
+      expect(OutdoorActivityRepository.isRetryableSyncError(deadlockEx), isTrue);
+      expect(SavedRoutesRepository.isRetryableSyncError(deadlockEx), isTrue);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = SavedRoutesRepository(storage: storage);
+      await storage.saveRoute(makeSampleRoute(id: 'route_deadlock_retry', userId: 'user_123'));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        if (attempts < 2) {
+          throw deadlockEx;
+        }
+      };
+
+      final syncedCount = await repo.syncPendingRoutes();
+      expect(syncedCount, equals(1));
+      expect(attempts, equals(2));
+    });
+
+    test('10o. Transient server failures (HTTP 503 / 500 / 429) are classified as retryable and retried with backoff', () async {
+      final server503 = PostgrestException(
+        message: 'Service Unavailable',
+        code: '503',
+      );
+      final rate429 = PostgrestException(
+        message: 'Too Many Requests',
+        code: '429',
+      );
+      expect(OutdoorActivityRepository.isRetryableSyncError(server503), isTrue);
+      expect(OutdoorActivityRepository.isRetryableSyncError(rate429), isTrue);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+      await storage.saveActivity(makeSampleActivity(id: 'act_503_retry', userId: 'user_123', isSynced: false));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        if (attempts < 2) {
+          throw server503;
+        }
+      };
+
+      final syncedCount = await repo.syncPendingActivities();
+      expect(syncedCount, equals(1));
+      expect(attempts, equals(2));
+    });
+
+    test('10p. Insufficient privilege (SQLSTATE 42501) is classified as permanent and not retried', () async {
+      final permEx = PostgrestException(
+        message: 'permission denied for table outdoor_activities',
+        code: '42501',
+      );
+      expect(OutdoorActivityRepository.isRetryableSyncError(permEx), isFalse);
+      expect(SavedRoutesRepository.isRetryableSyncError(permEx), isFalse);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+      await storage.saveActivity(makeSampleActivity(id: 'act_perm_fail', userId: 'user_123', isSynced: false));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        throw permEx;
+      };
+
+      final syncedCount = await repo.syncPendingActivities();
+      expect(syncedCount, equals(0));
+      // Must halt immediately on 1st attempt without wasting retries
+      expect(attempts, equals(1));
+
+      // Local record remains intact for retry when permissions are fixed or user re-authenticates
+      final act = await repo.getActivityById('act_perm_fail');
+      expect(act, isNotNull);
+      expect(act!.isSynced, isFalse);
+    });
+
+    test('10q. Integrity constraint violations (SQLSTATE 23505 / 23503 / 23514) are classified as permanent and not retried', () async {
+      final checkEx = PostgrestException(
+        message: 'new row for relation "saved_routes" violates check constraint',
+        code: '23514',
+      );
+      final fkeyEx = PostgrestException(
+        message: 'insert or update on table "saved_routes" violates foreign key constraint',
+        code: '23503',
+      );
+      final uniqueEx = PostgrestException(
+        message: 'duplicate key value violates unique constraint',
+        code: '23505',
+      );
+      expect(SavedRoutesRepository.isRetryableSyncError(checkEx), isFalse);
+      expect(SavedRoutesRepository.isRetryableSyncError(fkeyEx), isFalse);
+      expect(SavedRoutesRepository.isRetryableSyncError(uniqueEx), isFalse);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = SavedRoutesRepository(storage: storage);
+      await storage.saveRoute(makeSampleRoute(id: 'route_check_fail', userId: 'user_123'));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        throw checkEx;
+      };
+
+      final syncedCount = await repo.syncPendingRoutes();
+      expect(syncedCount, equals(0));
+      // Must halt immediately on 1st attempt without wasting retries
+      expect(attempts, equals(1));
+    });
+
+    test('10r. Retry exhaustion: retryable error exceeds max attempts (3) and is safely bounded', () async {
+      final serEx = PostgrestException(
+        message: 'could not serialize access due to concurrent update',
+        code: '40001',
+      );
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+      await storage.saveActivity(makeSampleActivity(id: 'act_exhaust_retry', userId: 'user_123', isSynced: false));
+
+      var attempts = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        attempts++;
+        throw serEx;
+      };
+
+      final syncedCount = await repo.syncPendingActivities();
+      expect(syncedCount, equals(0));
+      // Bounded retry terminates after exactly 3 attempts
+      expect(attempts, equals(3));
+
+      // Local record remains preserved with isSynced = false
+      final act = await repo.getActivityById('act_exhaust_retry');
+      expect(act, isNotNull);
+      expect(act!.isSynced, isFalse);
+    });
   });
 
   // ===========================================================================

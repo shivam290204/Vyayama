@@ -8,6 +8,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Repository managing user saved routes with offline-first persistence,
 /// semantically accurate metadata preservation, bounded backoff, and crash-safe tombstone ordering.
+///
+/// CONCURRENCY & TRANSACTION ISOLATION REQUIREMENT:
+/// Saved route synchronization strictly relies on PostgreSQL READ COMMITTED isolation
+/// (the default transaction isolation level in Supabase / PostgREST).
+/// - Each synchronization database operation uses a separate, single-statement Supabase PostgREST request,
+///   guaranteeing a fresh transaction and fresh MVCC snapshot per attempt.
+/// - Changing the authenticated role's 'default_transaction_isolation' to 'REPEATABLE READ' is
+///   UNSUPPORTED with the current advisory-lock-only design; advisory locks do not refresh frozen snapshots.
+/// - Repeatable Read safety is not claimed without row-level sentinel locks.
 class SavedRoutesRepository {
   SavedRoutesRepository({
     LocalOutdoorStorage? storage,
@@ -76,6 +85,108 @@ class SavedRoutesRepository {
     return msg.contains('tombstone_exists') ||
         msg.contains('active tombstone') ||
         msg.contains('deleted by an active tombstone');
+  }
+
+  /// Categorizes sync errors into retryable transient failures vs permanent non-retryable rejections.
+  ///
+  /// Explicitly Retryable (bounded backoff with fresh transaction / request):
+  /// - PostgreSQL 40001 (serialization_failure)
+  /// - PostgreSQL 40P01 (deadlock_detected)
+  /// - Appropriate transient server failures:
+  ///   - HTTP status 429 (rate limit), 500, 502, 503, 504
+  ///   - PostgreSQL 53300 (too_many_connections), 57P01 (admin_shutdown)
+  /// - Network / socket failures (SocketException, ClientException, TimeoutException)
+  ///
+  /// Explicitly Non-Retryable (permanent failures / fail-fast):
+  /// - PostgreSQL P0001 / TOMBSTONE_EXISTS (active tombstone rejection - handled by caller)
+  /// - PostgreSQL 42501 (insufficient_privilege)
+  /// - Class 23 constraint violations (23505 unique, 23503 foreign key, 23502 not null, 23514 check)
+  /// - Class 22 data exceptions, Class 42 syntax or access rule violations
+  static bool isRetryableSyncError(Object error) {
+    if (isTombstoneRejection(error)) {
+      return false;
+    }
+
+    if (error is PostgrestException) {
+      final code = (error.code ?? '').toUpperCase();
+      final message = error.message.toLowerCase();
+      final details = error.details?.toString().toLowerCase() ?? '';
+
+      // 1. Explicitly retryable PostgreSQL codes and transient HTTP status codes
+      if (code == '40001' || // serialization_failure
+          code == '40P01' || // deadlock_detected
+          code == '53300' || // too_many_connections
+          code == '57P01' || // admin_shutdown
+          code == '429' || // Too Many Requests
+          code == '500' || // Internal Server Error
+          code == '502' || // Bad Gateway
+          code == '503' || // Service Unavailable
+          code == '504') { // Gateway Timeout
+        return true;
+      }
+
+      // 2. Explicitly non-retryable PostgreSQL codes (SQLSTATE length is 5 characters)
+      if (code == '42501' || // insufficient_privilege
+          (code.length == 5 &&
+              (code.startsWith('23') || // integrity constraint violations (23505, 23503, 23502, 23514)
+                  code.startsWith('22') || // data exceptions
+                  code.startsWith('42')))) { // syntax error or access rule violation
+        return false;
+      }
+
+      // 4. Message or details containing serialization or deadlock indicators
+      if (message.contains('serialization') ||
+          message.contains('deadlock') ||
+          details.contains('serialization') ||
+          details.contains('deadlock')) {
+        return true;
+      }
+
+      return false;
+    }
+
+    final errStr = error.toString().toLowerCase();
+
+    // Explicit string checks for serialization and deadlock
+    if (errStr.contains('40001') ||
+        errStr.contains('serialization_failure') ||
+        errStr.contains('could not serialize access') ||
+        errStr.contains('40p01') ||
+        errStr.contains('deadlock detected') ||
+        errStr.contains('deadlock_detected')) {
+      return true;
+    }
+
+    // Explicit non-retryable string checks (privileges, constraints)
+    if (errStr.contains('42501') ||
+        errStr.contains('insufficient_privilege') ||
+        errStr.contains('permission denied') ||
+        errStr.contains('violates foreign key') ||
+        errStr.contains('violates check constraint') ||
+        errStr.contains('violates not-null') ||
+        errStr.contains('violates unique constraint')) {
+      return false;
+    }
+
+    // Network & transport errors (retryable)
+    if (errStr.contains('socketexception') ||
+        errStr.contains('clientexception') ||
+        errStr.contains('timeoutexception') ||
+        errStr.contains('timed out') ||
+        errStr.contains('network is unreachable') ||
+        errStr.contains('connection refused') ||
+        errStr.contains('connection closed') ||
+        errStr.contains('connection reset') ||
+        errStr.contains('failed host lookup') ||
+        errStr.contains('handshake failed') ||
+        errStr.contains('502') ||
+        errStr.contains('503') ||
+        errStr.contains('504') ||
+        errStr.contains('429')) {
+      return true;
+    }
+
+    return false;
   }
 
   /// Saves a route locally and attempts remote synchronization if authenticated.
@@ -362,6 +473,10 @@ class SavedRoutesRepository {
     };
   }
 
+  /// Helper executing [operation] with bounded exponential backoff up to [maxAttempts].
+  /// Retries the complete REST request using a fresh transaction for transient failures
+  /// (SQLSTATE 40001, 40P01, network, 5xx), while immediately rethrowing permanent errors
+  /// (tombstone rejection P0001, insufficient privilege 42501, constraint violations 23xxx).
   Future<T> _retryWithBackoff<T>(
     Future<T> Function() operation, {
     int maxAttempts = 3,
@@ -375,7 +490,7 @@ class SavedRoutesRepository {
       try {
         return await operation();
       } catch (e) {
-        if (isTombstoneRejection(e) || attempts >= maxAttempts) {
+        if (!isRetryableSyncError(e) || attempts >= maxAttempts) {
           rethrow;
         }
         await Future<void>.delayed(delay);

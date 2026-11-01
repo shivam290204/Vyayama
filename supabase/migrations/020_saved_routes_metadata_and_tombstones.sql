@@ -96,16 +96,27 @@ comment on table public.outdoor_tombstones is
 -- ============================================================================
 -- 7. Anti-Resurrection Concurrency Serialization (Hardened Advisory Lock Triggers)
 -- ============================================================================
--- Under PostgreSQL default Read Committed isolation, a race exists where Device B
--- deletes an entity and inserts a tombstone, while offline Device A reconnects
--- and sends an upsert for the deleted entity.
+-- ISOLATION LEVEL REQUIREMENT:
+-- Outdoor activity and saved-route synchronization strictly relies on PostgreSQL
+-- READ COMMITTED transaction isolation (the default transaction isolation level in Supabase / PostgREST).
 --
--- By acquiring a deterministic 64-bit transaction-scoped advisory lock:
---   hashtextextended('outdoor_lock:' || user_id::text || ':' || entity_type || ':' || id, 0)
--- conflicting operations for the same entity are strictly serialized.
--- When a tombstone is present, the trigger raises a distinct TOMBSTONE_EXISTS exception
--- so client applications immediately discard stale local records rather than treating
--- silent drops as successful synchronizations.
+-- Concurrency Architecture & Guarantees:
+-- 1. Each synchronization database operation executed by the mobile client is an isolated,
+--    single-statement PostgREST HTTP request (fresh transaction and fresh MVCC snapshot per attempt).
+-- 2. By acquiring a deterministic 64-bit transaction-scoped advisory lock:
+--      pg_catalog.hashtextextended('outdoor_lock:' || user_id::text || ':' || entity_type || ':' || id, 0)
+--    conflicting mutations for the same entity are strictly serialized.
+-- 3. In READ COMMITTED, when a waiting upsert transaction acquires the lock released by a
+--    committed tombstone transaction, PL/pgSQL sub-statements evaluate with an updated snapshot,
+--    reliably detect the newly committed tombstone, and raise P0001: TOMBSTONE_EXISTS.
+--
+-- LIMITATIONS & UNSUPPORTED CONFIGURATION:
+-- Changing the authenticated role's 'default_transaction_isolation' to 'REPEATABLE READ'
+-- is UNSUPPORTED with this advisory-lock-only design. Under REPEATABLE READ, transaction
+-- snapshots are frozen at transaction start and do not refresh upon obtaining advisory locks;
+-- an upsert transaction started prior to tombstone commit would miss the tombstone and
+-- resurrect a deleted entity. Do NOT use REPEATABLE READ or SERIALIZABLE multi-statement
+-- transactions without row-level sentinel locks. Repeatable Read safety is not claimed.
 
 -- 7.1. Check Outdoor Activities for Tombstone on INSERT / UPDATE
 create or replace function public.check_outdoor_activity_tombstone()
