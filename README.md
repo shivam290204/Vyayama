@@ -159,7 +159,7 @@ At the top of the home screen, Vyayama's mascot companion visually reflects dail
 - **XP & Level Milestones**: Earn experience points for logging workouts, drinking water, hitting step goals, and keeping streaks alive.
 - **Curated Motivational Content**: Daily rotating fitness quotes and wholesome health memes to keep morale high.
 
-### 13. Strava-Inspired Maps & Outdoor Fitness Tracking
+### 13. Maps & Outdoor Fitness Tracking
 - **Interactive Full-Screen Map**: Rendered using modern OpenStreetMap raster tiles via `flutter_map: 8.3.2` with compliant `userAgentPackageName: 'com.vyayama.fitbuddy'` and visible attribution link to OpenStreetMap contributors.
 - **Real-Time GPS Tracking**: Track outdoor walking, running, and hiking workouts with live polylines, current and average pace (min/km), speed (km/h), elapsed duration, and distance.
 - **5-Stage Mathematical Drift Filtering**: Mathematical noise rejection via `GpsFilterService` (accuracy < 20m, stationary drift > 3m, teleport jump rejection < 45 km/h) using ellipsoidal geodesic distance formulas (`latlong2`).
