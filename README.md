@@ -34,7 +34,7 @@
   - [10. Nutrition, Meal Guidance & Smart Hydration](#10-nutrition-meal-guidance--smart-hydration)
   - [11. Circadian Sleep Schedule & Wind-Down Routine](#11-circadian-sleep-schedule--wind-down-routine)
   - [12. Daily Boost: XP Progression, Quotes & Memes](#12-daily-boost-xp-progression-quotes--memes)
-  - [13. Strava-Inspired Maps & Outdoor Fitness Tracking](#13-strava-inspired-maps--outdoor-fitness-tracking)
+  - [13. Maps & Outdoor Fitness Tracking](#13-maps--outdoor-fitness-tracking)
   - [14. Monthly Activity Calendar & Concentric Progress Rings](#14-monthly-activity-calendar--concentric-progress-rings)
   - [15. Adaptive Fitness Journey & Intelligence Layer](#15-adaptive-fitness-journey--intelligence-layer)
 - [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
