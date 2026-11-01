@@ -54,7 +54,24 @@ class SavedRoutesRepository {
   }
 
   /// Checks if an error represents an active tombstone rejection from PostgreSQL.
+  /// Inspects typed [PostgrestException] fields (code, details, message) before falling back to string inspection.
   static bool isTombstoneRejection(Object error) {
+    if (error is PostgrestException) {
+      final code = error.code ?? '';
+      final details = error.details?.toString().toLowerCase() ?? '';
+      final message = error.message.toLowerCase();
+
+      // Check PostgreSQL custom error code P0001 with TOMBSTONE_EXISTS detail or tombstone message
+      if (code == 'P0001' && (details.contains('tombstone_exists') || message.contains('tombstone'))) {
+        return true;
+      }
+      if (details.contains('tombstone_exists') ||
+          message.contains('active tombstone') ||
+          message.contains('deleted by an active tombstone')) {
+        return true;
+      }
+    }
+
     final msg = error.toString().toLowerCase();
     return msg.contains('tombstone_exists') ||
         msg.contains('active tombstone') ||

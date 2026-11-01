@@ -14,6 +14,7 @@ import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart
 import 'package:fitbuddy/features/maps/domain/services/outdoor_sync_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -547,107 +548,6 @@ void main() {
       } catch (_) {}
     });
 
-    test('10h. Stale activity upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      // Stale activity on this device
-      await storage.saveActivity(makeSampleActivity(id: 'act_stale_1', userId: 'user_123', isSynced: false));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_outdoor_activity_tombstone() exception
-        throw Exception('PostgreSQL P0001: Activity act_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale record is immediately purged from local storage
-      final localAct = await repo.getActivityById('act_stale_1');
-      expect(localAct, isNull);
-
-      // Tombstone is recorded locally to prevent resurrection
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'act_stale_1' && t.entityType == 'activity'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged record
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingActivities();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10i. Stale route upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = SavedRoutesRepository(storage: storage);
-
-      // Stale route on this device
-      await storage.saveRoute(makeSampleRoute(id: 'route_stale_1', userId: 'user_123'));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_saved_route_tombstone() exception
-        throw Exception('PostgreSQL P0001: Route route_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingRoutes();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale route is immediately purged from local storage
-      final routes = await repo.getSavedRoutes(userId: 'user_123');
-      expect(routes.any((r) => r.id == 'route_stale_1'), isFalse);
-
-      // Tombstone is recorded locally
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'route_stale_1' && t.entityType == 'route'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged route
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingRoutes();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10j. Network transient error during sync is retried with backoff, unlike tombstone rejection', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      await storage.saveActivity(makeSampleActivity(id: 'act_net_retry', userId: 'user_123', isSynced: false));
-
-      var attempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        attempts++;
-        if (attempts < 3) {
-          throw Exception('SocketException: OS error: Network is unreachable, errno = 101');
-        }
-        // Succeeds on 3rd attempt
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Successfully retried and synchronized
-      expect(syncedCount, equals(1));
-      expect(attempts, equals(3));
-
-      final act = await repo.getActivityById('act_net_retry');
-      expect(act, isNotNull);
-      expect(act!.isSynced, isTrue);
-    });
-
     test('10d. Durable journal: Crash after local record removal retries remote upload upon restart', () async {
       final tempDir = Directory.systemTemp.createTempSync('tombstone_durability2_');
       final journalFile = File('${tempDir.path}/tombstones.json');
@@ -693,107 +593,6 @@ void main() {
       } catch (_) {}
     });
 
-    test('10h. Stale activity upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      // Stale activity on this device
-      await storage.saveActivity(makeSampleActivity(id: 'act_stale_1', userId: 'user_123', isSynced: false));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_outdoor_activity_tombstone() exception
-        throw Exception('PostgreSQL P0001: Activity act_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale record is immediately purged from local storage
-      final localAct = await repo.getActivityById('act_stale_1');
-      expect(localAct, isNull);
-
-      // Tombstone is recorded locally to prevent resurrection
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'act_stale_1' && t.entityType == 'activity'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged record
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingActivities();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10i. Stale route upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = SavedRoutesRepository(storage: storage);
-
-      // Stale route on this device
-      await storage.saveRoute(makeSampleRoute(id: 'route_stale_1', userId: 'user_123'));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_saved_route_tombstone() exception
-        throw Exception('PostgreSQL P0001: Route route_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingRoutes();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale route is immediately purged from local storage
-      final routes = await repo.getSavedRoutes(userId: 'user_123');
-      expect(routes.any((r) => r.id == 'route_stale_1'), isFalse);
-
-      // Tombstone is recorded locally
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'route_stale_1' && t.entityType == 'route'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged route
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingRoutes();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10j. Network transient error during sync is retried with backoff, unlike tombstone rejection', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      await storage.saveActivity(makeSampleActivity(id: 'act_net_retry', userId: 'user_123', isSynced: false));
-
-      var attempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        attempts++;
-        if (attempts < 3) {
-          throw Exception('SocketException: OS error: Network is unreachable, errno = 101');
-        }
-        // Succeeds on 3rd attempt
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Successfully retried and synchronized
-      expect(syncedCount, equals(1));
-      expect(attempts, equals(3));
-
-      final act = await repo.getActivityById('act_net_retry');
-      expect(act, isNotNull);
-      expect(act!.isSynced, isTrue);
-    });
-
     test('10e. Durable journal: Crash after remote tombstone creation retries remote activity deletion idempotently', () async {
       final tempDir = Directory.systemTemp.createTempSync('tombstone_durability3_');
       final journalFile = File('${tempDir.path}/tombstones.json');
@@ -827,107 +626,6 @@ void main() {
       try {
         tempDir.deleteSync(recursive: true);
       } catch (_) {}
-    });
-
-    test('10h. Stale activity upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      // Stale activity on this device
-      await storage.saveActivity(makeSampleActivity(id: 'act_stale_1', userId: 'user_123', isSynced: false));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_outdoor_activity_tombstone() exception
-        throw Exception('PostgreSQL P0001: Activity act_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale record is immediately purged from local storage
-      final localAct = await repo.getActivityById('act_stale_1');
-      expect(localAct, isNull);
-
-      // Tombstone is recorded locally to prevent resurrection
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'act_stale_1' && t.entityType == 'activity'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged record
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingActivities();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10i. Stale route upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = SavedRoutesRepository(storage: storage);
-
-      // Stale route on this device
-      await storage.saveRoute(makeSampleRoute(id: 'route_stale_1', userId: 'user_123'));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_saved_route_tombstone() exception
-        throw Exception('PostgreSQL P0001: Route route_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingRoutes();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale route is immediately purged from local storage
-      final routes = await repo.getSavedRoutes(userId: 'user_123');
-      expect(routes.any((r) => r.id == 'route_stale_1'), isFalse);
-
-      // Tombstone is recorded locally
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'route_stale_1' && t.entityType == 'route'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged route
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingRoutes();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10j. Network transient error during sync is retried with backoff, unlike tombstone rejection', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      await storage.saveActivity(makeSampleActivity(id: 'act_net_retry', userId: 'user_123', isSynced: false));
-
-      var attempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        attempts++;
-        if (attempts < 3) {
-          throw Exception('SocketException: OS error: Network is unreachable, errno = 101');
-        }
-        // Succeeds on 3rd attempt
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Successfully retried and synchronized
-      expect(syncedCount, equals(1));
-      expect(attempts, equals(3));
-
-      final act = await repo.getActivityById('act_net_retry');
-      expect(act, isNotNull);
-      expect(act!.isSynced, isTrue);
     });
 
     test('10f. Durable journal: Crash after remote deletion before local acknowledgement completes idempotently on restart', () async {
@@ -964,107 +662,6 @@ void main() {
       try {
         tempDir.deleteSync(recursive: true);
       } catch (_) {}
-    });
-
-    test('10h. Stale activity upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      // Stale activity on this device
-      await storage.saveActivity(makeSampleActivity(id: 'act_stale_1', userId: 'user_123', isSynced: false));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_outdoor_activity_tombstone() exception
-        throw Exception('PostgreSQL P0001: Activity act_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale record is immediately purged from local storage
-      final localAct = await repo.getActivityById('act_stale_1');
-      expect(localAct, isNull);
-
-      // Tombstone is recorded locally to prevent resurrection
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'act_stale_1' && t.entityType == 'activity'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged record
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingActivities();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10i. Stale route upload rejected by server tombstone: purged locally, recorded in tombstone queue, not retried', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = SavedRoutesRepository(storage: storage);
-
-      // Stale route on this device
-      await storage.saveRoute(makeSampleRoute(id: 'route_stale_1', userId: 'user_123'));
-
-      var upsertAttempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        upsertAttempts++;
-        // Simulate PostgreSQL check_saved_route_tombstone() exception
-        throw Exception('PostgreSQL P0001: Route route_stale_1 has been deleted by an active tombstone: TOMBSTONE_EXISTS');
-      };
-
-      final syncedCount = await repo.syncPendingRoutes();
-
-      // Rejected write is NOT counted as success
-      expect(syncedCount, equals(0));
-      // Rejection halts immediately without redundant backoff retries
-      expect(upsertAttempts, equals(1));
-
-      // Stale route is immediately purged from local storage
-      final routes = await repo.getSavedRoutes(userId: 'user_123');
-      expect(routes.any((r) => r.id == 'route_stale_1'), isFalse);
-
-      // Tombstone is recorded locally
-      final tombstones = await storage.getTombstones(userId: 'user_123');
-      expect(tombstones.any((t) => t.id == 'route_stale_1' && t.entityType == 'route'), isTrue);
-
-      // Subsequent sync cycles will not attempt to upload the purged route
-      upsertAttempts = 0;
-      final secondSyncCount = await repo.syncPendingRoutes();
-      expect(secondSyncCount, equals(0));
-      expect(upsertAttempts, equals(0));
-    });
-
-    test('10j. Network transient error during sync is retried with backoff, unlike tombstone rejection', () async {
-      final storage = LocalOutdoorStorage(preferences: prefs);
-      final repo = OutdoorActivityRepository(storage: storage);
-
-      await storage.saveActivity(makeSampleActivity(id: 'act_net_retry', userId: 'user_123', isSynced: false));
-
-      var attempts = 0;
-      repo.currentUserIdOverride = () => 'user_123';
-      repo.remoteUpsertOverride = (table, payload) async {
-        attempts++;
-        if (attempts < 3) {
-          throw Exception('SocketException: OS error: Network is unreachable, errno = 101');
-        }
-        // Succeeds on 3rd attempt
-      };
-
-      final syncedCount = await repo.syncPendingActivities();
-
-      // Successfully retried and synchronized
-      expect(syncedCount, equals(1));
-      expect(attempts, equals(3));
-
-      final act = await repo.getActivityById('act_net_retry');
-      expect(act, isNotNull);
-      expect(act!.isSynced, isTrue);
     });
 
     test('10g. Durable journal: Torn write with corrupt CRC-32 is detected safely without app crash', () async {
@@ -1188,6 +785,68 @@ void main() {
       final act = await repo.getActivityById('act_net_retry');
       expect(act, isNotNull);
       expect(act!.isSynced, isTrue);
+    });
+
+    test('10k. Typed PostgrestException with SQLSTATE P0001 and TOMBSTONE_EXISTS detail is correctly classified and handled', () async {
+      // 1. Verify typed exception detection directly
+      final typedEx = PostgrestException(
+        message: 'Activity act_typed_1 has been deleted by an active tombstone',
+        code: 'P0001',
+        details: 'TOMBSTONE_EXISTS',
+      );
+      expect(OutdoorActivityRepository.isTombstoneRejection(typedEx), isTrue);
+
+      // 2. Verify repository sync behavior when PostgrestException is thrown
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = OutdoorActivityRepository(storage: storage);
+
+      await storage.saveActivity(makeSampleActivity(id: 'act_typed_1', userId: 'user_123', isSynced: false));
+
+      var upsertCalls = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        upsertCalls++;
+        throw typedEx;
+      };
+
+      final synced = await repo.syncPendingActivities();
+      expect(synced, equals(0));
+      expect(upsertCalls, equals(1), reason: 'Must not retry on tombstone rejection');
+
+      // Local activity purged, local tombstone persisted
+      expect(await repo.getActivityById('act_typed_1'), isNull);
+      final t = await storage.getTombstones(userId: 'user_123');
+      expect(t.any((item) => item.id == 'act_typed_1' && item.isRemoteSynced), isTrue);
+    });
+
+    test('10l. Typed PostgrestException for routes with SQLSTATE P0001 and details TOMBSTONE_EXISTS is correctly classified', () async {
+      final typedRouteEx = PostgrestException(
+        message: 'Route route_typed_1 has been deleted by an active tombstone',
+        code: 'P0001',
+        details: 'TOMBSTONE_EXISTS',
+      );
+      expect(SavedRoutesRepository.isTombstoneRejection(typedRouteEx), isTrue);
+
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final repo = SavedRoutesRepository(storage: storage);
+
+      await storage.saveRoute(makeSampleRoute(id: 'route_typed_1', userId: 'user_123'));
+
+      var routeUpsertCalls = 0;
+      repo.currentUserIdOverride = () => 'user_123';
+      repo.remoteUpsertOverride = (table, payload) async {
+        routeUpsertCalls++;
+        throw typedRouteEx;
+      };
+
+      final synced = await repo.syncPendingRoutes();
+      expect(synced, equals(0));
+      expect(routeUpsertCalls, equals(1));
+
+      final routes = await repo.getSavedRoutes(userId: 'user_123');
+      expect(routes.any((r) => r.id == 'route_typed_1'), isFalse);
+      final t = await storage.getTombstones(userId: 'user_123');
+      expect(t.any((item) => item.id == 'route_typed_1' && item.isRemoteSynced), isTrue);
     });
   });
 
