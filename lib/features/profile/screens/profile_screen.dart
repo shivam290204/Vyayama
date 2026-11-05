@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/home/widgets/greeting_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,7 +65,12 @@ class _ProfileBody extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            Center(child: ProfileAvatar(profile: profile)),
+            Center(
+              child: Hero(
+                tag: kHomeProfileAvatarHeroTag,
+                child: ProfileAvatar(profile: profile),
+              ),
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               profile.displayName,

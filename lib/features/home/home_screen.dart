@@ -34,6 +34,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _scrollProgressNotifier = ValueNotifier<double>(0.0);
+  final _headerBarKey = GlobalKey<HomeHeaderBarState>();
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +46,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         DailyQuoteDialog.checkAndShow(context, ref);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollProgressNotifier.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -67,23 +76,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: Colors.transparent, // Let GlowBackground show through
       body: GlowBackground(
         child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: _refresh,
-            color: Theme.of(context).colorScheme.primary,
-            child: ListView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: const _HomeContent(),
+          child: Stack(
+            children: [
+              NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Rule 4: depth == 0 and vertical axis only
+                  if (notification.depth == 0 &&
+                      notification.metrics.axis == Axis.vertical) {
+                    if (notification is ScrollUpdateNotification ||
+                        notification is OverscrollNotification) {
+                      final offset =
+                          notification.metrics.pixels.clamp(0.0, 80.0);
+                      _scrollProgressNotifier.value = offset / 80.0;
+                      _headerBarKey.currentState?.skipIntro();
+                    }
+                  }
+                  return false;
+                },
+                child: RefreshIndicator(
+                  edgeOffset: 56.0,
+                  onRefresh: _refresh,
+                  color: Theme.of(context).colorScheme.primary,
+                  child: ListView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(16, 56 + 12, 16, 12),
+                    children: [
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 640),
+                          child: const _HomeContent(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              // Pinned top HomeHeaderBar (Rule 3)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: HomeHeaderBar(
+                        key: _headerBarKey,
+                        scrollProgress: _scrollProgressNotifier,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -98,7 +147,7 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return const StaggeredEntrance(
       children: [
-        GreetingHeader(),
+        GreetingSubheader(),
         SizedBox(height: 12),
         MascotSection(),
         SizedBox(height: 20),
