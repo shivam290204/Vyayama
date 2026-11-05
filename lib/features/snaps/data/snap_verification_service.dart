@@ -1,6 +1,7 @@
 import 'package:fitbuddy/features/snap_streaks/data/snap_streak_repository.dart';
 import 'package:fitbuddy/features/snaps/data/mock_snap_repository.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
+import 'package:fitbuddy/features/snaps/data/activity_type.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 
@@ -49,6 +50,70 @@ class MlKitSnapPreCheck implements SnapPreCheck {
     'activewear', 'sportswear', 'rowing', 'elliptical', 'calisthenics',
     'aerobics', 'bodybuilding', 'boxing', 'climbing', 'crossfit', 'triathlon',
   ];
+
+  static const Map<ActivityType, List<String>> activityKeywords = {
+    ActivityType.gym: [
+      'dumbbell', 'barbell', 'weight', 'gym', 'bench', 'kettlebell',
+      'exercise equipment', 'weight training', 'fitness center',
+    ],
+    ActivityType.running: [
+      'running', 'jogging', 'track', 'marathon', 'treadmill', 'athletics',
+      'running shoe', 'cross country', 'sport venue',
+    ],
+    ActivityType.walking: [
+      'walking', 'pedestrian', 'footwear', 'trail', 'hiking', 'park',
+      'footpath',
+    ],
+    ActivityType.cycling: [
+      'cycling', 'bicycle', 'bicycle wheel', 'mountain bike', 'road bicycle',
+      'bicycle helmet', 'bike',
+    ],
+    ActivityType.yoga: [
+      'yoga', 'pilates', 'meditation', 'barefoot', 'asana',
+    ],
+    ActivityType.stretching: [
+      'stretching', 'flexibility', 'exercise mat', 'physical fitness',
+      'foam roller',
+    ],
+    ActivityType.sports: [
+      'sport', 'sports equipment', 'ball', 'racket', 'football', 'soccer',
+      'basketball', 'tennis', 'cricket', 'badminton', 'volleyball', 'stadium',
+      'boxing',
+    ],
+    ActivityType.workout: [
+      'workout', 'exercise', 'fitness', 'calisthenics', 'bodybuilding',
+      'muscle', 'activewear', 'sportswear',
+    ],
+    ActivityType.otherExercise: [
+      'exercise', 'fitness', 'workout', 'physical fitness', 'sport',
+    ],
+  };
+
+  /// Detects whether [labels] corroborate [targetActivity] or another fitness category.
+  static ActivityType detectActivity(List<String> labels, {ActivityType? targetActivity}) {
+    if (labels.isEmpty) return targetActivity ?? ActivityType.workout;
+
+    if (targetActivity != null) {
+      final targetKeywords = activityKeywords[targetActivity] ?? const [];
+      for (final l in labels) {
+        final lower = l.toLowerCase();
+        if (targetKeywords.any(lower.contains)) {
+          return targetActivity;
+        }
+      }
+    }
+
+    for (final entry in activityKeywords.entries) {
+      for (final l in labels) {
+        final lower = l.toLowerCase();
+        if (entry.value.any(lower.contains)) {
+          return entry.key;
+        }
+      }
+    }
+
+    return targetActivity ?? ActivityType.workout;
+  }
 
   static const denyHints = [
     'food', 'dish', 'cuisine', 'meal', 'snack', 'pizza', 'burger', 'dessert',
