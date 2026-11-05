@@ -41,7 +41,7 @@ void main() {
     resetHomeHeaderIntroState();
   });
 
-  Widget buildHeaderTestHarness({
+  Widget buildIdentityBarHarness({
     Key? key,
     Profile? profile = const Profile(id: 'u1', name: 'Shivam Tiwari'),
     int streak = 7,
@@ -49,9 +49,12 @@ void main() {
     int unviewedSnaps = 0,
     double? scrollProgress,
     bool forceCompact = false,
+    bool forceBrand = false,
     bool reduceMotion = false,
     double textScaleFactor = 1.0,
     VoidCallback? onProfileNavigated,
+    VoidCallback? onRequestsNavigated,
+    VoidCallback? onSnapsNavigated,
   }) {
     final scrollNotifier =
         scrollProgress != null ? ValueNotifier<double>(scrollProgress) : null;
@@ -68,9 +71,11 @@ void main() {
                 textScaler: TextScaler.linear(textScaleFactor),
               ),
               child: SingleChildScrollView(
-                child: HomeHeaderBar(
+                child: HomeIdentityBar(
+                  key: key,
                   scrollProgress: scrollNotifier,
                   forceCompact: forceCompact,
+                  forceBrand: forceBrand,
                 ),
               ),
             ),
@@ -81,6 +86,20 @@ void main() {
           builder: (context, state) {
             onProfileNavigated?.call();
             return const Scaffold(body: Text('Profile Screen'));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.friendsRequests,
+          builder: (context, state) {
+            onRequestsNavigated?.call();
+            return const Scaffold(body: Text('Friends Requests Screen'));
+          },
+        ),
+        GoRoute(
+          path: AppRoutes.snapsInbox,
+          builder: (context, state) {
+            onSnapsNavigated?.call();
+            return const Scaffold(body: Text('Snaps Inbox Screen'));
           },
         ),
       ],
@@ -96,15 +115,15 @@ void main() {
         unviewedSnapsCountProvider.overrideWith((ref) => unviewedSnaps),
         dailyCompletionProgressProvider.overrideWithValue(
           const DailyCompletionProgress(
-            completedCount: 3,
+            completedCount: 6,
             totalCount: 6,
-            tier: DailyCompletionTier.fourToFiveDone,
+            tier: DailyCompletionTier.everythingDone,
             stepsDone: true,
             caloriesDone: true,
             activeMinutesDone: true,
-            workoutDone: false,
-            waterDone: false,
-            challengeDone: false,
+            workoutDone: true,
+            waterDone: true,
+            challengeDone: true,
           ),
         ),
       ],
@@ -112,55 +131,122 @@ void main() {
     );
   }
 
-  testWidgets(
-      'Expanded state renders wordmark, tagline, first name, and streak badge',
-      (tester) async {
+  testWidgets('Brand state renders logo, VYAYAMA, and tagline', (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(streak: 5),
+      buildIdentityBarHarness(forceBrand: true),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('VYAYAMA'), findsOneWidget);
     expect(find.text('Every effort counts.'), findsOneWidget);
-    expect(find.text('Shivam'), findsOneWidget);
+  });
+
+  testWidgets('Rest state renders avatar, greeting, date, streak chip, and bell',
+      (tester) async {
+    await tester.pumpWidget(
+      buildIdentityBarHarness(streak: 5, friendRequests: 2),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Shivam!'), findsOneWidget);
     expect(find.text('5'), findsOneWidget);
     expect(find.text('🔥'), findsOneWidget);
+    expect(find.byKey(const Key('home_bell_button')), findsOneWidget);
+    expect(find.text('2'), findsOneWidget); // Bell notification count
   });
 
-  testWidgets('Compact state collapses wordmark into 48dp circular avatar',
+  testWidgets('Compact state collapses middle greeting while retaining avatar and bell',
       (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(forceCompact: true),
+      buildIdentityBarHarness(forceCompact: true, friendRequests: 1),
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('home_profile_button')), findsOneWidget);
+    expect(find.byKey(const Key('home_bell_button')), findsOneWidget);
+    // Middle greeting and streak chip are hidden in compact state
+    expect(find.textContaining('Shivam!'), findsNothing);
+    expect(find.text('🔥'), findsNothing);
+  });
+
+  testWidgets('Intro skip: tapping header finishes animation and navigates on button tap',
+      (tester) async {
+    bool navigated = false;
+    await tester.pumpWidget(
+      buildIdentityBarHarness(
+        onProfileNavigated: () => navigated = true,
+      ),
+    );
+
+    // In middle of intro (brand state)
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Tap identity bar to skip intro
+    await tester.tap(find.byType(HomeIdentityBar));
+    await tester.pumpAndSettle();
+
+    // Now in rest state, tap profile button
     final profileBtn = find.byKey(const Key('home_profile_button'));
-    expect(profileBtn, findsOneWidget);
-    expect(tester.getSize(profileBtn).width, greaterThanOrEqualTo(48.0));
-    expect(tester.getSize(profileBtn).height, greaterThanOrEqualTo(48.0));
+    await tester.tap(profileBtn);
+    await tester.pumpAndSettle();
+
+    expect(navigated, isTrue);
+    expect(find.text('Profile Screen'), findsOneWidget);
   });
 
-  testWidgets('Notification badge displays exact count when 3',
+  testWidgets('Notification bell navigates to friendsRequests when requests > 0',
       (tester) async {
+    bool requestsNavigated = false;
     await tester.pumpWidget(
-      buildHeaderTestHarness(friendRequests: 2, unviewedSnaps: 1),
+      buildIdentityBarHarness(
+        friendRequests: 3,
+        onRequestsNavigated: () => requestsNavigated = true,
+      ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('3'), findsOneWidget);
+
+    final bellBtn = find.byKey(const Key('home_bell_button'));
+    await tester.tap(bellBtn);
+    await tester.pumpAndSettle();
+
+    expect(requestsNavigated, isTrue);
+    expect(find.text('Friends Requests Screen'), findsOneWidget);
+  });
+
+  testWidgets('Notification bell navigates to snapsInbox when requests == 0 and snaps > 0',
+      (tester) async {
+    bool snapsNavigated = false;
+    await tester.pumpWidget(
+      buildIdentityBarHarness(
+        friendRequests: 0,
+        unviewedSnaps: 4,
+        onSnapsNavigated: () => snapsNavigated = true,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bellBtn = find.byKey(const Key('home_bell_button'));
+    await tester.tap(bellBtn);
+    await tester.pumpAndSettle();
+
+    expect(snapsNavigated, isTrue);
+    expect(find.text('Snaps Inbox Screen'), findsOneWidget);
   });
 
   testWidgets('Notification badge caps at 9+ when count exceeds 9',
       (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(friendRequests: 10, unviewedSnaps: 2),
+      buildIdentityBarHarness(friendRequests: 10, unviewedSnaps: 2),
     );
     await tester.pumpAndSettle();
+
     expect(find.text('9+'), findsOneWidget);
   });
 
-  testWidgets('Avatar fallback: initial when profile has name', (tester) async {
+  testWidgets('Avatar fallback: first initial when profile has name',
+      (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(
+      buildIdentityBarHarness(
         profile: const Profile(id: 'u1', name: 'Shivam Tiwari'),
       ),
     );
@@ -171,48 +257,24 @@ void main() {
   testWidgets('Avatar fallback: person icon when profile is null',
       (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(profile: null),
+      buildIdentityBarHarness(profile: null),
     );
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.person_rounded), findsOneWidget);
   });
 
-  testWidgets(
-      'Intro skip: tapping header finishes animation and navigates on button tap',
-      (tester) async {
-    bool navigated = false;
-    await tester.pumpWidget(
-      buildHeaderTestHarness(
-        onProfileNavigated: () => navigated = true,
-      ),
-    );
-
-    // Middle of intro animation
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Tap profile button
-    final profileBtn = find.byKey(const Key('home_profile_button'));
-    await tester.tap(profileBtn);
-    await tester.pumpAndSettle();
-
-    expect(navigated, isTrue);
-    expect(find.text('Profile Screen'), findsOneWidget);
-  });
-
   testWidgets('Reduce motion jumps immediately to final state', (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(reduceMotion: true),
+      buildIdentityBarHarness(reduceMotion: true),
     );
     await tester.pump();
 
-    // Final state is already present on first frame
-    expect(find.text('VYAYAMA'), findsOneWidget);
-    expect(find.text('Shivam'), findsOneWidget);
+    expect(find.textContaining('Shivam!'), findsOneWidget);
   });
 
-  testWidgets('No overflow at 200% font scale', (tester) async {
+  testWidgets('No overflow with long name at 200% font scale', (tester) async {
     await tester.pumpWidget(
-      buildHeaderTestHarness(
+      buildIdentityBarHarness(
         textScaleFactor: 2.0,
         profile: const Profile(
           id: 'u1',

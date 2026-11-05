@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,10 +17,10 @@ import 'package:fitbuddy/features/schedule/clock_providers.dart';
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:fitbuddy/features/snaps/providers.dart';
 
-/// Tag used for the shared-element Hero transition between Home and Profile.
-const String kHomeProfileAvatarHeroTag = 'vyayama_home_profile_avatar_hero';
+/// Single constant controlling whether a 16dp logo badge is pinned to the avatar.
+const bool kShowAvatarLogoBadge = false;
 
-/// Session flag ensuring the 1.1s intro sequence runs only once per app launch.
+/// Session flag ensuring the 1.2s launch morph runs only once per app launch.
 bool _hasPlayedHomeHeaderIntro = false;
 
 /// Resets intro state (useful for widget tests).
@@ -30,13 +29,17 @@ void resetHomeHeaderIntroState() {
   _hasPlayedHomeHeaderIntro = false;
 }
 
-/// Upgraded Home header top bar:
-/// Morphing logo + wordmark into a compact 48dp profile avatar with status ring.
-class HomeHeaderBar extends ConsumerStatefulWidget {
-  const HomeHeaderBar({
+/// Upgraded Home header: ONE full-width identity bar.
+///
+/// Absorbs the old logo/wordmark row, profile pill, and separate greeting block.
+/// Features a 1.2s launch morph, scroll-linked compact collapse, concentric
+/// status progress ring, streak chip, and notification bell.
+class HomeIdentityBar extends ConsumerStatefulWidget {
+  const HomeIdentityBar({
     super.key,
     this.scrollProgress,
     this.forceCompact = false,
+    this.forceBrand = false,
   });
 
   /// Scroll progress from 0.0 (fully expanded at top) to 1.0 (compact).
@@ -45,15 +48,17 @@ class HomeHeaderBar extends ConsumerStatefulWidget {
   /// If true, renders directly in the compact state (useful for tests/previews).
   final bool forceCompact;
 
+  /// If true, renders directly in the initial brand state.
+  final bool forceBrand;
+
   @override
-  ConsumerState<HomeHeaderBar> createState() => HomeHeaderBarState();
+  ConsumerState<HomeIdentityBar> createState() => HomeIdentityBarState();
 }
 
-class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
-    with TickerProviderStateMixin {
+class HomeIdentityBarState extends ConsumerState<HomeIdentityBar>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _introController;
-  late final AnimationController _logoBounceController;
-  late final Animation<double> _logoBounceAnim;
+  double _profileTapScale = 1.0;
 
   @override
   void initState() {
@@ -61,21 +66,12 @@ class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
 
     _introController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _logoBounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _logoBounceAnim = Tween<double>(begin: 1.0, end: 1.25).animate(
-      CurvedAnimation(
-        parent: _logoBounceController,
-        curve: Curves.easeOutBack,
-      ),
-    );
-
-    if (_hasPlayedHomeHeaderIntro || widget.forceCompact) {
+    if (widget.forceBrand) {
+      _introController.value = 0.0;
+    } else if (_hasPlayedHomeHeaderIntro || widget.forceCompact) {
       _introController.value = 1.0;
     } else {
       _hasPlayedHomeHeaderIntro = true;
@@ -84,9 +80,20 @@ class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Guard against replaying intro on theme changes
+    if (_hasPlayedHomeHeaderIntro &&
+        !widget.forceBrand &&
+        !_introController.isAnimating &&
+        _introController.value < 1.0) {
+      _introController.value = 1.0;
+    }
+  }
+
+  @override
   void dispose() {
     _introController.dispose();
-    _logoBounceController.dispose();
     super.dispose();
   }
 
@@ -98,21 +105,32 @@ class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
     }
   }
 
-  void _onLogoTap() {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (!reduceMotion) {
-      HapticFeedback.lightImpact();
-      _logoBounceController.forward().then((_) {
-        if (mounted) _logoBounceController.reverse();
-      });
-    }
+  void _onProfileTap() {
     skipIntro();
+    setState(() => _profileTapScale = 0.96);
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (mounted) {
+        setState(() => _profileTapScale = 1.0);
+        // Switch to Profile tab using context.go to update bottom-bar and prevent stack duplicates
+        context.go(AppRoutes.profile);
+      }
+    });
+  }
+
+  void _onBellTap(int friendRequests) {
+    skipIntro();
+    // Use context.push so user can inspect requests/inbox and press back to return to Home
+    if (friendRequests > 0) {
+      context.push(AppRoutes.friendsRequests);
+    } else {
+      context.push(AppRoutes.snapsInbox);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion && _introController.value < 1.0) {
+    if (reduceMotion && _introController.value < 1.0 && !widget.forceBrand) {
       _introController.value = 1.0;
     }
 
@@ -129,33 +147,41 @@ class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
             .clamp(0.0, 1.0)
         : 0.0;
 
+    final now =
+        ref.watch(nowProvider).asData?.value ?? ref.read(clockProvider)();
+
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => skipIntro(),
       child: RepaintBoundary(
         child: SizedBox(
-          height: 56,
+          height: 64,
           child: widget.scrollProgress == null
-              ? _buildHeaderContent(
+              ? _buildBarContent(
                   context,
                   scrollProgress: widget.forceCompact ? 1.0 : 0.0,
                   profile: profile,
                   completionFraction: completionFraction,
                   streak: streak,
                   notifications: totalNotifications,
+                  friendRequests: incomingRequests,
+                  now: now,
                 )
               : ValueListenableBuilder<double>(
                   valueListenable: widget.scrollProgress!,
                   builder: (context, scrollVal, _) {
-                    final effectiveVal =
-                        widget.forceCompact ? 1.0 : scrollVal.clamp(0.0, 1.0);
-                    return _buildHeaderContent(
+                    final effectiveVal = widget.forceCompact
+                        ? 1.0
+                        : scrollVal.clamp(0.0, 1.0);
+                    return _buildBarContent(
                       context,
                       scrollProgress: effectiveVal,
                       profile: profile,
                       completionFraction: completionFraction,
                       streak: streak,
                       notifications: totalNotifications,
+                      friendRequests: incomingRequests,
+                      now: now,
                     );
                   },
                 ),
@@ -164,380 +190,354 @@ class HomeHeaderBarState extends ConsumerState<HomeHeaderBar>
     );
   }
 
-  Widget _buildHeaderContent(
+  Widget _buildBarContent(
     BuildContext context, {
     required double scrollProgress,
     required Profile? profile,
     required double completionFraction,
     required int streak,
     required int notifications,
+    required int friendRequests,
+    required DateTime now,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final isDark = scheme.brightness == Brightness.dark;
 
-    // Wordmark & tagline fade out between 0.0 and 0.45 scroll progress
-    final wordmarkOpacity = (1.0 - (scrollProgress / 0.45)).clamp(0.0, 1.0);
-
-    // Pill expands/collapses width & padding
-    // At scrollProgress 0.0: pill mode; At 1.0: 48dp circular avatar
-    final morphFactor = Curves.easeInOutCubic.transform(scrollProgress);
+    final compactMorph = Curves.easeInOutCubic.transform(scrollProgress);
+    // Center greeting & streak chip fade out between 0.0 and 0.45 scroll progress
+    final contentOpacity = (1.0 - (compactMorph / 0.45)).clamp(0.0, 1.0);
 
     final notificationLabel = notifications > 0
         ? '$notifications notification${notifications > 1 ? 's' : ''}, '
         : '';
     final streakLabel = streak > 0 ? '$streak day streak' : '';
-    final semanticsLabel =
+    final profileSemanticsLabel =
         'Open profile, $notificationLabel$streakLabel'.trim();
+
+    final who = const MascotMessagePicker().displayName(profile?.name);
+    final part = DayPart.of(now);
+    final greeting = switch (part) {
+      DayPart.morning => 'Good morning',
+      DayPart.afternoon => 'Good afternoon',
+      DayPart.evening => 'Good evening',
+      DayPart.night => 'Hello',
+    };
+
+    // Solid surface token without BackdropFilter blur (Rule 4)
+    final surfaceColor =
+        isDark ? AppPalette.darkSurface : AppPalette.lightSurface;
+    final borderColor = scheme.outlineVariant.withValues(alpha: 0.35);
 
     return AnimatedBuilder(
       animation: _introController,
       builder: (context, _) {
-        // Intro slide & flip
-        final introVal = _introController.value;
-        final slideIn = ((1.0 - introVal) * -24.0).clamp(-24.0, 0.0);
-        final flipAngle = (introVal < 0.5)
-            ? 0.0
-            : ((introVal - 0.5) / 0.5) * (math.pi * 2);
+        final introVal = widget.forceBrand ? 0.0 : _introController.value;
 
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            // Left: Logo + Wordmark & Tagline
-            Positioned(
-              left: 0,
-              top: 4,
-              bottom: 4,
-              right: 60, // Keep space for the right avatar/pill
-              child: Transform.translate(
-                offset: Offset(slideIn, 0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Interactive Logo with tap bounce
-                    GestureDetector(
-                      onTap: _onLogoTap,
-                      child: ScaleTransition(
-                        scale: _logoBounceAnim,
-                        child: Opacity(
-                          opacity: (1.0 - (morphFactor * 0.9)).clamp(0.1, 1.0),
-                          child: const BrandMark(
-                            size: 32,
-                            showBackground: false,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Wordmark + Tagline
-                    if (wordmarkOpacity > 0.01)
-                      Expanded(
-                        child: Opacity(
-                          opacity: wordmarkOpacity,
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'VYAYAMA',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.5,
-                                    color: scheme.primary,
+        // Phase 1 (0.0 to 0.5): Brand state fades/slides out
+        final brandOpacity = (1.0 - (introVal / 0.45)).clamp(0.0, 1.0);
+        final brandSlide = (introVal * -24.0).clamp(-24.0, 0.0);
+
+        // Phase 2 (0.35 to 0.85): Identity content slides in
+        final identityOpacity =
+            ((introVal - 0.35) / 0.50).clamp(0.0, 1.0);
+        final identitySlide = ((1.0 - introVal) * 20.0).clamp(0.0, 20.0);
+
+        // Phase 3 (0.7 to 1.0): Streak chip and bell scale in
+        final trailingOpacity =
+            ((introVal - 0.65) / 0.35).clamp(0.0, 1.0);
+        final trailingScale = 0.8 + (0.2 * trailingOpacity);
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: borderColor, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 1. BRAND LAUNCH STATE (Logo + VYAYAMA + Tagline)
+              if (brandOpacity > 0.01)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: brandOpacity,
+                    child: Transform.translate(
+                      offset: Offset(brandSlide, 0),
+                      child: Row(
+                        children: [
+                          const BrandMark(size: 36, showBackground: false),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'VYAYAMA',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.5,
+                                      color: scheme.primary,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  'Every effort counts.',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: text.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
+                                  Text(
+                                    'Every effort counts.',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: text.labelSmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Right: Profile Pill / Collapsed Avatar with Status Ring
-            Positioned(
-              right: 0,
-              top: 4,
-              bottom: 4,
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(flipAngle),
-                child: Semantics(
-                  button: true,
-                  label: semanticsLabel,
-                  excludeSemantics: true,
-                  child: Tooltip(
-                    message: semanticsLabel,
-                    child: _ProfileMorphButton(
-                      morphFactor: morphFactor,
-                      profile: profile,
-                      completionFraction: completionFraction,
-                      streak: streak,
-                      notifications: notifications,
-                      isDark: isDark,
-                      onTap: () {
-                        skipIntro();
-                        context.push(AppRoutes.profile);
-                      },
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+
+              // 2. FULL-WIDTH REST & COMPACT IDENTITY BAR
+              if (identityOpacity > 0.01)
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: identityOpacity,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Left: Avatar with Concentric Progress Ring (Tappable -> Profile)
+                        Semantics(
+                          button: true,
+                          label: profileSemanticsLabel,
+                          child: Tooltip(
+                            message: profileSemanticsLabel,
+                            child: GestureDetector(
+                              key: const Key('home_profile_button'),
+                              onTap: _onProfileTap,
+                              child: AnimatedScale(
+                                scale: _profileTapScale,
+                                duration: const Duration(milliseconds: 100),
+                                child: _AvatarWithConcentricRing(
+                                  profile: profile,
+                                  progress: completionFraction,
+                                  isDark: isDark,
+                                  scheme: scheme,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Center: Greeting & Date (Fades out when scrolled compact)
+                        if (contentOpacity > 0.01) ...[
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Opacity(
+                              opacity: contentOpacity,
+                              child: Transform.translate(
+                                offset: Offset(identitySlide, 0),
+                                child: GestureDetector(
+                                  onTap: _onProfileTap,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '$greeting, $who!',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: text.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            color: scheme.onSurface,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          formatLongDate(now),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: text.labelSmall?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ] else
+                          const Spacer(),
+
+                        // Right: Streak Chip (priority over date, hides on compact)
+                        if (streak > 0 && contentOpacity > 0.05) ...[
+                          const SizedBox(width: 6),
+                          Opacity(
+                            opacity: contentOpacity * trailingOpacity,
+                            child: Transform.scale(
+                              scale: trailingScale,
+                              child: _StreakChip(
+                                streak: streak,
+                                isDark: isDark,
+                                scheme: scheme,
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // Right: Notification Bell (Always visible in rest and compact)
+                        const SizedBox(width: 4),
+                        Transform.scale(
+                          scale: trailingScale,
+                          child: _NotificationBell(
+                            notifications: notifications,
+                            isDark: isDark,
+                            scheme: scheme,
+                            onTap: () => _onBellTap(friendRequests),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-/// The morphing profile pill that smoothly collapses to a 48dp status circle.
-class _ProfileMorphButton extends StatelessWidget {
-  const _ProfileMorphButton({
-    required this.morphFactor,
+/// Avatar with a concentric progress ring matching the daily completion fraction.
+class _AvatarWithConcentricRing extends StatelessWidget {
+  const _AvatarWithConcentricRing({
     required this.profile,
-    required this.completionFraction,
-    required this.streak,
-    required this.notifications,
+    required this.progress,
     required this.isDark,
-    required this.onTap,
+    required this.scheme,
   });
 
-  final double morphFactor; // 0.0 = expanded pill, 1.0 = 48dp circle
   final Profile? profile;
-  final double completionFraction;
-  final int streak;
-  final int notifications;
+  final double progress;
   final bool isDark;
-  final VoidCallback onTap;
+  final ColorScheme scheme;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-
-    final displayName = const MascotMessagePicker().displayName(profile?.name);
-    final pillOpacity = (1.0 - (morphFactor / 0.5)).clamp(0.0, 1.0);
-
-    // Active ring colors meeting 3:1 contrast rule:
-    // Light mode: theme primary (Forest Green, dark on light bg); Dark mode: vibrant Lime Green.
+    // Ring contrast rule: primary on light mode, lime on dark mode; visible track (>3:1 contrast)
     final ringActiveColor = isDark ? AppPalette.limeGreen : scheme.primary;
     final ringTrackColor = isDark
         ? AppPalette.darkSurfaceContainerHighest
-        : scheme.outlineVariant.withValues(alpha: 0.4);
+        : scheme.outlineVariant.withValues(alpha: 0.45);
 
-    return Material(
-      key: const Key('home_profile_button'),
-      color: Colors.transparent,
-      shape: const StadiumBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          padding: EdgeInsets.symmetric(
-            horizontal: (1.0 - morphFactor) * 10.0,
-            vertical: 4,
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Concentric Animated Progress Ring
+          CustomPaint(
+            size: const Size(46, 46),
+            painter: _ConcentricProgressRingPainter(
+              progress: progress,
+              activeColor: ringActiveColor,
+              trackColor: ringTrackColor,
+              strokeWidth: 2.5,
+            ),
           ),
-          decoration: BoxDecoration(
-            color: morphFactor < 0.5
-                ? scheme.surfaceContainerHigh.withValues(alpha: 0.5)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-            border: morphFactor < 0.5
-                ? Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.35),
-                    width: 1,
-                  )
-                : null,
+
+          // 38dp Circular Avatar
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              shape: BoxShape.circle,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _buildAvatarImage(context),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Avatar with Animated Progress Ring & Badges
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  // Progress Ring
-                  CustomPaint(
-                    size: const Size(44, 44),
-                    painter: _AvatarProgressRingPainter(
-                      progress: completionFraction,
-                      activeColor: ringActiveColor,
-                      trackColor: ringTrackColor,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
 
-                  // Avatar Circle with Hero Transition
-                  Hero(
-                    tag: kHomeProfileAvatarHeroTag,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: scheme.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: scheme.primary.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _buildAvatarContent(context),
-                    ),
-                  ),
-
-                  // Notification Dot (pending requests + unread snaps)
-                  if (notifications > 0)
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.colors.danger,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? AppPalette.darkSurface : Colors.white,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            notifications > 9 ? '9+' : '$notifications',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              // Expanded pill details (fades out as morphFactor increases)
-              if (pillOpacity > 0.05) ...[
-                const SizedBox(width: 8),
-                Opacity(
-                  opacity: pillOpacity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // User First Name
-                      Text(
-                        displayName,
-                        style: text.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-
-                      // Streak Flame Badge (if streak > 0)
-                      if (streak > 0) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: context.colors.streakContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('🔥', style: TextStyle(fontSize: 10)),
-                              const SizedBox(width: 2),
-                              Text(
-                                '$streak',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: context.colors.streak,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+          // Optional 16dp Brand Mark Badge
+          if (kShowAvatarLogoBadge)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 16,
+                height: 16,
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: isDark ? AppPalette.darkSurface : Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: scheme.primary, width: 1),
                 ),
+                child: const BrandMark(size: 12, showBackground: false),
               ),
-              ],
-            ],
-          ),
-        ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildAvatarContent(BuildContext context) {
+  Widget _buildAvatarImage(BuildContext context) {
     final url = profile?.avatarUrl;
     if (url != null && url.isNotEmpty) {
       return Image.network(
         url,
-        width: 36,
-        height: 36,
+        width: 38,
+        height: 38,
         fit: BoxFit.cover,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return const Center(
             child: SizedBox(
-              width: 14,
-              height: 14,
+              width: 12,
+              height: 12,
               child: CircularProgressIndicator(
-                strokeWidth: 2,
+                strokeWidth: 1.5,
                 color: Colors.white,
               ),
             ),
           );
         },
-        errorBuilder: (_, __, ___) => _buildFallbackInitial(),
+        errorBuilder: (_, __, ___) => _buildInitial(),
       );
     }
-    return _buildFallbackInitial();
+    return _buildInitial();
   }
 
-  Widget _buildFallbackInitial() {
+  Widget _buildInitial() {
     final initial = profile?.initials.isNotEmpty == true
         ? profile!.initials.substring(0, 1)
         : '';
@@ -561,9 +561,9 @@ class _ProfileMorphButton extends StatelessWidget {
   }
 }
 
-/// Paints the animated status progress ring around the profile avatar.
-class _AvatarProgressRingPainter extends CustomPainter {
-  const _AvatarProgressRingPainter({
+/// Custom painter for the concentric progress ring around the avatar.
+class _ConcentricProgressRingPainter extends CustomPainter {
+  const _ConcentricProgressRingPainter({
     required this.progress,
     required this.activeColor,
     required this.trackColor,
@@ -580,14 +580,14 @@ class _AvatarProgressRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
-    // Background track
+    // Background track with visible contrast (>3:1)
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, radius, trackPaint);
 
-    // Active progress arc
+    // Active progress arc matching mascot daily completion
     if (progress > 0.0) {
       final activePaint = Paint()
         ..color = activeColor
@@ -607,101 +607,151 @@ class _AvatarProgressRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _AvatarProgressRingPainter oldDelegate) =>
+  bool shouldRepaint(covariant _ConcentricProgressRingPainter oldDelegate) =>
       oldDelegate.progress != progress ||
       oldDelegate.activeColor != activeColor ||
       oldDelegate.trackColor != trackColor ||
       oldDelegate.strokeWidth != strokeWidth;
 }
 
-/// The time-of-day subheader with cross-fading icon, greeting, and date.
-class GreetingSubheader extends ConsumerWidget {
-  const GreetingSubheader({super.key});
+/// High-contrast streak chip (Rule 5: dark text on soft lime for light mode).
+class _StreakChip extends StatelessWidget {
+  const _StreakChip({
+    required this.streak,
+    required this.isDark,
+    required this.scheme,
+  });
+
+  final int streak;
+  final bool isDark;
+  final ColorScheme scheme;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final now =
-        ref.watch(nowProvider).asData?.value ?? ref.read(clockProvider)();
-    final profile = ref.watch(currentProfileProvider).asData?.value;
-    final who = const MascotMessagePicker().displayName(profile?.name);
+  Widget build(BuildContext context) {
+    // Light mode: AppPalette.softLime with deep forest green text (>7:1 contrast)
+    // Dark mode: scheme.primaryContainer with vibrant lime text (>5:1 contrast)
+    final chipBg =
+        isDark ? scheme.primaryContainer : AppPalette.softLime;
+    final chipText =
+        isDark ? AppPalette.limeGreen : AppPalette.forestGreen;
 
-    final part = DayPart.of(now);
-    final greeting = switch (part) {
-      DayPart.morning => 'Good morning',
-      DayPart.afternoon => 'Good afternoon',
-      DayPart.evening => 'Good evening',
-      DayPart.night => 'Hello',
-    };
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-
-    // Token-based icon & color mapping (no hardcoded peach)
-    final (IconData timeIcon, Color iconColor) = switch (part) {
-      DayPart.morning => (
-          Icons.wb_twilight_rounded,
-          context.colors.warning, // Warm sunrise token
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: chipBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppPalette.limeGreen.withValues(alpha: 0.3) : chipBg,
+          width: 1,
         ),
-      DayPart.afternoon => (
-          Icons.wb_sunny_rounded,
-          scheme.tertiary, // Lime Green midday energy
-        ),
-      DayPart.evening => (
-          Icons.nights_stay_rounded,
-          scheme.primary, // Forest Green calm
-        ),
-      DayPart.night => (
-          Icons.dark_mode_rounded,
-          scheme.primary, // Calm night
-        ),
-    };
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Cross-fading time-of-day icon
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Container(
-            key: ValueKey<IconData>(timeIcon),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 12)),
+          const SizedBox(width: 3),
+          Text(
+            '$streak',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: chipText,
             ),
-            child: Icon(timeIcon, color: iconColor, size: 26),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$greeting, $who!',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                formatLongDate(now),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: text.bodyLarge?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// Standalone composable GreetingHeader containing both HomeHeaderBar and
-/// GreetingSubheader for backward compatibility with existing tests.
+/// Notification bell with badge dot capped at "9+".
+class _NotificationBell extends StatelessWidget {
+  const _NotificationBell({
+    required this.notifications,
+    required this.isDark,
+    required this.scheme,
+    required this.onTap,
+  });
+
+  final int notifications;
+  final bool isDark;
+  final ColorScheme scheme;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = notifications > 0
+        ? 'Notifications, $notifications unread'
+        : 'Notifications';
+
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const Key('home_bell_button'),
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_outlined,
+                    color: scheme.onSurfaceVariant,
+                    size: 24,
+                  ),
+
+                  // Notification Badge Dot (Hidden if 0)
+                  if (notifications > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.error,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark ? AppPalette.darkSurface : Colors.white,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            notifications > 9 ? '9+' : '$notifications',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Backwards-compatible wrapper rendering [HomeIdentityBar].
 class GreetingHeader extends StatelessWidget {
   const GreetingHeader({super.key});
 
@@ -709,14 +759,7 @@ class GreetingHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       header: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          HomeHeaderBar(),
-          SizedBox(height: 14),
-          GreetingSubheader(),
-        ],
-      ),
+      child: const HomeIdentityBar(),
     );
   }
 }

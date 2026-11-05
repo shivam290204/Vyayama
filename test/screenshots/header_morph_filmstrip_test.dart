@@ -50,11 +50,12 @@ void main() {
     });
 
     final steps = [
-      (0.0, '0pct'),
-      (0.25, '25pct'),
-      (0.50, '50pct'),
-      (0.75, '75pct'),
-      (1.0, '100pct'),
+      (0.0, true, '0pct_brand'),
+      (0.0, false, 'rest_state'),
+      (0.25, false, '25pct_compact'),
+      (0.50, false, '50pct_compact'),
+      (0.75, false, '75pct_compact'),
+      (1.0, false, '100pct_compact'),
     ];
 
     final modes = [
@@ -67,7 +68,7 @@ void main() {
           ? AppTheme.dark(useGoogleFonts: false)
           : AppTheme.light(useGoogleFonts: false);
 
-      for (final (progress, stepLabel) in steps) {
+      for (final (progress, isBrand, stepLabel) in steps) {
         resetHomeHeaderIntroState();
         final repaintKey = GlobalKey();
         final scrollNotifier = ValueNotifier<double>(progress);
@@ -77,19 +78,19 @@ void main() {
             overrides: [
               currentProfileProvider.overrideWith(_FakeCurrentProfileNotifier.new),
               challengesProvider.overrideWith(_FakeChallengesNotifier.new),
-              incomingRequestCountProvider.overrideWith((ref) => 2),
-              unviewedSnapsCountProvider.overrideWith((ref) => 1),
+              incomingRequestCountProvider.overrideWith((ref) => 3),
+              unviewedSnapsCountProvider.overrideWith((ref) => 2),
               dailyCompletionProgressProvider.overrideWithValue(
                 const DailyCompletionProgress(
-                  completedCount: 5,
+                  completedCount: 6,
                   totalCount: 6,
-                  tier: DailyCompletionTier.fourToFiveDone,
+                  tier: DailyCompletionTier.everythingDone,
                   stepsDone: true,
                   caloriesDone: true,
                   activeMinutesDone: true,
                   workoutDone: true,
                   waterDone: true,
-                  challengeDone: false,
+                  challengeDone: true,
                 ),
               ),
             ],
@@ -99,18 +100,12 @@ void main() {
                 backgroundColor: theme.scaffoldBackgroundColor,
                 body: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: RepaintBoundary(
                       key: repaintKey,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: HomeHeaderBar(
-                          scrollProgress: scrollNotifier,
-                        ),
+                      child: HomeIdentityBar(
+                        scrollProgress: scrollNotifier,
+                        forceBrand: isBrand,
                       ),
                     ),
                   ),
@@ -130,7 +125,7 @@ void main() {
               await image.toByteData(format: ui.ImageByteFormat.png);
           final bytes = byteData!.buffer.asUint8List();
 
-          final fileName = 'header_morph_${stepLabel}_$modeName.png';
+          final fileName = 'identity_bar_${stepLabel}_$modeName.png';
 
           final outputDir = Directory('build/test_screenshots/filmstrip');
           final outputFile = File('${outputDir.path}/$fileName');
@@ -145,4 +140,3 @@ void main() {
     }
   });
 }
-
