@@ -52,14 +52,14 @@ void main() {
     );
   }
 
-  testWidgets('GreetingHeader renders brand elements and Profile button', (tester) async {
+  testWidgets('GreetingHeader renders brand elements and circular Profile button', (tester) async {
     await tester.pumpWidget(buildGreetingHeaderHarness());
     await tester.pumpAndSettle();
 
     expect(find.text('VYAYAMA'), findsOneWidget);
     expect(find.text('Every effort counts.'), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
-    expect(find.byIcon(Icons.person), findsOneWidget);
+    expect(find.byIcon(Icons.person_rounded), findsOneWidget);
+    expect(find.byKey(const Key('home_profile_button')), findsOneWidget);
   });
 
   testWidgets('GreetingHeader renders greeting and date', (tester) async {
@@ -70,7 +70,7 @@ void main() {
     expect(find.textContaining('Shivam!'), findsOneWidget);
   });
 
-  testWidgets('Tapping Profile button navigates to AppRoutes.profile', (tester) async {
+  testWidgets('Tapping circular Profile button navigates to AppRoutes.profile', (tester) async {
     String? navigatedRoute;
     final testRouter = GoRouter(
       initialLocation: '/',
@@ -94,7 +94,7 @@ void main() {
     await tester.pumpWidget(buildGreetingHeaderHarness(router: testRouter));
     await tester.pumpAndSettle();
 
-    final profileBtn = find.widgetWithText(FilledButton, 'Profile');
+    final profileBtn = find.byKey(const Key('home_profile_button'));
     expect(profileBtn, findsOneWidget);
     await tester.tap(profileBtn);
     await tester.pumpAndSettle();

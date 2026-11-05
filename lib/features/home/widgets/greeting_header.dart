@@ -80,19 +80,31 @@ class GreetingHeader extends ConsumerWidget {
               Semantics(
                 button: true,
                 label: 'View profile',
-                child: FilledButton.icon(
-                  onPressed: () => context.go(AppRoutes.profile),
-                  icon: const Icon(Icons.person, size: 18),
-                  label: const Text(
-                    'Profile',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: scheme.primary,
-                    foregroundColor: scheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: const StadiumBorder(),
-                    visualDensity: VisualDensity.compact,
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('home_profile_button'),
+                    onTap: () => context.go(AppRoutes.profile),
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: scheme.primary,
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
               ),
