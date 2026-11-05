@@ -23,7 +23,7 @@ import 'package:fitbuddy/core/widgets/staggered_entrance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The home screen: full-width identity bar, reacting mascot, today's time blocks,
+/// The home screen: greeting, reacting mascot, today's time blocks,
 /// activity summary, daily challenge, Daily Boost and quick links.
 class HomeScreen extends ConsumerStatefulWidget {
   /// Creates the screen.
@@ -34,27 +34,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final _scrollProgressNotifier = ValueNotifier<double>(0.0);
-  final _identityBarKey = GlobalKey<HomeIdentityBarState>();
-  late final ScrollController _scrollController;
-
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
     StepTrackingService.instance.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         DailyQuoteDialog.checkAndShow(context, ref);
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _scrollProgressNotifier.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -75,81 +63,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Rule 1: Include MediaQuery top padding for notches/status bars
-    final topPadding = MediaQuery.paddingOf(context).top;
-    const barHeight = 64.0;
-    const barMargin = 8.0;
-
-    // Rule 3: Initialise scroll progress from controller's current offset
-    if (_scrollController.hasClients) {
-      final initialOffset = _scrollController.offset.clamp(0.0, 80.0);
-      _scrollProgressNotifier.value = (initialOffset / 80.0).clamp(0.0, 1.0);
-    }
-
     return Scaffold(
       backgroundColor: Colors.transparent, // Let GlowBackground show through
       body: GlowBackground(
-        child: Stack(
-          children: [
-            NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                // Rule: depth == 0 and vertical axis only
-                if (notification.depth == 0 &&
-                    notification.metrics.axis == Axis.vertical) {
-                  if (notification is ScrollUpdateNotification ||
-                      notification is OverscrollNotification) {
-                    final offset =
-                        notification.metrics.pixels.clamp(0.0, 80.0);
-                    _scrollProgressNotifier.value =
-                        (offset / 80.0).clamp(0.0, 1.0);
-                    _identityBarKey.currentState?.skipIntro();
-                  }
-                }
-                return false;
-              },
-              child: RefreshIndicator(
-                edgeOffset: topPadding + barHeight + barMargin,
-                onRefresh: _refresh,
-                color: Theme.of(context).colorScheme.primary,
-                child: ListView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
-                  ),
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    topPadding + barHeight + barMargin + 12,
-                    16,
-                    12,
-                  ),
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
-                        child: const _HomeContent(),
-                      ),
-                    ),
-                  ],
-                ),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            color: Theme.of(context).colorScheme.primary,
+            child: ListView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
-            ),
-
-            // Pinned top HomeIdentityBar (including MediaQuery topPadding)
-            Positioned(
-              top: topPadding + barMargin,
-              left: 16,
-              right: 16,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 640),
-                  child: HomeIdentityBar(
-                    key: _identityBarKey,
-                    scrollProgress: _scrollProgressNotifier,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: const _HomeContent(),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -163,7 +98,8 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return const StaggeredEntrance(
       children: [
-        // MascotSection moves up as separate greeting block is absorbed into HomeIdentityBar
+        GreetingHeader(),
+        SizedBox(height: 12),
         MascotSection(),
         SizedBox(height: 20),
         AnimatedSectionHeader(
