@@ -19,7 +19,21 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        leading: IconButton(
+          key: const Key('profile_back_button'),
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Back to Dashboard',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+        ),
+        title: const Text('Profile'),
+      ),
       body: SafeArea(
         child: profile.when(
           loading: () => Center(
