@@ -8,6 +8,7 @@ import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
@@ -43,7 +44,13 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     NominatimService? nominatim,
     RouteCache? cache,
     this.overallTimeout = const Duration(seconds: 25),
-  })  : _overpass = overpass ?? OverpassService(),
+    ConnectivityMonitor? connectivityMonitor,
+    Future<bool> Function()? isOfflineProbe,
+  })  : _overpass = overpass ??
+            OverpassService(
+              connectivityMonitor: connectivityMonitor,
+              isOfflineProbe: isOfflineProbe,
+            ),
         _valhalla = valhalla ?? ValhallaService(),
         _nominatim = nominatim ?? NominatimService(),
         _cache = cache ?? RouteCache.instance;

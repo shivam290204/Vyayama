@@ -469,30 +469,30 @@ class _RouteErrorView extends StatelessWidget {
 
     if (error is RouteRateLimitException) {
       icon = Icons.timer_outlined;
-      title = 'Rate Limit Reached';
+      title = 'Nearby places temporarily unavailable.';
       message = 'OpenStreetMap request limit reached. Please wait a moment and try again.';
+    } else if (error is OverpassServiceException) {
+      icon = Icons.cloud_off_rounded;
+      title = 'Nearby places temporarily unavailable.';
+      message = 'OpenStreetMap data server is currently busy or experiencing an outage. Tap below to retry.';
     } else if (error is RouteNetworkException) {
       final isTimeout = error.toString().toLowerCase().contains('time');
       if (isTimeout) {
         icon = Icons.hourglass_bottom_rounded;
-        title = 'Connection Timed Out';
-        message = 'The request to external mapping services timed out. Tap below to retry.';
+        title = 'Mapping service timed out.';
+        message = 'The request to mapping services timed out. Tap below to retry.';
       } else {
         icon = Icons.wifi_off_rounded;
         title = 'No Internet Connection';
         message = 'Unable to reach routing services. Please verify your connection.';
       }
-    } else if (error is OverpassServiceException) {
-      icon = Icons.cloud_off_rounded;
-      title = 'Map Data Temporarily Unavailable';
-      message = 'OpenStreetMap data server is currently busy or experiencing an outage. Tap below to retry.';
     } else if (error is ValhallaRoutingException) {
       icon = Icons.alt_route_rounded;
       title = 'Routing Engine Unavailable';
       message = 'Pedestrian routing service is temporarily unavailable. Tap below to retry.';
     } else {
       icon = Icons.error_outline_rounded;
-      title = 'Unexpected Server Response';
+      title = 'Nearby places temporarily unavailable.';
       message = 'Could not load routes right now due to an unexpected response. Tap below to retry.';
     }
 

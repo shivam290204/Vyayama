@@ -4,6 +4,7 @@ import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -24,8 +25,13 @@ abstract class RouteDiscoveryProvider {
 ///
 /// Returns an empty list (never fake data) when no routes can be found.
 class RouteDiscoveryEngine implements RouteDiscoveryProvider {
-  RouteDiscoveryEngine({RealRouteDiscoveryService? realService})
-      : _realService = realService ?? RealRouteDiscoveryService();
+  RouteDiscoveryEngine({
+    RealRouteDiscoveryService? realService,
+    ConnectivityMonitor? connectivityMonitor,
+  })  : _realService = realService ??
+            RealRouteDiscoveryService(
+              connectivityMonitor: connectivityMonitor,
+            );
 
   final RealRouteDiscoveryService _realService;
 

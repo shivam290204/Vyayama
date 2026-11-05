@@ -31,7 +31,10 @@ final savedRoutesRepositoryProvider = Provider<SavedRoutesRepository>((ref) {
 });
 
 final connectivityMonitorProvider = Provider<ConnectivityMonitor>((ref) {
-  final monitor = ConnectivityMonitor();
+  final monitor = ConnectivityMonitor(
+    reachabilityProbe: ConnectivityMonitor.defaultReachabilityProbe,
+    enablePlatformListener: true,
+  );
   ref.onDispose(monitor.dispose);
   return monitor;
 });
@@ -50,7 +53,10 @@ final outdoorSyncCoordinatorProvider = Provider<OutdoorSyncCoordinator>((ref) {
 });
 
 final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {
-  return RouteDiscoveryEngine();
+  final connectivity = ref.watch(connectivityMonitorProvider);
+  return RouteDiscoveryEngine(
+    connectivityMonitor: connectivity,
+  );
 });
 
 final outdoorSessionRecoveryServiceProvider =

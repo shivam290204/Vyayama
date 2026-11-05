@@ -48,8 +48,8 @@ class MapApiConfig {
   /// Default public Overpass mirror endpoints for automatic failover.
   static const List<String> defaultOverpassMirrors = [
     'https://overpass-api.de/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.private.coffee/api/interpreter',
   ];
 
   /// Resolved Overpass endpoint with `--dart-define` override support.
@@ -106,6 +106,7 @@ class MapApiConfig {
   /// Whether current Overpass config points to public community servers.
   static bool get isUsingPublicOverpassEndpoint =>
       overpassUrl.contains('overpass-api.de') ||
+      overpassUrl.contains('openstreetmap.fr') ||
       overpassUrl.contains('kumi.systems') ||
       overpassUrl.contains('private.coffee');
 

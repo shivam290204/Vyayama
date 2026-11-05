@@ -164,7 +164,8 @@ class NominatimService {
       final response = await request.close().timeout(_timeout);
 
       if (response.statusCode == 429) {
-        _handleRateLimit();
+        final retryAfter = response.headers.value(HttpHeaders.retryAfterHeader);
+        _handleRateLimit(retryAfter);
         throw const RouteRateLimitException(
             'Nominatim rate limit reached. Please wait a moment.');
       }
@@ -289,7 +290,8 @@ class NominatimService {
         final response = await request.close().timeout(_timeout);
 
         if (response.statusCode == 429) {
-          _handleRateLimit();
+          final retryAfter = response.headers.value(HttpHeaders.retryAfterHeader);
+          _handleRateLimit(retryAfter);
           break;
         }
 
@@ -320,9 +322,7 @@ class NominatimService {
       }
     }
 
-    if (allPlaces.isNotEmpty) {
-      _cache.set(cacheKey, allPlaces);
-    }
+    _cache.set(cacheKey, allPlaces);
     return allPlaces;
   }
 
@@ -395,9 +395,29 @@ class NominatimService {
     }
   }
 
-  void _handleRateLimit() {
-    _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
+  static Duration? _parseRetryAfterDuration(String? headerValue) {
+    if (headerValue == null || headerValue.trim().isEmpty) return null;
+    final trimmed = headerValue.trim();
+    final seconds = int.tryParse(trimmed);
+    if (seconds != null && seconds >= 0) {
+      return Duration(seconds: seconds);
+    }
+    try {
+      final date = HttpDate.parse(trimmed);
+      final diff = date.difference(DateTime.now());
+      return diff.isNegative ? Duration.zero : diff;
+    } catch (_) {
+      return null;
+    }
   }
+
+  void _handleRateLimit([String? retryAfterHeader]) {
+    final duration = _parseRetryAfterDuration(retryAfterHeader) ?? const Duration(seconds: 30);
+    _rateLimitedUntil = DateTime.now().add(duration);
+  }
+
+  /// Resets rate limit cooldown for unit tests.
+  void resetRateLimitForTesting() => _rateLimitedUntil = null;
 
   Future<void> _throttle() async {
     final now = DateTime.now();

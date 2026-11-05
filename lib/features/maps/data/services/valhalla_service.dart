@@ -210,7 +210,8 @@ class ValhallaService {
           }
           continue;
         }
-        throw const RouteNetworkException();
+        throw const ValhallaRoutingException(
+            'Pedestrian routing service is currently unreachable. Please try again shortly.');
       } on TimeoutException catch (_) {
         if (attempt == 0) {
           if (_isCancelled(requestId)) {

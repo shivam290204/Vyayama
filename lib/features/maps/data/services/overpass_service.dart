@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Result from an Overpass query — a genuine geographic feature (named or unnamed)
@@ -84,27 +86,86 @@ class OverpassService {
     List<String>? endpoints,
     HttpClient Function()? clientFactory,
     this.retryBackoff = const Duration(milliseconds: 1500),
+    ConnectivityMonitor? connectivityMonitor,
+    Future<bool> Function()? isOfflineProbe,
   })  : _cache = cache ?? RouteCache.instance,
         _endpoints = endpoints ??
             (endpoint != null
                 ? [endpoint]
                 : MapApiConfig.overpassEndpoints),
-        _clientFactory = clientFactory ?? (() => HttpClient());
+        _clientFactory = clientFactory ?? (() => HttpClient()),
+        _connectivityMonitor = connectivityMonitor,
+        _isOfflineProbe = isOfflineProbe;
 
   static List<String> get defaultEndpoints => MapApiConfig.overpassEndpoints;
 
   final List<String> _endpoints;
   final HttpClient Function() _clientFactory;
   final Duration retryBackoff;
+  final ConnectivityMonitor? _connectivityMonitor;
+  final Future<bool> Function()? _isOfflineProbe;
   static const Duration _timeout = Duration(seconds: 8);
   static const int _maxResults = 50;
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
   DateTime? _rateLimitedUntil;
+  final Map<String, DateTime> _endpointCooldowns = {};
 
-  /// Resets rate limit cooldown for unit tests.
-  void resetRateLimitForTesting() => _rateLimitedUntil = null;
+  /// Resets rate limit and endpoint cooldowns for unit tests.
+  void resetRateLimitForTesting() {
+    _rateLimitedUntil = null;
+    _endpointCooldowns.clear();
+  }
+
+  void _recordEndpointCooldown(String endpoint, Duration duration) {
+    _endpointCooldowns[endpoint] = DateTime.now().add(duration);
+  }
+
+  bool _isEndpointInCooldown(String endpoint) {
+    final cooldownUntil = _endpointCooldowns[endpoint];
+    if (cooldownUntil == null) return false;
+    if (DateTime.now().isBefore(cooldownUntil)) {
+      return true;
+    }
+    _endpointCooldowns.remove(endpoint);
+    return false;
+  }
+
+  static Duration? _parseRetryAfterDuration(String? headerValue) {
+    if (headerValue == null || headerValue.trim().isEmpty) return null;
+    final trimmed = headerValue.trim();
+    final seconds = int.tryParse(trimmed);
+    if (seconds != null && seconds >= 0) {
+      return Duration(seconds: seconds);
+    }
+    try {
+      final date = HttpDate.parse(trimmed);
+      final diff = date.difference(DateTime.now());
+      return diff.isNegative ? Duration.zero : diff;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<NetworkReachabilityStatus> _determineReachability() async {
+    if (_connectivityMonitor != null) {
+      return await _connectivityMonitor.checkReachability();
+    }
+    if (_isOfflineProbe != null) {
+      try {
+        final isOffline = await _isOfflineProbe();
+        return isOffline
+            ? NetworkReachabilityStatus.offline
+            : NetworkReachabilityStatus.online;
+      } catch (_) {
+        // Requirement 5: Do not classify a failed connectivity probe as definitely offline.
+        // Handle unknown connectivity separately.
+        return NetworkReachabilityStatus.unknown;
+      }
+    }
+    return NetworkReachabilityStatus.unknown;
+  }
 
   /// Active client tracking for safe cancellation.
   final Set<HttpClient> _activeClients = {};
@@ -176,6 +237,18 @@ class OverpassService {
     final cached = _cache.get<List<OverpassPlace>>(cacheKey);
     if (cached != null) return cached;
 
+    // Fast-path: if device is confirmed offline, fail immediately without wasting time on network timeouts
+    final initialReachability = await _determineReachability();
+    if (initialReachability == NetworkReachabilityStatus.offline) {
+      throw const RouteNetworkException(
+          'No internet connection. Please check your network and try again.');
+    }
+
+    if (_endpoints.isNotEmpty && _endpoints.every(_isEndpointInCooldown)) {
+      throw const OverpassServiceException(
+          'Nearby places temporarily unavailable.');
+    }
+
     await _throttle();
 
     final lat = center.latitude;
@@ -205,15 +278,30 @@ out center $_maxResults;
 ''';
 
     RouteDiscoveryException? lastException;
+    final failedEndpointsThisCall = <String>{};
 
     for (int attempt = 0; attempt <= 1; attempt++) {
       if (_isCancelled(requestId)) {
         throw const RouteNetworkException('Request was cancelled.');
       }
 
+      // Exponential backoff before retry attempt
+      if (attempt > 0) {
+        final backoffDelay = retryBackoff * math.pow(2, attempt - 1);
+        await Future<void>.delayed(backoffDelay);
+        if (_isCancelled(requestId)) {
+          throw const RouteNetworkException('Request was cancelled.');
+        }
+      }
+
       for (final ep in _endpoints) {
         if (_isCancelled(requestId)) {
           throw const RouteNetworkException('Request was cancelled.');
+        }
+
+        // Skip endpoints in active cooldown from earlier failures or explicit Retry-After
+        if (_isEndpointInCooldown(ep)) {
+          continue;
         }
 
         HttpClient? client;
@@ -232,18 +320,27 @@ out center $_maxResults;
           final response = await request.close().timeout(_timeout);
 
           if (response.statusCode == 429) {
-            _rateLimitedUntil = DateTime.now().add(const Duration(seconds: 30));
+            final retryAfter = response.headers.value(HttpHeaders.retryAfterHeader);
+            final duration = _parseRetryAfterDuration(retryAfter) ?? const Duration(seconds: 30);
+            _rateLimitedUntil = DateTime.now().add(duration);
             throw const RouteRateLimitException(
                 'OpenStreetMap request limit reached. Please wait a moment.');
           }
 
           if (response.statusCode >= 500) {
+            failedEndpointsThisCall.add(ep);
+            final retryAfter = response.headers.value(HttpHeaders.retryAfterHeader);
+            if (retryAfter != null) {
+              final duration = _parseRetryAfterDuration(retryAfter) ?? const Duration(seconds: 60);
+              _recordEndpointCooldown(ep, duration);
+            }
             lastException = OverpassServiceException(
                 'OpenStreetMap service returned server error (${response.statusCode}).');
             continue;
           }
 
           if (response.statusCode != 200) {
+            failedEndpointsThisCall.add(ep);
             lastException = OverpassServiceException(
                 'OpenStreetMap service returned unexpected status (${response.statusCode}).');
             continue;
@@ -252,19 +349,36 @@ out center $_maxResults;
           final body = await response.transform(utf8.decoder).join();
           final places = parseOverpassResponse(body);
           _cache.set(cacheKey, places);
+
+          // Mark any mirrors that failed before this successful one into cooldown
+          for (final failedEp in failedEndpointsThisCall) {
+            _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
+          }
+
           return places;
         } on SocketException catch (_) {
-          lastException = const RouteNetworkException();
+          failedEndpointsThisCall.add(ep);
+          final reachability = await _determineReachability();
+          if (reachability == NetworkReachabilityStatus.offline) {
+            lastException = const RouteNetworkException(
+                'No internet connection. Please check your network and try again.');
+          } else {
+            lastException = const OverpassServiceException(
+                'Nearby places temporarily unavailable.');
+          }
         } on TimeoutException catch (_) {
+          failedEndpointsThisCall.add(ep);
           lastException = const RouteNetworkException(
-              'Connection to OpenStreetMap service timed out. Please try again.');
+              'Mapping service timed out. Please try again.');
         } on RouteRateLimitException {
           // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
           // and must NEVER be retried.
           rethrow;
         } on RouteDiscoveryException catch (e) {
+          failedEndpointsThisCall.add(ep);
           lastException = e;
         } catch (e) {
+          failedEndpointsThisCall.add(ep);
           lastException =
               OverpassServiceException('Failed to process OpenStreetMap data: $e');
         } finally {
@@ -279,25 +393,22 @@ out center $_maxResults;
           }
         }
       }
+    }
 
-      // If all mirrors exhausted on attempt 0:
-      // Retry once after backoff delay, provided the request was not cancelled
-      if (attempt == 0) {
-        if (_isCancelled(requestId)) {
-          throw const RouteNetworkException('Request was cancelled.');
-        }
-        await Future<void>.delayed(retryBackoff);
-        if (_isCancelled(requestId)) {
-          throw const RouteNetworkException('Request was cancelled.');
-        }
-        continue;
-      }
+    // All endpoints exhausted across attempts: record cooldown on failed endpoints
+    for (final failedEp in failedEndpointsThisCall) {
+      _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
     }
 
     if (lastException != null) {
+      if (lastException is OverpassServiceException) {
+        throw const OverpassServiceException(
+            'Nearby places temporarily unavailable.');
+      }
       throw lastException;
     }
-    return [];
+    throw const OverpassServiceException(
+        'Nearby places temporarily unavailable.');
   }
 
   /// Parses Overpass JSON response into a list of [OverpassPlace] objects.

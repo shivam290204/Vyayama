@@ -2,6 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
+import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
+import 'package:fitbuddy/features/maps/data/repositories/saved_routes_repository.dart';
 import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
 import 'package:fitbuddy/features/maps/data/services/overpass_service.dart';
@@ -9,16 +13,20 @@ import 'package:fitbuddy/features/maps/data/services/real_route_discovery_servic
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
 import 'package:fitbuddy/features/maps/data/services/valhalla_service.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_sync_coordinator.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_discovery_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() {
@@ -382,9 +390,915 @@ void main() {
       expect(requestCount, equals(1));
     });
 
+    test('13d. Primary Overpass failure (502) automatically fails over to healthy secondary mirror', () async {
+      int requestCount = 0;
+      final requestedEndpoints = <String>[];
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 101,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Secondary Mirror Park" }
+    }
+  ]
+}
+''';
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: [
+          'https://overpass-api.de/api/interpreter',
+          'https://overpass.openstreetmap.fr/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          if (requestCount == 1) {
+            return _TestHttpClient(
+              statusCode: 502,
+              onRequest: (uri, _) => requestedEndpoints.add(uri.toString()),
+            );
+          } else {
+            return _TestHttpClient(
+              statusCode: 200,
+              responseBody: validResponse,
+              onRequest: (uri, _) => requestedEndpoints.add(uri.toString()),
+            );
+          }
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 2000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Secondary Mirror Park'));
+      expect(requestCount, equals(2));
+      expect(requestedEndpoints[0], contains('overpass-api.de'));
+      expect(requestedEndpoints[1], contains('overpass.openstreetmap.fr'));
+    });
+
+    test('13e. All Overpass servers returning 502/503 throws OverpassServiceException with user-friendly message', () async {
+      int requestCount = 0;
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(statusCode: 502);
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<OverpassServiceException>().having(
+            (e) => e.message,
+            'message',
+            equals('Nearby places temporarily unavailable.'),
+          ),
+        ),
+      );
+
+      expect(requestCount, greaterThanOrEqualTo(2));
+    });
+
+    test('13f. HTTP 429 respects Retry-After header and stops mirror rotation', () async {
+      int requestCount = 0;
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(
+            statusCode: 429,
+            responseHeaders: {'retry-after': '45'},
+          );
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(isA<RouteRateLimitException>()),
+      );
+
+      expect(requestCount, equals(1));
+    });
+
+    test('13g. HTTP 502 respects Retry-After header and places server in cooldown', () async {
+      int requestCount = 0;
+      final requestedEndpoints = <String>[];
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 102,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Cooldown Fallback Park" }
+    }
+  ]
+}
+''';
+
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: [
+          'https://mirror1.overpass.example/api/interpreter',
+          'https://mirror2.overpass.example/api/interpreter',
+        ],
+        clientFactory: () {
+          requestCount++;
+          if (requestCount == 1) {
+            return _TestHttpClient(
+              statusCode: 502,
+              responseHeaders: {'retry-after': '60'},
+              onRequest: (uri, _) => requestedEndpoints.add(uri.toString()),
+            );
+          } else {
+            return _TestHttpClient(
+              statusCode: 200,
+              responseBody: validResponse,
+              onRequest: (uri, _) => requestedEndpoints.add(uri.toString()),
+            );
+          }
+        },
+      );
+
+      service.resetRateLimitForTesting();
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 2000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Cooldown Fallback Park'));
+      expect(requestCount, equals(2));
+      expect(requestedEndpoints[0], contains('mirror1'));
+      expect(requestedEndpoints[1], contains('mirror2'));
+    });
+
+    test('13h. Timeout handling results in RouteNetworkException with timeout description', () async {
+      final service = OverpassService(
+        retryBackoff: const Duration(milliseconds: 10),
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _ThrowingHttpClient(TimeoutException('Request timed out')),
+      );
+
+      service.resetRateLimitForTesting();
+
+      expect(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<RouteNetworkException>().having(
+            (e) => e.message.toLowerCase(),
+            'message',
+            contains('timed out'),
+          ),
+        ),
+      );
+    });
+
+    test('13i. Cached nearby places result returns immediately without HTTP requests', () async {
+      int requestCount = 0;
+      const center = LatLng(28.7145, 77.1682);
+      final cachedKey = RouteCache.buildOverpassKey(center, 2000);
+      final dummyPlace = OverpassPlace(
+        id: 777,
+        name: 'Already Cached Park',
+        lat: 28.7145,
+        lon: 77.1682,
+        tags: const {'leisure': 'park'},
+      );
+
+      RouteCache.instance.set(cachedKey, [dummyPlace]);
+
+      final service = OverpassService(
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient();
+        },
+      );
+
+      final places = await service.findNearbyPlaces(
+        center: center,
+        radiusMeters: 2000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Already Cached Park'));
+      expect(requestCount, equals(0));
+    });
+
+    test('13j. Offline Wi-Fi connection is correctly classified as RouteNetworkException (No internet connection)', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: false,
+      );
+
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _ThrowingHttpClient(const SocketException('Network is unreachable')),
+      );
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<RouteNetworkException>().having(
+            (e) => e.message,
+            'message',
+            contains('No internet connection'),
+          ),
+        ),
+      );
+    });
+
+    test('13k. Offline mobile data connection is correctly classified as RouteNetworkException (No internet connection)', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.mobile,
+        initialOnline: false,
+      );
+
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _ThrowingHttpClient(const SocketException('No route to host')),
+      );
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<RouteNetworkException>().having(
+            (e) => e.message,
+            'message',
+            contains('No internet connection'),
+          ),
+        ),
+      );
+    });
+
+    test('13l. Connected Wi-Fi with an unavailable Overpass server is classified as OverpassServiceException', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: true,
+        reachabilityProbe: () async => true,
+      );
+
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _TestHttpClient(statusCode: 502),
+      );
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<OverpassServiceException>().having(
+            (e) => e.message,
+            'message',
+            equals('Nearby places temporarily unavailable.'),
+          ),
+        ),
+      );
+    });
+
+    test('13m. Connected mobile data with an available Overpass server successfully retrieves places', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.mobile,
+        initialOnline: true,
+        reachabilityProbe: () async => true,
+      );
+
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 9901,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Cellular Connectivity Park" }
+    }
+  ]
+}
+''';
+
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _TestHttpClient(
+          statusCode: 200,
+          responseBody: validResponse,
+        ),
+      );
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 2000,
+      );
+
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Cellular Connectivity Park'));
+    });
+
+    test('13n. Failed reachability probe is handled as unknown connectivity and does NOT falsely classify as definitely offline', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: true,
+        reachabilityProbe: () async => throw const SocketException('DNS probe timeout'),
+      );
+
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () => _ThrowingHttpClient(const SocketException('Server unreachable')),
+      );
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<OverpassServiceException>().having(
+            (e) => e.message,
+            'message',
+            equals('Nearby places temporarily unavailable.'),
+          ),
+        ),
+      );
+    });
+
+    test('13o. Production routeDiscoveryEngineProvider wires ConnectivityMonitor down to OverpassService', () async {
+      final fakeMonitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: false,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          connectivityMonitorProvider.overrideWithValue(fakeMonitor),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final engine = container.read(routeDiscoveryEngineProvider);
+      expect(engine, isNotNull);
+
+      // Verify that engine discovery propagates the offline state to RouteNetworkException
+      await expectLater(
+        () => engine.discoverRoutes(
+          center: const LatLng(28.7145, 77.1682),
+        ),
+        throwsA(
+          isA<RouteNetworkException>().having(
+            (e) => e.message,
+            'message',
+            contains('No internet connection'),
+          ),
+        ),
+      );
+    });
+
+    test('13p. Both DNS lookups failing returns unknown (not offline or false)', () async {
+      final status = await ConnectivityMonitor.probeDnsReachability((host) async {
+        throw const SocketException('DNS resolution failed');
+      });
+      expect(status, equals(NetworkReachabilityStatus.unknown));
+      expect(status, isNot(equals(NetworkReachabilityStatus.offline)));
+
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: true,
+        reachabilityProbe: () => ConnectivityMonitor.probeDnsReachability((host) async {
+          throw const SocketException('DNS resolution failed');
+        }),
+      );
+      final reachability = await monitor.checkReachability();
+      expect(reachability, equals(NetworkReachabilityStatus.unknown));
+      expect(reachability, isNot(equals(NetworkReachabilityStatus.offline)));
+    });
+
+    test('13q. Primary DNS failing but fallback succeeding returns online', () async {
+      final queriedHosts = <String>[];
+      final status = await ConnectivityMonitor.probeDnsReachability((host) async {
+        queriedHosts.add(host);
+        if (host == 'dns.google') {
+          throw const SocketException('dns.google unreachable');
+        }
+        if (host == 'cloudflare.com') {
+          return [InternetAddress('1.1.1.1')];
+        }
+        throw const SocketException('Unknown host');
+      });
+
+      expect(status, equals(NetworkReachabilityStatus.online));
+      expect(queriedHosts, containsAllInOrder(['dns.google', 'cloudflare.com']));
+
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: true,
+        reachabilityProbe: () async => status,
+      );
+      final reachability = await monitor.checkReachability();
+      expect(reachability, equals(NetworkReachabilityStatus.online));
+    });
+
+    test('13r. Confirmed offline network classifies as offline and aborts Overpass requests immediately', () async {
+      // 1. Confirmed offline via initialOnline: false
+      final monitorOffline = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: false,
+      );
+      expect(await monitorOffline.checkReachability(), equals(NetworkReachabilityStatus.offline));
+
+      // 2. Confirmed offline via connectionType: none
+      final monitorNone = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.none,
+        initialOnline: true,
+      );
+      expect(await monitorNone.checkReachability(), equals(NetworkReachabilityStatus.offline));
+
+      // 3. Fast-path in OverpassService throws RouteNetworkException without creating HTTP requests
+      var httpClientCreated = false;
+      final service = OverpassService(
+        connectivityMonitor: monitorOffline,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () {
+          httpClientCreated = true;
+          return _TestHttpClient(statusCode: 200);
+        },
+      );
+
+      await expectLater(
+        () => service.findNearbyPlaces(
+          center: const LatLng(28.7145, 77.1682),
+          radiusMeters: 2000,
+        ),
+        throwsA(
+          isA<RouteNetworkException>().having(
+            (e) => e.message,
+            'message',
+            contains('No internet connection'),
+          ),
+        ),
+      );
+      expect(httpClientCreated, isFalse, reason: 'Confirmed offline must fast-path abort before HTTP client creation');
+    });
+
+    test('13s. Unknown connectivity still allows Overpass requests to proceed', () async {
+      final monitor = ConnectivityMonitor(
+        initialConnectionType: NetworkConnectionType.wifi,
+        initialOnline: true,
+        reachabilityProbe: () async => NetworkReachabilityStatus.unknown,
+      );
+
+      expect(await monitor.checkReachability(), equals(NetworkReachabilityStatus.unknown));
+
+      const validResponse = '''
+{
+  "elements": [
+    {
+      "type": "way",
+      "id": 9902,
+      "center": { "lat": 28.7145, "lon": 77.1682 },
+      "tags": { "leisure": "park", "name": "Unknown Connectivity Park" }
+    }
+  ]
+}
+''';
+
+      var requestsSent = 0;
+      final service = OverpassService(
+        connectivityMonitor: monitor,
+        endpoints: ['https://mirror1.overpass.example/api/interpreter'],
+        clientFactory: () {
+          requestsSent++;
+          return _TestHttpClient(
+            statusCode: 200,
+            responseBody: validResponse,
+          );
+        },
+      );
+
+      final places = await service.findNearbyPlaces(
+        center: const LatLng(28.7145, 77.1682),
+        radiusMeters: 2000,
+      );
+
+      expect(requestsSent, equals(1), reason: 'Unknown connectivity must proceed with HTTP request');
+      expect(places, hasLength(1));
+      expect(places.first.name, equals('Unknown Connectivity Park'));
+    });
+
     test('14. cancelActiveRequests completes without throwing', () {
       final service = OverpassService();
       expect(() => service.cancelActiveRequests(), returnsNormally);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 3b. Production Connectivity Listener & Lifecycle Tests
+  // ---------------------------------------------------------------------------
+  group('Production Connectivity Listener & Lifecycle Tests', () {
+    test('1. Wi-Fi connected updates monitor status to online and wifi', () async {
+      final controller = StreamController<List<ConnectivityResult>>.broadcast();
+      addTearDown(controller.close);
+
+      final monitor = ConnectivityMonitor(
+        connectivityStream: controller.stream,
+        checkConnectivityFn: () async => [ConnectivityResult.wifi],
+        initialOnline: false,
+      );
+      addTearDown(monitor.dispose);
+
+      // Initial check should set online & wifi
+      await monitor.refreshConnectivity();
+      expect(monitor.isOnline, isTrue);
+      expect(monitor.connectionType, equals(NetworkConnectionType.wifi));
+
+      // Emitting wifi on stream maintains wifi
+      controller.add([ConnectivityResult.wifi]);
+      await Future<void>.delayed(Duration.zero);
+      expect(monitor.isOnline, isTrue);
+      expect(monitor.connectionType, equals(NetworkConnectionType.wifi));
+    });
+
+    test('2. Mobile data connected updates monitor status to online and mobile', () async {
+      final controller = StreamController<List<ConnectivityResult>>.broadcast();
+      addTearDown(controller.close);
+
+      final monitor = ConnectivityMonitor(
+        connectivityStream: controller.stream,
+        checkConnectivityFn: () async => [ConnectivityResult.none],
+        initialOnline: false,
+      );
+      addTearDown(monitor.dispose);
+
+      controller.add([ConnectivityResult.mobile]);
+      await Future<void>.delayed(Duration.zero);
+      expect(monitor.isOnline, isTrue);
+      expect(monitor.connectionType, equals(NetworkConnectionType.mobile));
+    });
+
+    test('3. Disconnection updates monitor to offline and none, returning offline reachability', () async {
+      final controller = StreamController<List<ConnectivityResult>>.broadcast();
+      addTearDown(controller.close);
+
+      final monitor = ConnectivityMonitor(
+        connectivityStream: controller.stream,
+        checkConnectivityFn: () async => [ConnectivityResult.wifi],
+        initialOnline: true,
+        initialConnectionType: NetworkConnectionType.wifi,
+      );
+      addTearDown(monitor.dispose);
+
+      controller.add([ConnectivityResult.none]);
+      await Future<void>.delayed(Duration.zero);
+      expect(monitor.isOnline, isFalse);
+      expect(monitor.connectionType, equals(NetworkConnectionType.none));
+
+      final reachability = await monitor.checkReachability();
+      expect(reachability, equals(NetworkReachabilityStatus.offline));
+    });
+
+    test('4. Reconnection after offline fires onConnectivityRestored event after debounce', () async {
+      final controller = StreamController<List<ConnectivityResult>>.broadcast();
+      addTearDown(controller.close);
+
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 20),
+        reachabilityProbe: () async => NetworkReachabilityStatus.online,
+        connectivityStream: controller.stream,
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+      );
+      addTearDown(monitor.dispose);
+
+      final restoredEvents = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen(restoredEvents.add);
+      addTearDown(sub.cancel);
+
+      // Reconnect via Wi-Fi
+      controller.add([ConnectivityResult.wifi]);
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(monitor.isOnline, isTrue);
+      expect(monitor.connectionType, equals(NetworkConnectionType.wifi));
+      expect(restoredEvents, equals([true]),
+          reason: 'Offline-to-online transition must fire onConnectivityRestored');
+    });
+
+    test('5. App resume refreshes network connectivity state from platform', () async {
+      var currentResult = [ConnectivityResult.none];
+      final monitor = ConnectivityMonitor(
+        checkConnectivityFn: () async => currentResult,
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+      );
+      addTearDown(monitor.dispose);
+
+      expect(monitor.isOnline, isFalse);
+
+      // Network changes while app was backgrounded
+      currentResult = [ConnectivityResult.wifi];
+
+      // App resumes
+      monitor.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(monitor.isOnline, isTrue);
+      expect(monitor.connectionType, equals(NetworkConnectionType.wifi));
+    });
+
+    test('6. Automatic outdoor sync triggers when connectivity is restored via listener', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final storage = LocalOutdoorStorage(preferences: prefs);
+      final actRepo = OutdoorActivityRepository(storage: storage);
+      final routesRepo = SavedRoutesRepository(storage: storage);
+
+      // Pre-save an unsynced activity to storage
+      final sampleActivity = OutdoorActivity(
+        id: 'act_pending_sync_test',
+        userId: 'test_user',
+        activityType: OutdoorActivityType.running,
+        startTime: DateTime.now().subtract(const Duration(minutes: 30)),
+        endTime: DateTime.now(),
+        durationSeconds: 1800,
+        distanceMeters: 5000,
+        averagePaceSecondsPerKm: 360,
+        averageSpeedKmh: 10.0,
+        points: const [],
+        isSynced: false,
+      );
+      await storage.saveActivity(sampleActivity);
+
+      var remoteSyncCount = 0;
+      actRepo.currentUserIdOverride = () => 'test_user';
+      actRepo.remoteUpsertOverride = (table, payload) async {
+        remoteSyncCount++;
+      };
+
+      final controller = StreamController<List<ConnectivityResult>>.broadcast();
+      addTearDown(controller.close);
+
+      final monitor = ConnectivityMonitor(
+        debounceDuration: const Duration(milliseconds: 20),
+        reachabilityProbe: () async => NetworkReachabilityStatus.online,
+        connectivityStream: controller.stream,
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+      );
+      addTearDown(monitor.dispose);
+
+      final coordinator = OutdoorSyncCoordinator(
+        activityRepository: actRepo,
+        routesRepository: routesRepo,
+        connectivityMonitor: monitor,
+      );
+      addTearDown(coordinator.dispose);
+
+      // Trigger reconnection event via platform stream
+      controller.add([ConnectivityResult.wifi]);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(monitor.isOnline, isTrue);
+      expect(remoteSyncCount, greaterThanOrEqualTo(1),
+          reason: 'Automatic outdoor sync must be triggered when connectivity is restored');
+
+      final syncedActivity = await actRepo.getActivityById('act_pending_sync_test');
+      expect(syncedActivity!.isSynced, isTrue);
+    });
+
+    test('7. In-flight connectivity refresh completing after disposal does not mutate state or schedule timers', () async {
+      final completer = Completer<List<ConnectivityResult>>();
+
+      final monitor = ConnectivityMonitor(
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+        checkConnectivityFn: () => completer.future,
+        debounceDuration: const Duration(milliseconds: 50),
+      );
+
+      // Verify initial offline state
+      expect(monitor.isOnline, isFalse);
+      expect(monitor.connectionType, equals(NetworkConnectionType.none));
+      expect(monitor.isDisposed, isFalse);
+
+      // Start asynchronous refresh which suspends waiting on completer.future
+      final refreshFuture = monitor.refreshConnectivity();
+
+      // Dispose monitor while checkConnectivityFn is in-flight
+      monitor.dispose();
+      expect(monitor.isDisposed, isTrue);
+
+      // Complete in-flight platform connectivity check with wifi
+      completer.complete([ConnectivityResult.wifi]);
+      await refreshFuture;
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      // Assert that state was NOT mutated after disposal
+      expect(monitor.isOnline, isFalse,
+          reason: 'Disposed monitor must ignore in-flight platform connectivity changes');
+      expect(monitor.connectionType, equals(NetworkConnectionType.none));
+
+      // Attempting direct notifyConnectivityChange on disposed monitor is a no-op
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+      expect(monitor.isOnline, isFalse);
+      expect(monitor.connectionType, equals(NetworkConnectionType.none));
+    });
+
+    test('8. Wi-Fi reconnect followed by immediate disconnection while DNS probe is pending does not emit restored event', () async {
+      final probeCompleter = Completer<NetworkReachabilityStatus>();
+
+      final monitor = ConnectivityMonitor(
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+        debounceDuration: const Duration(milliseconds: 10),
+        reachabilityProbe: () => probeCompleter.future,
+      );
+      addTearDown(monitor.dispose);
+
+      final restoredEvents = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen(restoredEvents.add);
+      addTearDown(sub.cancel);
+
+      // 1. Wi-Fi connects
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+      // Wait for debounce timer to fire, starting probe
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      // 2. While DNS probe is still pending, disconnection occurs
+      monitor.notifyConnectivityChange(false, connectionType: NetworkConnectionType.none);
+      expect(monitor.isOnline, isFalse);
+
+      // 3. DNS probe now resolves as online (stale callback)
+      probeCompleter.complete(NetworkReachabilityStatus.online);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      // Assert that no connectivity-restored event was emitted because the callback was outdated
+      expect(restoredEvents, isEmpty,
+          reason: 'Outdated DNS probe resolution must never emit connectivity-restored event after disconnection');
+      expect(monitor.isOnline, isFalse);
+    });
+
+    test('9. DNS initially returning unknown subsequently retries and emits connectivity-restored when online', () async {
+      var probeCalls = 0;
+      final monitor = ConnectivityMonitor(
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+        debounceDuration: const Duration(milliseconds: 10),
+        unknownRetryInterval: const Duration(milliseconds: 20),
+        maxUnknownRetries: 3,
+        reachabilityProbe: () async {
+          probeCalls++;
+          if (probeCalls == 1) {
+            return NetworkReachabilityStatus.unknown;
+          }
+          return NetworkReachabilityStatus.online;
+        },
+      );
+      addTearDown(monitor.dispose);
+
+      final restoredEvents = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen(restoredEvents.add);
+      addTearDown(sub.cancel);
+
+      // Reconnect
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+
+      // Wait for debounce (10ms) + first probe execution
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+      expect(probeCalls, equals(1));
+      expect(restoredEvents, isEmpty,
+          reason: 'Must not emit connectivity-restored while reachability is unknown');
+
+      // Wait for unknownRetryInterval (20ms) + second probe execution
+      for (var i = 0; i < 20 && restoredEvents.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 15));
+      }
+      expect(probeCalls, equals(2));
+      expect(restoredEvents, equals([true]),
+          reason: 'Must emit connectivity-restored once reachability retry confirms online');
+    });
+
+    test('10. Disposal while an unknown connectivity retry is pending cancels retry and avoids callbacks', () async {
+      var probeCalls = 0;
+      final monitor = ConnectivityMonitor(
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+        debounceDuration: const Duration(milliseconds: 10),
+        unknownRetryInterval: const Duration(milliseconds: 60),
+        maxUnknownRetries: 3,
+        reachabilityProbe: () async {
+          probeCalls++;
+          return NetworkReachabilityStatus.unknown;
+        },
+      );
+
+      final restoredEvents = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen(restoredEvents.add);
+      addTearDown(sub.cancel);
+
+      // Trigger reconnect
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+
+      // Wait for debounce and first probe (returns unknown)
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(probeCalls, equals(1));
+      expect(restoredEvents, isEmpty);
+
+      // Dispose while retry timer is ticking
+      monitor.dispose();
+      expect(monitor.isDisposed, isTrue);
+
+      // Wait past the retry delay
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+
+      // Verify that no subsequent retry probe was executed
+      expect(probeCalls, equals(1),
+          reason: 'Disposal must cancel any pending retry timer');
+      expect(restoredEvents, isEmpty);
+    });
+
+    test('11. No duplicate connectivity-restored events on successive online transitions or handovers', () async {
+      var probeCalls = 0;
+      final monitor = ConnectivityMonitor(
+        initialOnline: false,
+        initialConnectionType: NetworkConnectionType.none,
+        debounceDuration: const Duration(milliseconds: 10),
+        unknownRetryInterval: const Duration(milliseconds: 15),
+        maxUnknownRetries: 2,
+        reachabilityProbe: () async {
+          probeCalls++;
+          if (probeCalls == 1) return NetworkReachabilityStatus.unknown;
+          return NetworkReachabilityStatus.online;
+        },
+      );
+      addTearDown(monitor.dispose);
+
+      final restoredEvents = <bool>[];
+      final sub = monitor.onConnectivityRestored.listen(restoredEvents.add);
+      addTearDown(sub.cancel);
+
+      // Reconnect via Wi-Fi
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+
+      // Wait for debounce + retry to confirm online
+      for (var i = 0; i < 20 && restoredEvents.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 15));
+      }
+      expect(restoredEvents, equals([true]));
+
+      // Subsequent identical Wi-Fi event arrives
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.wifi);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      // Network handover to mobile data while remaining online
+      monitor.notifyConnectivityChange(true, connectionType: NetworkConnectionType.mobile);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      // Verify restored event was emitted strictly once
+      expect(restoredEvents, equals([true]),
+          reason: 'Must never emit duplicate connectivity-restored events');
     });
   });
 
@@ -471,6 +1385,29 @@ void main() {
       );
 
       expect(route, isNotNull);
+      expect(requestCount, equals(2));
+    });
+
+    test('17b. Throws ValhallaRoutingException when SocketException persists across retries', () async {
+      int requestCount = 0;
+
+      final service = ValhallaService(
+        retryBackoff: const Duration(milliseconds: 10),
+        clientFactory: () {
+          requestCount++;
+          return _ThrowingHttpClient(const SocketException('Failed to connect to host'));
+        },
+      );
+
+      expect(
+        () => service.route(
+          origin: const LatLng(28.7145, 77.1682),
+          waypoints: [const LatLng(28.7160, 77.1700)],
+        ),
+        throwsA(isA<ValhallaRoutingException>()),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(requestCount, equals(2));
     });
 
@@ -623,6 +1560,37 @@ void main() {
     test('23. cancelActiveRequests completes without throwing', () {
       final service = NominatimService();
       expect(() => service.cancelActiveRequests(), returnsNormally);
+    });
+
+    test('23b. Nominatim caches empty results to prevent re-query loops', () async {
+      int requestCount = 0;
+      final service = NominatimService(
+        clientFactory: () {
+          requestCount++;
+          return _TestHttpClient(
+            statusCode: 200,
+            responseBody: '[]',
+          );
+        },
+      );
+
+      const center = LatLng(28.7145, 77.1682);
+      final places1 = await service.findNearbyPlaces(
+        center: center,
+        radiusMeters: 2000,
+      );
+      expect(places1, isEmpty);
+      expect(requestCount, greaterThan(0));
+
+      final countAfterFirst = requestCount;
+
+      // Second query for the exact same center & radius must be served from cache without extra HTTP calls
+      final places2 = await service.findNearbyPlaces(
+        center: center,
+        radiusMeters: 2000,
+      );
+      expect(places2, isEmpty);
+      expect(requestCount, equals(countAfterFirst));
     });
   });
 
@@ -1051,7 +2019,7 @@ void main() {
   // 8. RouteDiscoverySheet UI Error States & Interactions
   // ---------------------------------------------------------------------------
   group('RouteDiscoverySheet Error States Widget Tests', () {
-    testWidgets('32. Renders Rate Limit error view when RouteRateLimitException occurs',
+    testWidgets('32. Renders Nearby places temporarily unavailable error view when RouteRateLimitException occurs',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -1069,12 +2037,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Rate Limit Reached'), findsOneWidget);
+      expect(find.text('Nearby places temporarily unavailable.'), findsOneWidget);
       expect(find.byIcon(Icons.timer_outlined), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
 
-    testWidgets('33. Renders Connection Timed Out error view on network timeout',
+    testWidgets('33. Renders Mapping service timed out error view on network timeout',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -1094,7 +2062,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Connection Timed Out'), findsOneWidget);
+      expect(find.text('Mapping service timed out.'), findsOneWidget);
       expect(find.byIcon(Icons.hourglass_bottom_rounded), findsOneWidget);
     });
 
@@ -1122,7 +2090,7 @@ void main() {
       expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
     });
 
-    testWidgets('35. Renders Map Data Temporarily Unavailable on OverpassServiceException',
+    testWidgets('35. Renders Nearby places temporarily unavailable on OverpassServiceException',
         (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -1140,7 +2108,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Map Data Temporarily Unavailable'), findsOneWidget);
+      expect(find.text('Nearby places temporarily unavailable.'), findsOneWidget);
       expect(find.byIcon(Icons.cloud_off_rounded), findsOneWidget);
     });
 
@@ -1202,6 +2170,7 @@ class _TestHttpClient implements HttpClient {
   _TestHttpClient({
     this.statusCode = 200,
     this.responseBody = '{}',
+    this.responseHeaders,
     this.onRequest,
     this.onHeaderRecorded,
     this.responseDelay,
@@ -1209,6 +2178,7 @@ class _TestHttpClient implements HttpClient {
 
   final int statusCode;
   final String responseBody;
+  final Map<String, String>? responseHeaders;
   final void Function(Uri uri, String method)? onRequest;
   final void Function(String key, String value)? onHeaderRecorded;
   final Duration? responseDelay;
@@ -1229,6 +2199,7 @@ class _TestHttpClient implements HttpClient {
       userAgent,
       onHeaderRecorded,
       responseDelay,
+      responseHeaders,
     );
   }
 
@@ -1243,6 +2214,7 @@ class _TestHttpClient implements HttpClient {
       userAgent,
       onHeaderRecorded,
       responseDelay,
+      responseHeaders,
     );
   }
 
@@ -1290,6 +2262,7 @@ class _TestHttpClientRequest implements HttpClientRequest {
     this.userAgent,
     this.onHeaderRecorded, [
     this.responseDelay,
+    this.responseHeaders,
   ]);
 
   @override
@@ -1301,6 +2274,7 @@ class _TestHttpClientRequest implements HttpClientRequest {
   final String? userAgent;
   final void Function(String key, String value)? onHeaderRecorded;
   final Duration? responseDelay;
+  final Map<String, String>? responseHeaders;
 
   final StringBuffer _buffer = StringBuffer();
 
@@ -1317,7 +2291,7 @@ class _TestHttpClientRequest implements HttpClientRequest {
     if (responseDelay != null) {
       await Future<void>.delayed(responseDelay!);
     }
-    return _TestHttpClientResponse(statusCode, responseBody);
+    return _TestHttpClientResponse(statusCode, responseBody, responseHeaders);
   }
 
   @override
@@ -1325,7 +2299,11 @@ class _TestHttpClientRequest implements HttpClientRequest {
 }
 
 class _TestHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
-  _TestHttpClientResponse(this.statusCode, this.body);
+  _TestHttpClientResponse(this.statusCode, this.body, [Map<String, String>? responseHeaders]) {
+    if (responseHeaders != null) {
+      responseHeaders.forEach((k, v) => headers.set(k, v));
+    }
+  }
 
   @override
   final int statusCode;
