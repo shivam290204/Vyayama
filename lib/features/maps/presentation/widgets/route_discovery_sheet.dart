@@ -472,7 +472,13 @@ class _RouteErrorView extends StatelessWidget {
         (err is RouteNetworkException &&
             err.toString().toLowerCase().contains('time'));
 
-    if (err is ServiceRateLimitedException) {
+    if (err is CircuitBreakerOpenException) {
+      icon = Icons.pause_circle_outline_rounded;
+      title = '${err.serviceName} Temporarily Paused';
+      final secs = err.cooldownRemaining.inSeconds;
+      message =
+          'Multiple requests failed. Pausing calls for ${secs > 0 ? '${secs}s' : 'a moment'} to protect battery and network.';
+    } else if (err is ServiceRateLimitedException) {
       icon = Icons.timer_outlined;
       title = 'Nearby places temporarily unavailable.';
       message = 'OpenStreetMap request limit reached. Please wait a moment and try again.';

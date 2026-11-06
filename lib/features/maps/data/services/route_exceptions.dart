@@ -184,3 +184,18 @@ class AllOverpassMirrorsFailedException extends OverpassServiceException {
 
   final List<OverpassMirrorAttempt> attempts;
 }
+
+/// Thrown when a service circuit breaker is open after consecutive failures.
+class CircuitBreakerOpenException extends RouteDiscoveryException {
+  CircuitBreakerOpenException({
+    required this.serviceName,
+    required this.cooldownRemaining,
+    String? message,
+  }) : super(
+          message ??
+              '$serviceName is temporarily paused after consecutive failures. Retrying in ${cooldownRemaining.inSeconds}s.',
+        );
+
+  final String serviceName;
+  final Duration cooldownRemaining;
+}

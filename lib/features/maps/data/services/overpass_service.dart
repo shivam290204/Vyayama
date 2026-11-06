@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/circuit_breaker.dart';
 import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
@@ -88,6 +89,7 @@ class OverpassService {
     this.retryBackoff = const Duration(milliseconds: 1500),
     ConnectivityMonitor? connectivityMonitor,
     Future<bool> Function()? isOfflineProbe,
+    ServiceCircuitBreaker? circuitBreaker,
   })  : _cache = cache ?? RouteCache.instance,
         _endpoints = endpoints ??
             (endpoint != null
@@ -95,7 +97,13 @@ class OverpassService {
                 : MapApiConfig.overpassEndpoints),
         _clientFactory = clientFactory ?? (() => HttpClient()),
         _connectivityMonitor = connectivityMonitor,
-        _isOfflineProbe = isOfflineProbe;
+        _isOfflineProbe = isOfflineProbe,
+        _circuitBreaker = circuitBreaker ??
+            ServiceCircuitBreaker(
+              serviceName: 'OpenStreetMap Places',
+              failureThreshold: 3,
+              cooldownDuration: const Duration(seconds: 60),
+            );
 
   static List<String> get defaultEndpoints => MapApiConfig.overpassEndpoints;
 
@@ -104,8 +112,22 @@ class OverpassService {
   final Duration retryBackoff;
   final ConnectivityMonitor? _connectivityMonitor;
   final Future<bool> Function()? _isOfflineProbe;
-  static const Duration _timeout = Duration(seconds: 8);
-  static const int _maxResults = 50;
+  final ServiceCircuitBreaker _circuitBreaker;
+  /// Per-request HTTP client timeout (connect + response).
+  /// Shorter than the server-side `[timeout:N]` to avoid hanging.
+  static const Duration _timeout = Duration(seconds: 10);
+
+  /// Maximum number of places returned per Overpass query.
+  static const int _maxResults = 30;
+
+  /// Starting search radius when the caller does not specify one.
+  static const double _initialRadiusMeters = 2000;
+
+  /// Expanded radius used when the first pass returns too few results.
+  static const double _expandedRadiusMeters = 5000;
+
+  /// Overall budget for a single findNearbyPlaces call (all mirrors + retries).
+  static const Duration _overallBudget = Duration(seconds: 25);
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
@@ -122,6 +144,7 @@ class OverpassService {
     _rateLimitedUntil = null;
     _endpointCooldowns.clear();
     _lastMirrorAttempts.clear();
+    _circuitBreaker.reset();
   }
 
   void _recordEndpointCooldown(String endpoint, Duration duration) {
@@ -222,6 +245,8 @@ class OverpassService {
     required double radiusMeters,
     int? requestId,
   }) async {
+    _circuitBreaker.protect();
+
     if (_rateLimitedUntil != null &&
         DateTime.now().isBefore(_rateLimitedUntil!)) {
       throw const RouteRateLimitException(
@@ -259,20 +284,68 @@ class OverpassService {
 
     final lat = center.latitude;
     final lon = center.longitude;
-    final r = radiusMeters.clamp(300, 5000).round();
 
-    // Overpass QL: index-accelerated exact tag matching for parks, recreation grounds,
-    // walking paths, footways, pedestrian roads, tracks, and hiking relations.
-    final query = '''
-[out:json][timeout:8];
+    // -------------------------------------------------------------------------
+    // Phase 2(a): Progressive radius — start small (~2.5 km), expand only if
+    // the first pass returns no results.
+    // -------------------------------------------------------------------------
+    final deadline = DateTime.now().add(_overallBudget);
+
+    final initialR = math.min(radiusMeters, _initialRadiusMeters).round();
+    List<OverpassPlace> results = await _queryWithRadius(
+      lat: lat,
+      lon: lon,
+      radiusMeters: initialR,
+      requestId: requestId,
+      deadline: deadline,
+    );
+
+    // Expand only if there are too few (or zero) results and radiusMeters was larger
+    if (results.isEmpty &&
+        radiusMeters > _initialRadiusMeters &&
+        DateTime.now().isBefore(deadline)) {
+      final expandedR = radiusMeters.clamp(300, _expandedRadiusMeters).round();
+      final expanded = await _queryWithRadius(
+        lat: lat,
+        lon: lon,
+        radiusMeters: expandedR,
+        requestId: requestId,
+        deadline: deadline,
+      );
+      if (expanded.isNotEmpty) {
+        results = expanded;
+      }
+    }
+
+    _cache.set(cacheKey, results);
+    _circuitBreaker.recordSuccess();
+    return results;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Split query strategy (Phase 2a):
+  //   Pass 1 — named leisure areas only (small, fast, index-friendly).
+  //   Pass 2 — footways/paths/tracks (can be large; use smaller sub-radius).
+  // ---------------------------------------------------------------------------
+
+  /// Builds the named-parks Overpass QL for a given radius.
+  String _parksQuery(int r, double lat, double lon) => '''
+[out:json][timeout:20];
 (
-  node["leisure"="park"](around:$r,$lat,$lon);
-  way["leisure"="park"](around:$r,$lat,$lon);
-  node["leisure"="recreation_ground"](around:$r,$lat,$lon);
-  way["leisure"="recreation_ground"](around:$r,$lat,$lon);
-  node["leisure"="nature_reserve"](around:$r,$lat,$lon);
-  way["leisure"="nature_reserve"](around:$r,$lat,$lon);
-  way["leisure"="garden"](around:$r,$lat,$lon);
+  node["leisure"="park"]["name"](around:$r,$lat,$lon);
+  way["leisure"="park"]["name"](around:$r,$lat,$lon);
+  node["leisure"="recreation_ground"]["name"](around:$r,$lat,$lon);
+  way["leisure"="recreation_ground"]["name"](around:$r,$lat,$lon);
+  way["leisure"="nature_reserve"]["name"](around:$r,$lat,$lon);
+  way["leisure"="garden"]["name"](around:$r,$lat,$lon);
+);
+out center $_maxResults;
+''';
+
+  /// Builds the footways/paths query for a given (smaller) radius.
+  String _pathsQuery(int r, double lat, double lon) => '''
+[out:json][timeout:20];
+(
   way["highway"="footway"](around:$r,$lat,$lon);
   way["highway"="pedestrian"](around:$r,$lat,$lon);
   way["highway"="path"](around:$r,$lat,$lon);
@@ -283,6 +356,51 @@ class OverpassService {
 out center $_maxResults;
 ''';
 
+  /// Runs progressive queries for [radiusMeters].
+  /// Queries named parks first (lightweight, index-friendly). If found, returns them immediately.
+  /// Only falls back to paths/tracks if no named parks were found.
+  Future<List<OverpassPlace>> _queryWithRadius({
+    required double lat,
+    required double lon,
+    required int radiusMeters,
+    required int? requestId,
+    required DateTime deadline,
+  }) async {
+    // Named parks first — fast and index-friendly.
+    final parks = await _executeQuery(
+      query: _parksQuery(radiusMeters, lat, lon),
+      requestId: requestId,
+      deadline: deadline,
+    );
+
+    if (parks.isNotEmpty ||
+        _isCancelled(requestId) ||
+        DateTime.now().isAfter(deadline)) {
+      return parks;
+    }
+
+    // Paths in a tighter sub-radius to keep response size manageable.
+    final pathRadius = (radiusMeters * 0.6).round().clamp(300, radiusMeters);
+    try {
+      final paths = await _executeQuery(
+        query: _pathsQuery(pathRadius, lat, lon),
+        requestId: requestId,
+        deadline: deadline,
+      );
+      return paths;
+    } catch (_) {
+      // Return whatever we have (even if empty)
+      return parks;
+    }
+  }
+
+  /// Executes a single Overpass QL [query] against all configured mirrors,
+  /// respecting the overall [deadline] budget.
+  Future<List<OverpassPlace>> _executeQuery({
+    required String query,
+    required int? requestId,
+    required DateTime deadline,
+  }) async {
     RouteDiscoveryException? lastException;
     final failedEndpointsThisCall = <String>{};
     _lastMirrorAttempts.clear();
@@ -292,6 +410,11 @@ out center $_maxResults;
         throw const RouteNetworkException('Request was cancelled.');
       }
 
+      // Stop if we've exceeded the overall budget
+      if (DateTime.now().isAfter(deadline)) {
+        break;
+      }
+
       // Exponential backoff before retry attempt
       if (attempt > 0) {
         final backoffDelay = retryBackoff * math.pow(2, attempt - 1);
@@ -299,12 +422,16 @@ out center $_maxResults;
         if (_isCancelled(requestId)) {
           throw const RouteNetworkException('Request was cancelled.');
         }
+        if (DateTime.now().isAfter(deadline)) break;
       }
 
       for (final ep in _endpoints) {
         if (_isCancelled(requestId)) {
           throw const RouteNetworkException('Request was cancelled.');
         }
+
+        // Stop if we've exceeded the overall budget
+        if (DateTime.now().isAfter(deadline)) break;
 
         // Skip endpoints in active cooldown from earlier failures or explicit Retry-After
         if (_isEndpointInCooldown(ep)) {
@@ -392,7 +519,6 @@ out center $_maxResults;
 
           final body = await response.transform(utf8.decoder).join();
           final places = parseOverpassResponse(body);
-          _cache.set(cacheKey, places);
 
           _lastMirrorAttempts.add(OverpassMirrorAttempt(
             endpoint: ep,
@@ -403,6 +529,7 @@ out center $_maxResults;
           ));
 
           // Mark any mirrors that failed before this successful one into cooldown
+          failedEndpointsThisCall.remove(ep);
           for (final failedEp in failedEndpointsThisCall) {
             _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
           }
@@ -496,6 +623,8 @@ out center $_maxResults;
     for (final failedEp in failedEndpointsThisCall) {
       _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
     }
+
+    _circuitBreaker.recordFailure();
 
     if (_lastMirrorAttempts.isNotEmpty && _lastMirrorAttempts.every((a) => a.errorType == 'timeout')) {
       throw const ServiceTimeoutException(

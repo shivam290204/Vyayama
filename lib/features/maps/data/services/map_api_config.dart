@@ -42,14 +42,22 @@ class MapApiConfig {
   // ---------------------------------------------------------------------------
 
   /// Default primary Overpass API interpreter endpoint.
+  ///
+  /// **Mirror priority order** (based on diagnostics 2026-11-06):
+  /// 1. `overpass.openstreetmap.fr` — consistently reachable, low latency.
+  /// 2. `overpass-api.de`           — primary but frequently times out.
+  /// 3. `overpass.kumi.systems`     — frequently times out.
+  ///
+  /// The first mirror that answers wins; failed mirrors are put in a 60 s cooldown.
   static const String defaultOverpassUrl =
-      'https://overpass-api.de/api/interpreter';
+      'https://overpass.openstreetmap.fr/api/interpreter';
 
   /// Default public Overpass mirror endpoints for automatic failover.
+  /// Ordered by measured reliability — best server first.
   static const List<String> defaultOverpassMirrors = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.openstreetmap.fr/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter', // most reliable
+    'https://overpass-api.de/api/interpreter',           // primary, often slow
+    'https://overpass.kumi.systems/api/interpreter',     // frequently times out
   ];
 
   /// Resolved Overpass endpoint with `--dart-define` override support.

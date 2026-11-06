@@ -167,6 +167,10 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       if (requestId != _activeRequestId) return;
 
       if (overpassFailure != null && places.isEmpty) {
+        if (overpassFailure is RouteNetworkException &&
+            overpassFailure.message.contains('cancelled')) {
+          return;
+        }
         _cancelGeneration(requestId);
         if (overpassFailure is RouteDiscoveryException) {
           throw overpassFailure;
@@ -302,6 +306,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           sink.addError(const ServiceTimeoutException(
               serviceName: 'Route Discovery',
               message: 'Route discovery timed out waiting for external services.'));
+          sink.close();
         },
       )) {
         lastEmitted = routes;

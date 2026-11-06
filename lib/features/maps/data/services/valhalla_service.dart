@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:fitbuddy/features/maps/data/services/circuit_breaker.dart';
 import 'package:fitbuddy/features/maps/data/services/map_api_config.dart';
 import 'package:fitbuddy/features/maps/data/services/route_cache.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
@@ -50,14 +51,22 @@ class ValhallaService {
     String? baseUrl,
     HttpClient Function()? clientFactory,
     this.retryBackoff = const Duration(milliseconds: 1500),
+    ServiceCircuitBreaker? circuitBreaker,
   })  : _cache = cache ?? RouteCache.instance,
         _baseUrl = baseUrl ?? MapApiConfig.valhallaUrl,
-        _clientFactory = clientFactory ?? (() => HttpClient());
+        _clientFactory = clientFactory ?? (() => HttpClient()),
+        _circuitBreaker = circuitBreaker ??
+            ServiceCircuitBreaker(
+              serviceName: 'Pedestrian Routing',
+              failureThreshold: 3,
+              cooldownDuration: const Duration(seconds: 60),
+            );
 
   final RouteCache _cache;
   final String _baseUrl;
   final HttpClient Function() _clientFactory;
   final Duration retryBackoff;
+  final ServiceCircuitBreaker _circuitBreaker;
 
   static const String _clientId = 'Vyayama';
   static const Duration _timeout = Duration(seconds: 12);
@@ -120,6 +129,8 @@ class ValhallaService {
     final cacheKey = RouteCache.buildValhallaKey(origin, waypoints);
     final cached = _cache.get<ValhallaRoute>(cacheKey);
     if (cached != null) return cached;
+
+    _circuitBreaker.protect();
 
     final locations = <Map<String, dynamic>>[
       _location(origin),
@@ -202,6 +213,7 @@ class ValhallaService {
         if (parsed != null) {
           _cache.set(cacheKey, parsed);
         }
+        _circuitBreaker.recordSuccess();
         return parsed;
       } on RouteRateLimitException {
         rethrow;
@@ -216,6 +228,7 @@ class ValhallaService {
           }
           continue;
         }
+        _circuitBreaker.recordFailure();
         throw ValhallaRoutingException(
           'Pedestrian routing service is currently unreachable. Please try again shortly.',
           null,
@@ -232,6 +245,7 @@ class ValhallaService {
           }
           continue;
         }
+        _circuitBreaker.recordFailure();
         throw ServiceTimeoutException(
           serviceName: 'Pedestrian Routing',
           host: Uri.parse(_baseUrl).host,

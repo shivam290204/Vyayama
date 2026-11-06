@@ -33,6 +33,7 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
   bool _showSearchThisArea = false;
   LatLng? _currentCameraCenter;
   bool _hasTileError = false;
+  int _tileLayerKey = 0;
   DateTime? _lastTileErrorNotification;
 
   @override
@@ -93,6 +94,14 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
     if (_lastTileErrorNotification == null ||
         now.difference(_lastTileErrorNotification!) > const Duration(seconds: 15)) {
       _lastTileErrorNotification = now;
+      setState(() => _hasTileError = true);
+    }
+  }
+
+  /// Exposes tile error trigger for widget verification tests.
+  @visibleForTesting
+  void triggerTileErrorForTesting() {
+    if (mounted) {
       setState(() => _hasTileError = true);
     }
   }
@@ -331,7 +340,10 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
               },
             ),
             children: [
-              AppMapTileLayer(onError: _onTileError),
+              AppMapTileLayer(
+                key: ValueKey(_tileLayerKey),
+                onError: _onTileError,
+              ),
               const AppMapAttribution(),
               PolylineLayer(polylines: polylines),
               MarkerLayer(markers: markers),
@@ -368,13 +380,28 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Map tiles temporarily unavailable (offline or server busy).',
+                          'Map tiles temporarily unavailable.',
                           style: TextStyle(
                             color: textPrimary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                      ),
+                      TextButton.icon(
+                        key: const Key('tile_error_retry_button'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _hasTileError = false;
+                            _tileLayerKey++;
+                          });
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 14),
+                        label: const Text('Retry', style: TextStyle(fontSize: 12)),
                       ),
                       IconButton(
                         key: const Key('tile_error_close_button'),
