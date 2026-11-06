@@ -111,11 +111,17 @@ class OverpassService {
   DateTime? _lastRequestTime;
   DateTime? _rateLimitedUntil;
   final Map<String, DateTime> _endpointCooldowns = {};
+  final List<OverpassMirrorAttempt> _lastMirrorAttempts = [];
+
+  /// Historical log of mirror attempts from the most recent query.
+  List<OverpassMirrorAttempt> get lastMirrorAttempts =>
+      List.unmodifiable(_lastMirrorAttempts);
 
   /// Resets rate limit and endpoint cooldowns for unit tests.
   void resetRateLimitForTesting() {
     _rateLimitedUntil = null;
     _endpointCooldowns.clear();
+    _lastMirrorAttempts.clear();
   }
 
   void _recordEndpointCooldown(String endpoint, Duration duration) {
@@ -240,7 +246,7 @@ class OverpassService {
     // Fast-path: if device is confirmed offline, fail immediately without wasting time on network timeouts
     final initialReachability = await _determineReachability();
     if (initialReachability == NetworkReachabilityStatus.offline) {
-      throw const RouteNetworkException(
+      throw const DeviceOfflineException(
           'No internet connection. Please check your network and try again.');
     }
 
@@ -279,6 +285,7 @@ out center $_maxResults;
 
     RouteDiscoveryException? lastException;
     final failedEndpointsThisCall = <String>{};
+    _lastMirrorAttempts.clear();
 
     for (int attempt = 0; attempt <= 1; attempt++) {
       if (_isCancelled(requestId)) {
@@ -305,6 +312,9 @@ out center $_maxResults;
         }
 
         HttpClient? client;
+        final sw = Stopwatch()..start();
+        final uri = Uri.parse(ep);
+
         try {
           client = _clientFactory()..userAgent = MapApiConfig.userAgent;
           _activeClients.add(client);
@@ -312,19 +322,31 @@ out center $_maxResults;
             _generationClients.putIfAbsent(requestId, () => {}).add(client);
           }
 
-          final uri = Uri.parse(ep);
           final request = await client.postUrl(uri).timeout(_timeout);
           request.headers.set(
               HttpHeaders.contentTypeHeader, 'application/x-www-form-urlencoded');
           request.write('data=${Uri.encodeComponent(query)}');
           final response = await request.close().timeout(_timeout);
+          sw.stop();
 
           if (response.statusCode == 429) {
             final retryAfter = response.headers.value(HttpHeaders.retryAfterHeader);
             final duration = _parseRetryAfterDuration(retryAfter) ?? const Duration(seconds: 30);
             _rateLimitedUntil = DateTime.now().add(duration);
-            throw const RouteRateLimitException(
-                'OpenStreetMap request limit reached. Please wait a moment.');
+            _lastMirrorAttempts.add(OverpassMirrorAttempt(
+              endpoint: ep,
+              timestamp: DateTime.now(),
+              duration: sw.elapsed,
+              statusCode: 429,
+              errorType: 'rate_limit',
+              errorMessage: 'OpenStreetMap request limit reached.',
+            ));
+            throw RouteRateLimitException(
+              'OpenStreetMap request limit reached. Please wait a moment.',
+              'OpenStreetMap',
+              uri.host,
+              duration,
+            );
           }
 
           if (response.statusCode >= 500) {
@@ -334,15 +356,37 @@ out center $_maxResults;
               final duration = _parseRetryAfterDuration(retryAfter) ?? const Duration(seconds: 60);
               _recordEndpointCooldown(ep, duration);
             }
+            _lastMirrorAttempts.add(OverpassMirrorAttempt(
+              endpoint: ep,
+              timestamp: DateTime.now(),
+              duration: sw.elapsed,
+              statusCode: response.statusCode,
+              errorType: 'bad_status',
+              errorMessage: 'Server error HTTP ${response.statusCode}',
+            ));
             lastException = OverpassServiceException(
-                'OpenStreetMap service returned server error (${response.statusCode}).');
+              'OpenStreetMap service returned server error (${response.statusCode}).',
+              response.statusCode,
+              uri.host,
+            );
             continue;
           }
 
           if (response.statusCode != 200) {
             failedEndpointsThisCall.add(ep);
-            lastException = OverpassServiceException(
-                'OpenStreetMap service returned unexpected status (${response.statusCode}).');
+            _lastMirrorAttempts.add(OverpassMirrorAttempt(
+              endpoint: ep,
+              timestamp: DateTime.now(),
+              duration: sw.elapsed,
+              statusCode: response.statusCode,
+              errorType: 'bad_status',
+              errorMessage: 'Unexpected status HTTP ${response.statusCode}',
+            ));
+            lastException = BadResponseException(
+              serviceName: 'OpenStreetMap',
+              host: uri.host,
+              statusCode: response.statusCode,
+            );
             continue;
           }
 
@@ -350,35 +394,88 @@ out center $_maxResults;
           final places = parseOverpassResponse(body);
           _cache.set(cacheKey, places);
 
+          _lastMirrorAttempts.add(OverpassMirrorAttempt(
+            endpoint: ep,
+            timestamp: DateTime.now(),
+            duration: sw.elapsed,
+            statusCode: 200,
+            succeeded: true,
+          ));
+
           // Mark any mirrors that failed before this successful one into cooldown
           for (final failedEp in failedEndpointsThisCall) {
             _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
           }
 
           return places;
-        } on SocketException catch (_) {
+        } on SocketException catch (e) {
+          sw.stop();
           failedEndpointsThisCall.add(ep);
           final reachability = await _determineReachability();
           if (reachability == NetworkReachabilityStatus.offline) {
-            lastException = const RouteNetworkException(
+            _lastMirrorAttempts.add(OverpassMirrorAttempt(
+              endpoint: ep,
+              timestamp: DateTime.now(),
+              duration: sw.elapsed,
+              errorType: 'dns_failure',
+              errorMessage: 'Device offline',
+            ));
+            throw const DeviceOfflineException(
                 'No internet connection. Please check your network and try again.');
           } else {
-            lastException = const OverpassServiceException(
-                'Nearby places temporarily unavailable.');
+            _lastMirrorAttempts.add(OverpassMirrorAttempt(
+              endpoint: ep,
+              timestamp: DateTime.now(),
+              duration: sw.elapsed,
+              errorType: 'connection_refused',
+              errorMessage: e.message,
+            ));
+            lastException = ServiceUnreachableException(
+              serviceName: 'OpenStreetMap',
+              host: uri.host,
+              cause: e,
+            );
           }
         } on TimeoutException catch (_) {
+          sw.stop();
           failedEndpointsThisCall.add(ep);
-          lastException = const RouteNetworkException(
-              'Mapping service timed out. Please try again.');
-        } on RouteRateLimitException {
+          _lastMirrorAttempts.add(OverpassMirrorAttempt(
+            endpoint: ep,
+            timestamp: DateTime.now(),
+            duration: sw.elapsed,
+            errorType: 'timeout',
+            errorMessage: 'Timed out waiting for response',
+          ));
+          lastException = ServiceTimeoutException(
+            serviceName: 'OpenStreetMap',
+            host: uri.host,
+            duration: _timeout,
+          );
+        } on ServiceRateLimitedException {
           // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
           // and must NEVER be retried.
           rethrow;
         } on RouteDiscoveryException catch (e) {
+          sw.stop();
           failedEndpointsThisCall.add(ep);
+          _lastMirrorAttempts.add(OverpassMirrorAttempt(
+            endpoint: ep,
+            timestamp: DateTime.now(),
+            duration: sw.elapsed,
+            errorType: 'unknown',
+            errorMessage: e.message,
+          ));
           lastException = e;
         } catch (e) {
+          sw.stop();
           failedEndpointsThisCall.add(ep);
+          _lastMirrorAttempts.add(OverpassMirrorAttempt(
+            endpoint: ep,
+            timestamp: DateTime.now(),
+            duration: sw.elapsed,
+            errorType: 'unknown',
+            errorMessage: '$e',
+          ));
           lastException =
               OverpassServiceException('Failed to process OpenStreetMap data: $e');
         } finally {
@@ -400,15 +497,23 @@ out center $_maxResults;
       _recordEndpointCooldown(failedEp, const Duration(seconds: 60));
     }
 
+    if (_lastMirrorAttempts.isNotEmpty && _lastMirrorAttempts.every((a) => a.errorType == 'timeout')) {
+      throw const ServiceTimeoutException(
+        serviceName: 'OpenStreetMap',
+        duration: _timeout,
+      );
+    }
+
+    if (_lastMirrorAttempts.isNotEmpty) {
+      throw AllOverpassMirrorsFailedException(
+        attempts: List.unmodifiable(_lastMirrorAttempts),
+      );
+    }
+
     if (lastException != null) {
-      if (lastException is OverpassServiceException) {
-        throw const OverpassServiceException(
-            'Nearby places temporarily unavailable.');
-      }
       throw lastException;
     }
-    throw const OverpassServiceException(
-        'Nearby places temporarily unavailable.');
+    throw const OverpassServiceException();
   }
 
   /// Parses Overpass JSON response into a list of [OverpassPlace] objects.

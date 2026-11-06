@@ -463,33 +463,47 @@ class _RouteErrorView extends StatelessWidget {
     final textMuted =
         isDark ? AppPalette.darkTextMuted : AppPalette.lightTextMuted;
 
+    final err = error;
     IconData icon;
     String title;
     String message;
 
-    if (error is RouteRateLimitException) {
+    final isTimeout = err is ServiceTimeoutException ||
+        (err is RouteNetworkException &&
+            err.toString().toLowerCase().contains('time'));
+
+    if (err is ServiceRateLimitedException) {
       icon = Icons.timer_outlined;
       title = 'Nearby places temporarily unavailable.';
       message = 'OpenStreetMap request limit reached. Please wait a moment and try again.';
-    } else if (error is OverpassServiceException) {
+    } else if (err is OverpassServiceException) {
       icon = Icons.cloud_off_rounded;
       title = 'Nearby places temporarily unavailable.';
       message = 'OpenStreetMap data server is currently busy or experiencing an outage. Tap below to retry.';
-    } else if (error is RouteNetworkException) {
-      final isTimeout = error.toString().toLowerCase().contains('time');
-      if (isTimeout) {
-        icon = Icons.hourglass_bottom_rounded;
-        title = 'Mapping service timed out.';
-        message = 'The request to mapping services timed out. Tap below to retry.';
-      } else {
-        icon = Icons.wifi_off_rounded;
-        title = 'No Internet Connection';
-        message = 'Unable to reach routing services. Please verify your connection.';
-      }
-    } else if (error is ValhallaRoutingException) {
+    } else if (err is ValhallaRoutingException) {
       icon = Icons.alt_route_rounded;
       title = 'Routing Engine Unavailable';
       message = 'Pedestrian routing service is temporarily unavailable. Tap below to retry.';
+    } else if (isTimeout) {
+      icon = Icons.hourglass_bottom_rounded;
+      title = 'Mapping service timed out.';
+      message = 'The request to mapping services timed out. Tap below to retry.';
+    } else if (err is ServiceUnreachableException) {
+      icon = Icons.cloud_off_rounded;
+      title = '${err.serviceName} Unreachable';
+      message = 'Unable to connect to ${err.serviceName}. The server may be offline. Tap below to retry.';
+    } else if (err is DeviceOfflineException || err is RouteNetworkException) {
+      icon = Icons.wifi_off_rounded;
+      title = 'No Internet Connection';
+      message = 'Unable to reach routing services. Please verify your connection.';
+    } else if (err is ServiceErrorException) {
+      icon = Icons.dns_outlined;
+      title = '${err.serviceName} Unavailable';
+      message = '${err.serviceName} server is currently experiencing an outage. Tap below to retry.';
+    } else if (err is BadResponseException) {
+      icon = Icons.error_outline_rounded;
+      title = 'Unexpected Response';
+      message = 'Received an invalid response from map services. Tap below to retry.';
     } else {
       icon = Icons.error_outline_rounded;
       title = 'Nearby places temporarily unavailable.';

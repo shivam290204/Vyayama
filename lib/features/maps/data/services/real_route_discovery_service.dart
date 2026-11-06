@@ -299,8 +299,9 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         overallTimeout,
         onTimeout: (sink) {
           _cancelGeneration(requestId);
-          sink.addError(const RouteNetworkException(
-              'Route discovery timed out. Please check connection and try again.'));
+          sink.addError(const ServiceTimeoutException(
+              serviceName: 'Route Discovery',
+              message: 'Route discovery timed out waiting for external services.'));
         },
       )) {
         lastEmitted = routes;

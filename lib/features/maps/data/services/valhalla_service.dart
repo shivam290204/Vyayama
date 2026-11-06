@@ -182,13 +182,19 @@ class ValhallaService {
             }
             continue;
           }
-          throw ValhallaRoutingException(
-              'Valhalla routing service returned server error (${response.statusCode}).');
+          throw ServiceErrorException(
+            serviceName: 'Pedestrian Routing',
+            host: Uri.parse(_baseUrl).host,
+            statusCode: response.statusCode,
+          );
         }
 
         if (response.statusCode != 200) {
-          throw ValhallaRoutingException(
-              'Routing service returned unexpected status (${response.statusCode}).');
+          throw BadResponseException(
+            serviceName: 'Pedestrian Routing',
+            host: Uri.parse(_baseUrl).host,
+            statusCode: response.statusCode,
+          );
         }
 
         final responseBody = await response.transform(utf8.decoder).join();
@@ -210,8 +216,11 @@ class ValhallaService {
           }
           continue;
         }
-        throw const ValhallaRoutingException(
-            'Pedestrian routing service is currently unreachable. Please try again shortly.');
+        throw ValhallaRoutingException(
+          'Pedestrian routing service is currently unreachable. Please try again shortly.',
+          null,
+          Uri.parse(_baseUrl).host,
+        );
       } on TimeoutException catch (_) {
         if (attempt == 0) {
           if (_isCancelled(requestId)) {
@@ -223,8 +232,11 @@ class ValhallaService {
           }
           continue;
         }
-        throw const RouteNetworkException(
-            'Routing service request timed out. Please try again.');
+        throw ServiceTimeoutException(
+          serviceName: 'Pedestrian Routing',
+          host: Uri.parse(_baseUrl).host,
+          duration: _timeout,
+        );
       } on RouteDiscoveryException {
         rethrow;
       } catch (e) {

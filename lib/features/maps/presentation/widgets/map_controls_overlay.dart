@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/map_services_check_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
@@ -324,6 +325,23 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   iconColor: AppPalette.activitySteps,
                   onPressed: widget.onSavedRoutesTap,
                 ),
+                if (isMapDiagnosticsAccessible) ...[
+                  const SizedBox(height: 10),
+                  _MapFloatingButton(
+                    icon: Icons.health_and_safety_outlined,
+                    tooltip: 'Map Services Check',
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                    iconColor: isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const MapServicesCheckScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
