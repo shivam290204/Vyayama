@@ -29,11 +29,6 @@ class FriendsListScreen extends ConsumerWidget {
         title: const Text('Friends'),
         actions: [
           IconButton(
-            tooltip: 'Take Snap',
-            icon: const Icon(Icons.photo_camera_rounded),
-            onPressed: () => context.push(AppRoutes.snapsCamera),
-          ),
-          IconButton(
             tooltip: 'Add friend',
             icon: const Icon(Icons.person_add_outlined),
             onPressed: () => context.push(AppRoutes.friendsAdd),
