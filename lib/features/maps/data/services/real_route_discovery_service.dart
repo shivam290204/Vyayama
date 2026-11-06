@@ -171,12 +171,35 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
             overpassFailure.message.contains('cancelled')) {
           return;
         }
-        _cancelGeneration(requestId);
-        if (overpassFailure is RouteDiscoveryException) {
+        // Hard-stop errors: propagate immediately without trying the grid fallback.
+        // - DeviceOfflineException: device has no internet, grid waypoints won't route.
+        // - RouteRateLimitException: server explicitly asked us to back off.
+        // - RouteNetworkException (generic connectivity): device may be offline.
+        if (overpassFailure is DeviceOfflineException ||
+            overpassFailure is RouteRateLimitException ||
+            overpassFailure is RouteNetworkException) {
+          _cancelGeneration(requestId);
           throw overpassFailure;
         }
-        throw OverpassServiceException(
-            'Failed to discover routes: $overpassFailure');
+        // Soft errors (server-side: OverpassServiceException, ServiceTimeoutException etc.)
+        // — try grid-waypoint fallback below before giving up.
+      }
+
+      // -----------------------------------------------------------------------
+      // Grid-waypoint fallback: when neither Overpass nor Nominatim returned
+      // any named places (e.g. all Overpass mirrors are timing out from this
+      // network), synthesise compass-direction waypoints at multiple distances.
+      // Valhalla will route to them along REAL pedestrian paths that actually
+      // exist on the map — the waypoints are just hints, not synthetic geometry.
+      // -----------------------------------------------------------------------
+      if (places.isEmpty) {
+        places = _syntheticGridWaypoints(center, radiusMeters);
+        if (kDebugMode) {
+          debugPrint(
+            '[RouteDiscovery][req-$requestId] No OSM places found — '
+            'using ${places.length} synthetic grid waypoints as routing hints.',
+          );
+        }
       }
 
       if (places.isEmpty) {
@@ -476,6 +499,72 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     return false;
   }
 
+  /// Generates synthetic compass-direction waypoints when no OSM places were
+  /// found (e.g. all Overpass mirrors are unavailable from this network).
+  ///
+  /// The waypoints are geographic targets — Valhalla routes along REAL
+  /// pedestrian paths from the OSM graph to reach them. Distance from 400 m
+  /// to the requested radius in steps, at 8 compass headings (N, NE, E, SE,
+  /// S, SW, W, NW). Duplicate IDs are avoided using the bearing + distance
+  /// as a stable hash.
+  List<OverpassPlace> _syntheticGridWaypoints(
+    LatLng center,
+    double radiusMeters,
+  ) {
+    const bearings = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0];
+    final distances = <double>[
+      (radiusMeters * 0.3).clamp(400, 1000),
+      (radiusMeters * 0.6).clamp(600, 2000),
+    ];
+
+    final places = <OverpassPlace>[];
+    final lat0 = center.latitudeInRad;
+    final lon0 = center.longitudeInRad;
+
+    for (final dist in distances) {
+      for (final bearing in bearings) {
+        final brRad = bearing * math.pi / 180.0;
+        final angDist = dist / 6371000.0; // Earth radius in metres
+        final lat = math.asin(
+          math.sin(lat0) * math.cos(angDist) +
+              math.cos(lat0) * math.sin(angDist) * math.cos(brRad),
+        );
+        final lon = lon0 +
+            math.atan2(
+              math.sin(brRad) * math.sin(angDist) * math.cos(lat0),
+              math.cos(angDist) - math.sin(lat0) * math.sin(lat),
+            );
+
+        final latDeg = lat * 180.0 / math.pi;
+        final lonDeg = lon * 180.0 / math.pi;
+        if (!latDeg.isFinite || !lonDeg.isFinite) continue;
+
+        final id = bearing.toInt() * 10000 + dist.toInt();
+        final label = _bearingLabel(bearing);
+        places.add(OverpassPlace(
+          id: id,
+          name: '$label Walk',
+          lat: latDeg,
+          lon: lonDeg,
+          tags: const {'highway': 'footway'},
+          isNamed: false,
+        ));
+      }
+    }
+    return places;
+  }
+
+  String _bearingLabel(double bearing) {
+    if (bearing < 22.5 || bearing >= 337.5) return 'North';
+    if (bearing < 67.5) return 'North-East';
+    if (bearing < 112.5) return 'East';
+    if (bearing < 157.5) return 'South-East';
+    if (bearing < 202.5) return 'South';
+    if (bearing < 247.5) return 'South-West';
+    if (bearing < 292.5) return 'West';
+    return 'North-West';
+  }
+
   /// Picks geographically distributed candidates around [center] (bounded to max 8).
   List<OverpassPlace> _pickCandidateWaypoints(
     LatLng center,
@@ -541,17 +630,25 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     OverpassPlace? p2,
     bool isLoop,
   ) {
-    if (isLoop) {
-      if (p1.isNamed && p2 != null && p2.isNamed && p1.name != p2.name) {
-        return '${p1.name} & ${p2.name} Loop';
+    // For named places (from Overpass/Nominatim), use the place name.
+    // For synthetic grid waypoints (isNamed=false, name="North Walk" etc.)
+    // use a direction-based label that makes sense to the user.
+    if (p1.isNamed) {
+      if (isLoop) {
+        if (p2 != null && p2.isNamed && p1.name != p2.name) {
+          return '${p1.name} & ${p2.name} Loop';
+        }
+        return '${p1.name} Loop';
+      } else {
+        if (p2 != null && p2.isNamed && p1.name != p2.name) {
+          return '${p1.name} & ${p2.name} Out & Back';
+        }
+        return '${p1.name} Out & Back';
       }
-      return '${p1.name} Loop';
     } else {
-      // Out & Back route — must NEVER end in "Loop"
-      if (p1.isNamed && p2 != null && p2.isNamed && p1.name != p2.name) {
-        return '${p1.name} & ${p2.name} Out & Back';
-      }
-      return '${p1.name} Out & Back';
+      // Synthetic grid waypoint — label by direction + route type
+      final dir = p1.name.replaceAll(' Walk', '');
+      return isLoop ? '$dir Loop' : '$dir Route';
     }
   }
 
@@ -676,11 +773,19 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     final mins = (routed.durationSeconds / 60).round();
     final typeLabel = isLoop ? 'Loop route' : 'Out-and-back route';
 
-    if (p2 != null) {
-      return '$typeLabel traversing ${p1.name} and ${p2.name} along mapped pedestrian paths. '
+    // Named place from Overpass/Nominatim
+    if (p1.isNamed) {
+      if (p2 != null && p2.isNamed) {
+        return '$typeLabel traversing ${p1.name} and ${p2.name} along mapped pedestrian paths. '
+            'Approx. $km km, est. $mins min.';
+      }
+      return '$typeLabel around ${p1.name} along mapped walkable ways. '
           'Approx. $km km, est. $mins min.';
     }
-    return '$typeLabel around ${p1.name} along mapped walkable ways. '
+
+    // Synthetic grid waypoint — direction-based description
+    final dir = p1.name.replaceAll(' Walk', '');
+    return '$typeLabel heading $dir from your location along real pedestrian paths. '
         'Approx. $km km, est. $mins min.';
   }
 }

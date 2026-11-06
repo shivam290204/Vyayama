@@ -90,3 +90,4 @@ class ServiceCircuitBreaker {
     _state = CircuitBreakerState.closed;
   }
 }
+

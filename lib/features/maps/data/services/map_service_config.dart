@@ -58,3 +58,4 @@ class MapServiceConfig {
       MapApiConfig.isUsingPublicValhallaEndpoint ||
       MapApiConfig.isUsingPublicNominatimEndpoint;
 }
+
