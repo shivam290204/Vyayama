@@ -1,7 +1,12 @@
-# Auto-detect text files and normalize line endings to LF on commit
-* text=auto eol=lf
+# Auto-detect text files
+* text=auto
 
-# Source code files always use LF
+# Scripts
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Source code files
 *.dart text eol=lf
 *.kt text eol=lf
 *.kts text eol=lf
@@ -20,19 +25,20 @@
 *.html text eol=lf
 *.css text eol=lf
 
-# Windows command files use CRLF
-*.bat text eol=crlf
-*.cmd text eol=crlf
-
-# Binary files
+# Binary assets
 *.png binary
 *.jpg binary
 *.jpeg binary
+*.webp binary
 *.gif binary
 *.ico binary
 *.pdf binary
+*.mp3 binary
 *.ttf binary
 *.otf binary
 *.woff binary
 *.woff2 binary
+*.riv binary
+*.apk binary
+*.aab binary
 *.jar binary
