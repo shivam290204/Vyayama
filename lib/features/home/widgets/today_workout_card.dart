@@ -171,7 +171,7 @@ class TodayWorkoutCard extends ConsumerWidget {
                             )
                           else
                             OutlinedButton.icon(
-                              onPressed: () => context.push(AppRoutes.workouts),
+                              onPressed: () => context.go(AppRoutes.workouts),
                               icon: const Icon(Icons.explore_rounded, size: 16),
                               label: const Text('View Plan'),
                               style: OutlinedButton.styleFrom(

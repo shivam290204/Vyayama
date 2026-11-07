@@ -237,7 +237,7 @@ class SelectedDateDetailsCard extends StatelessWidget {
 
             // 3. Action bridge to Maps & Outdoor Route Discovery
             InkWell(
-              onTap: () => context.push(AppRoutes.maps),
+              onTap: () => context.go(AppRoutes.maps),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

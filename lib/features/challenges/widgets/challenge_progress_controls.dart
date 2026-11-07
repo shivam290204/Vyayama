@@ -39,7 +39,7 @@ class ChallengeProgressControls extends ConsumerWidget {
         return SizedBox(
           width: double.infinity,
           child: FilledButton.tonalIcon(
-            onPressed: () => context.push(AppRoutes.workouts),
+            onPressed: () => context.go(AppRoutes.workouts),
             icon: const Icon(Icons.fitness_center),
             label: const Text('Open workouts'),
           ),

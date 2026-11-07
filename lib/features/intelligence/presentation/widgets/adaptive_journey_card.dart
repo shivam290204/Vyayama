@@ -248,7 +248,7 @@ class AdaptiveJourneyCard extends ConsumerWidget {
                               ),
                             );
                           } else {
-                            context.push(AppRoutes.workouts);
+                            context.go(AppRoutes.workouts);
                           }
                         },
                         icon: const Icon(Icons.play_arrow_rounded, size: 20),

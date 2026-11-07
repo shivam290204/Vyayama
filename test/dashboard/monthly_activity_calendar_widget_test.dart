@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/features/dashboard/daily_targets.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats_repository.dart';
@@ -9,6 +10,7 @@ import 'package:fitbuddy/features/schedule/clock_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 class _FakeDailyStatsRepository implements DailyStatsRepository {
   _FakeDailyStatsRepository(this.statsList);
@@ -186,6 +188,52 @@ void main() {
       expect(find.text('/ 400 kcal'), findsOneWidget);
       expect(find.text('Explore Nearby Walking Routes'), findsOneWidget);
       expect(find.text('Walk or run outdoor loops to hit your daily goal'), findsOneWidget);
+    });
+
+    testWidgets('tapping Explore Nearby Walking Routes navigates to AppRoutes.maps via context.go', (tester) async {
+      String? navigatedPath;
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(
+              body: SelectedDateDetailsCard(
+                selectedDate: DateTime(2026, 11, 6),
+                stats: DailyStats(
+                  date: DateTime(2026, 11, 6),
+                  steps: 10000,
+                  activeMinutes: 60,
+                  calories: 400,
+                ),
+                targets: const DailyTargets(
+                  steps: 8000,
+                  activeMinutes: 30,
+                  activeCalories: 400,
+                ),
+                today: DateTime(2026, 11, 6),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.maps,
+            builder: (context, state) {
+              navigatedPath = AppRoutes.maps;
+              return const Scaffold(body: Text('Maps Screen'));
+            },
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Explore Nearby Walking Routes'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(navigatedPath, AppRoutes.maps);
+      expect(find.text('Maps Screen'), findsOneWidget);
     });
   });
 }
