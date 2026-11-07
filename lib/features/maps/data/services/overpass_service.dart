@@ -673,23 +673,9 @@ out center $_maxResults;
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
 
-      // Check for Overpass server-side remark (runtime errors, timeouts, OOM)
+      // Track Overpass server-side remark (warning, timeout, runtime error, OOM)
       final rawRemark = json['remark']?.toString();
       _lastRemark = rawRemark;
-      if (rawRemark != null && rawRemark.trim().isNotEmpty) {
-        final lower = rawRemark.toLowerCase();
-        if (lower.contains('timed out') || lower.contains('timeout')) {
-          throw ServiceTimeoutException(
-            serviceName: 'OpenStreetMap Overpass',
-            message: 'Overpass server timed out during query: $rawRemark',
-          );
-        }
-        if (lower.contains('out of memory') || lower.contains('runtime error')) {
-          throw OverpassServiceException(
-            'Overpass server runtime error: $rawRemark',
-          );
-        }
-      }
 
       final elements = json['elements'] as List<dynamic>? ?? [];
       _lastElementCount = elements.length;
@@ -733,6 +719,29 @@ out center $_maxResults;
         if (!place.isAccessible) continue;
 
         results.add(place);
+      }
+
+      // Check whether remark indicates failure
+      if (rawRemark != null && rawRemark.trim().isNotEmpty) {
+        final lower = rawRemark.toLowerCase();
+        final isFailure = lower.contains('timed out') ||
+            lower.contains('timeout') ||
+            lower.contains('out of memory') ||
+            lower.contains('runtime error');
+
+        // If the response has usable elements, return them and record the remark as a warning.
+        // Throw ONLY when the remark indicates failure AND there are no usable elements.
+        if (results.isEmpty && isFailure) {
+          if (lower.contains('timed out') || lower.contains('timeout')) {
+            throw ServiceTimeoutException(
+              serviceName: 'OpenStreetMap Overpass',
+              message: 'Overpass server timed out during query: $rawRemark',
+            );
+          }
+          throw OverpassServiceException(
+            'Overpass server runtime error: $rawRemark',
+          );
+        }
       }
 
       return results;

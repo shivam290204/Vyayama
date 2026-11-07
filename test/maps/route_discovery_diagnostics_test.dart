@@ -62,6 +62,58 @@ void main() {
       expect(overpass.lastRemark, contains('out of memory'));
     });
 
+    test('2b. Overpass response with "remark" AND usable elements returns elements and records remark as warning', () {
+      final overpass = OverpassService();
+      const body = '''
+      {
+        "version": 0.6,
+        "generator": "Overpass API",
+        "remark": "runtime error: Query timed out in 25 seconds.",
+        "elements": [
+          {
+            "type": "way",
+            "id": 99901,
+            "center": {"lat": 12.9716, "lon": 77.5946},
+            "tags": {"name": "Lalbagh Botanical Garden", "leisure": "park"}
+          }
+        ]
+      }
+      ''';
+
+      // Must NOT throw when usable elements exist
+      final places = overpass.parseOverpassResponse(body);
+      expect(places.length, equals(1));
+      expect(places.first.name, equals('Lalbagh Botanical Garden'));
+      expect(overpass.lastElementCount, equals(1));
+      expect(overpass.lastRemark, contains('Query timed out in 25 seconds'));
+    });
+
+    test('2c. Overpass response with "remark" AND inaccessible elements (0 usable) throws failure exception', () {
+      final overpass = OverpassService();
+      const body = '''
+      {
+        "version": 0.6,
+        "generator": "Overpass API",
+        "remark": "runtime error: Query timed out in 25 seconds.",
+        "elements": [
+          {
+            "type": "way",
+            "id": 99902,
+            "center": {"lat": 12.9716, "lon": 77.5946},
+            "tags": {"name": "Private Gated Yard", "access": "private"}
+          }
+        ]
+      }
+      ''';
+
+      // Inaccessible elements are filtered out; 0 usable elements remain, so must throw
+      expect(
+        () => overpass.parseOverpassResponse(body),
+        throwsA(isA<ServiceTimeoutException>()),
+      );
+      expect(overpass.lastRemark, contains('Query timed out'));
+    });
+
     test('3. Overpass valid elements parse cleanly and track element count', () {
       final overpass = OverpassService();
       const body = '''
