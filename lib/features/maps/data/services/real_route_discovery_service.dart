@@ -129,59 +129,83 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     }
 
     try {
-      // 1. Query OSM Overpass for nearby mapped features
+      // 1. Query OSM Overpass and Nominatim concurrently to discover nearby mapped features.
+      // Nominatim provides fast, CDN-backed place resolution (typically ~200-400ms),
+      // while Overpass discovers fine-grained footways, paths, and trails.
       List<OverpassPlace> places = [];
       Object? overpassFailure;
 
-      try {
-        places = await _overpass.findNearbyPlaces(
-          center: center,
-          radiusMeters: radiusMeters,
-          requestId: requestId,
-        );
-      } catch (e) {
+      final overpassFuture = _overpass.findNearbyPlaces(
+        center: center,
+        radiusMeters: radiusMeters,
+        requestId: requestId,
+      ).then<List<OverpassPlace>>((res) => res).catchError((e) {
         overpassFailure = e;
-      }
+        return <OverpassPlace>[];
+      });
 
+      final nominatimFuture = _nominatim.findNearbyPlaces(
+        center: center,
+        radiusMeters: radiusMeters,
+        requestId: requestId,
+      ).then<List<OverpassPlace>>((res) => res).catchError((nomErr) {
+        if (nomErr is RouteRateLimitException) {
+          overpassFailure = nomErr;
+        }
+        return <OverpassPlace>[];
+      });
+
+      // Await Nominatim first (typically completes in 200-400ms)
+      final nomPlaces = await nominatimFuture;
       if (requestId != _activeRequestId) return;
 
-      // Fall back to Nominatim place discovery if Overpass failed or found 0 places
-      if (places.isEmpty) {
+      if (nomPlaces.isNotEmpty) {
+        // Fast-path: Nominatim provided verified places. Give Overpass a short
+        // window (1500ms) to supplement with pedestrian trails, but never block
+        // the user for 15+ seconds on dead Overpass mirrors.
+        List<OverpassPlace> opPlaces = const [];
         try {
-          final nominatimPlaces = await _nominatim.findNearbyPlaces(
-            center: center,
-            radiusMeters: radiusMeters,
-            requestId: requestId,
-          );
-          if (nominatimPlaces.isNotEmpty) {
-            places = nominatimPlaces;
-            overpassFailure = null;
-          }
-        } catch (nomErr) {
-          if (nomErr is RouteRateLimitException) {
-            overpassFailure = nomErr;
-          }
+          opPlaces = await overpassFuture.timeout(const Duration(milliseconds: 1500));
+        } catch (_) {
+          // Overpass timed out or is slow; proceed immediately with Nominatim places
+        }
+
+        final seenIds = <int>{};
+        for (final p in opPlaces) {
+          if (seenIds.add(p.id)) places.add(p);
+        }
+        for (final p in nomPlaces) {
+          if (seenIds.add(p.id)) places.add(p);
+        }
+        overpassFailure = null;
+      } else {
+        // Nominatim found 0 places: wait for Overpass to complete
+        try {
+          places = await overpassFuture;
+        } catch (e) {
+          overpassFailure = e;
         }
       }
 
       if (requestId != _activeRequestId) return;
 
-      if (overpassFailure != null && places.isEmpty) {
-        if (overpassFailure is RouteNetworkException &&
-            overpassFailure.message.contains('cancelled')) {
+      final failure = overpassFailure;
+      if (failure != null && places.isEmpty) {
+        if (failure is RouteNetworkException &&
+            failure.message.contains('cancelled')) {
           return;
         }
         // Hard-stop errors: propagate immediately without trying the grid fallback.
         // - DeviceOfflineException: device has confirmed no internet connection.
         // - RouteRateLimitException: server explicitly asked us to back off.
         // - RouteNetworkException: connectivity failure (excluding server-specific timeout/unreachable).
-        if (overpassFailure is DeviceOfflineException ||
-            overpassFailure is RouteRateLimitException ||
-            (overpassFailure is RouteNetworkException &&
-                overpassFailure is! ServiceTimeoutException &&
-                overpassFailure is! ServiceUnreachableException)) {
+        if (failure is DeviceOfflineException ||
+            failure is RouteRateLimitException ||
+            (failure is RouteNetworkException &&
+                failure is! ServiceTimeoutException &&
+                failure is! ServiceUnreachableException)) {
           _cancelGeneration(requestId);
-          throw overpassFailure;
+          throw failure;
         }
         // Server-side errors (OverpassServiceException, ServiceTimeoutException,
         // ServiceUnreachableException, BadResponseException) are soft errors:
@@ -206,13 +230,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
 
       if (places.isEmpty) {
-        if (overpassFailure != null) {
+        final err = overpassFailure;
+        if (err != null) {
           _cancelGeneration(requestId);
-          if (overpassFailure is RouteDiscoveryException) {
-            throw overpassFailure;
+          if (err is RouteDiscoveryException) {
+            throw err;
           }
           throw OverpassServiceException(
-              'Failed to discover routes: $overpassFailure');
+              'Failed to discover routes: $err');
         }
         yield const [];
         return;
