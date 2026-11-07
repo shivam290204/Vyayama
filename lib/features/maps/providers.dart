@@ -3,6 +3,7 @@ import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.d
 import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
 import 'package:fitbuddy/features/maps/data/repositories/saved_routes_repository.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
@@ -259,6 +260,14 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   final engine = ref.watch(routeDiscoveryEngineProvider);
   final center = ref.watch(effectiveMapCenterProvider);
   final filter = ref.watch(activeRouteFilterProvider);
+  final isManual = ref.watch(selectedMapCenterProvider) != null;
+  final locState = ref.watch(userLocationStateProvider);
+
+  final source = isManual
+      ? SearchCenterSource.mapCenter
+      : (locState.hasPosition
+          ? SearchCenterSource.userGps
+          : SearchCenterSource.none);
 
   ref.onDispose(() {
     engine.cancelCurrentDiscovery();
@@ -274,6 +283,8 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   await for (final routes in engine.discoverRoutesProgressive(
     center: center,
     filter: filter,
+    searchCenterSource: source,
+    hasValidNonFallbackLocation: true,
   )) {
     hasEmitted = true;
     yield routes;
@@ -281,4 +292,12 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   if (!hasEmitted) {
     yield const [];
   }
+});
+
+/// Exposes the latest route discovery diagnostics report reactively.
+final latestDiscoveryDiagnosticsProvider =
+    Provider<RouteDiscoveryDiagnostics?>((ref) {
+  final engine = ref.watch(routeDiscoveryEngineProvider);
+  ref.watch(discoveredRoutesProvider);
+  return engine.lastDiagnostics;
 });

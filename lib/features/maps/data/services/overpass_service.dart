@@ -134,16 +134,26 @@ class OverpassService {
   DateTime? _rateLimitedUntil;
   final Map<String, DateTime> _endpointCooldowns = {};
   final List<OverpassMirrorAttempt> _lastMirrorAttempts = [];
+  String? _lastRemark;
+  int _lastElementCount = 0;
 
   /// Historical log of mirror attempts from the most recent query.
   List<OverpassMirrorAttempt> get lastMirrorAttempts =>
       List.unmodifiable(_lastMirrorAttempts);
+
+  /// Server remark from the latest Overpass query (if any).
+  String? get lastRemark => _lastRemark;
+
+  /// Element count from the latest Overpass query.
+  int get lastElementCount => _lastElementCount;
 
   /// Resets rate limit and endpoint cooldowns for unit tests.
   void resetRateLimitForTesting() {
     _rateLimitedUntil = null;
     _endpointCooldowns.clear();
     _lastMirrorAttempts.clear();
+    _lastRemark = null;
+    _lastElementCount = 0;
     _circuitBreaker.reset();
   }
 
@@ -584,6 +594,17 @@ out center $_maxResults;
           // HTTP 429 stops mirror rotation immediately without querying subsequent mirrors
           // and must NEVER be retried.
           rethrow;
+        } on ServiceTimeoutException catch (e) {
+          sw.stop();
+          failedEndpointsThisCall.add(ep);
+          _lastMirrorAttempts.add(OverpassMirrorAttempt(
+            endpoint: ep,
+            timestamp: DateTime.now(),
+            duration: sw.elapsed,
+            errorType: 'timeout',
+            errorMessage: e.message,
+          ));
+          lastException = e;
         } on RouteDiscoveryException catch (e) {
           sw.stop();
           failedEndpointsThisCall.add(ep);
@@ -591,7 +612,7 @@ out center $_maxResults;
             endpoint: ep,
             timestamp: DateTime.now(),
             duration: sw.elapsed,
-            errorType: 'unknown',
+            errorType: 'bad_status',
             errorMessage: e.message,
           ));
           lastException = e;
@@ -651,7 +672,27 @@ out center $_maxResults;
   List<OverpassPlace> parseOverpassResponse(String body) {
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
+
+      // Check for Overpass server-side remark (runtime errors, timeouts, OOM)
+      final rawRemark = json['remark']?.toString();
+      _lastRemark = rawRemark;
+      if (rawRemark != null && rawRemark.trim().isNotEmpty) {
+        final lower = rawRemark.toLowerCase();
+        if (lower.contains('timed out') || lower.contains('timeout')) {
+          throw ServiceTimeoutException(
+            serviceName: 'OpenStreetMap Overpass',
+            message: 'Overpass server timed out during query: $rawRemark',
+          );
+        }
+        if (lower.contains('out of memory') || lower.contains('runtime error')) {
+          throw OverpassServiceException(
+            'Overpass server runtime error: $rawRemark',
+          );
+        }
+      }
+
       final elements = json['elements'] as List<dynamic>? ?? [];
+      _lastElementCount = elements.length;
       final results = <OverpassPlace>[];
 
       for (final element in elements) {
@@ -696,6 +737,7 @@ out center $_maxResults;
 
       return results;
     } catch (e) {
+      if (e is RouteDiscoveryException) rethrow;
       throw OverpassServiceException('Invalid OpenStreetMap response format: $e');
     }
   }

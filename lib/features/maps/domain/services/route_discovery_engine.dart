@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:fitbuddy/features/maps/data/services/real_route_discovery_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
@@ -35,29 +36,45 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
 
   final RealRouteDiscoveryService _realService;
 
+  /// Latest discovery result with diagnostics and stage counts.
+  RouteDiscoveryResult? get lastDiscoveryResult =>
+      _realService.lastDiscoveryResult;
+
+  /// Latest discovery diagnostics breakdown.
+  RouteDiscoveryDiagnostics? get lastDiagnostics =>
+      _realService.lastDiagnostics;
+
   @override
-  Future<List<SavedRoute>> discoverRoutes({
+  Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) {
     return _realService.discoverRoutes(
       center: center,
       radiusKm: radiusKm,
       filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
     );
   }
 
   /// Discovers routes progressively, yielding updated sets as candidate batches resolve.
-  Stream<List<SavedRoute>> discoverRoutesProgressive({
+  Stream<RouteDiscoveryResult> discoverRoutesProgressive({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) {
     return _realService.discoverRoutesProgressive(
       center: center,
       radiusKm: radiusKm,
       filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
     );
   }
 

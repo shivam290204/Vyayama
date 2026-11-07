@@ -10,8 +10,20 @@ import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+
+/// Mutable accumulator for candidate routing statistics during discovery.
+class _RoutingDiagnosticsTracker {
+  int valhallaAttempts = 0;
+  int valhallaSuccesses = 0;
+  int valhallaNulls = 0;
+  int valhallaErrors = 0;
+  int droppedTooShort = 0;
+  int droppedTooFewPoints = 0;
+  int droppedDuplicate = 0;
+}
 
 /// Helper result container for a candidate routing attempt.
 class _CandidateRouteResult {
@@ -72,7 +84,57 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   int _activeRequestId = 0;
 
   /// Map of in-flight discoveries to deduplicate concurrent identical calls.
-  final Map<String, Future<List<SavedRoute>>> _inFlightDiscoveries = {};
+  final Map<String, Future<RouteDiscoveryResult>> _inFlightDiscoveries = {};
+
+  RouteDiscoveryResult? _lastDiscoveryResult;
+
+  /// Latest discovery result with diagnostics and stage counts.
+  RouteDiscoveryResult? get lastDiscoveryResult => _lastDiscoveryResult;
+
+  /// Latest discovery diagnostics breakdown.
+  RouteDiscoveryDiagnostics? get lastDiagnostics =>
+      _lastDiscoveryResult?.diagnostics;
+
+  static EmptyReason _determineEmptyReason({
+    required int routeCount,
+    required Object? overpassFailure,
+    required String? overpassRemark,
+    required String? nominatimError,
+    required int placesCount,
+    required int candidatesCount,
+    required _RoutingDiagnosticsTracker tracker,
+  }) {
+    if (routeCount > 0) return EmptyReason.none;
+
+    if (overpassFailure is RouteRateLimitException) {
+      return EmptyReason.rateLimited;
+    }
+    if (overpassFailure is ServiceTimeoutException ||
+        (overpassRemark != null &&
+            (overpassRemark.toLowerCase().contains('timeout') ||
+                overpassRemark.toLowerCase().contains('timed out')))) {
+      return EmptyReason.serviceTimeout;
+    }
+    if (overpassFailure != null) {
+      return EmptyReason.serviceError;
+    }
+    if (placesCount == 0) {
+      return EmptyReason.noPlacesFound;
+    }
+    if (candidatesCount == 0) {
+      return EmptyReason.noCandidates;
+    }
+    if (tracker.valhallaAttempts > 0 && tracker.valhallaSuccesses == 0) {
+      return EmptyReason.allRoutesFailed;
+    }
+    if (tracker.valhallaSuccesses > 0 &&
+        (tracker.droppedTooShort > 0 ||
+            tracker.droppedTooFewPoints > 0 ||
+            tracker.droppedDuplicate > 0)) {
+      return EmptyReason.allRoutesFiltered;
+    }
+    return EmptyReason.genuineEmpty;
+  }
 
   void _cancelGeneration(int? reqId) {
     if (reqId == null || reqId <= 0) return;
@@ -92,10 +154,12 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   }
 
   /// Discovers routes progressively, yielding updated route sets as candidate batches resolve.
-  Stream<List<SavedRoute>> discoverRoutesProgressive({
+  Stream<RouteDiscoveryResult> discoverRoutesProgressive({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) async* {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
@@ -109,7 +173,23 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     // 1. Check in-memory LRU cache
     final cached = _cache.get<List<SavedRoute>>(cacheKey);
     if (cached != null) {
-      yield cached;
+      final diag = RouteDiscoveryDiagnostics(
+        timestamp: DateTime.now(),
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+        roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+        searchRadiusMeters: radiusMeters,
+        overpassStatus: 'cached',
+        nominatimCount: 0,
+        candidatesCount: 0,
+        finalRouteCount: cached.length,
+        emptyReason:
+            cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
+      );
+      final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
+      _lastDiscoveryResult = res;
+      yield res;
       return;
     }
 
@@ -126,6 +206,68 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         '[RouteDiscovery][req-$requestId] Starting progressive discovery '
         '(radius: ${radiusMeters.round()}m)',
       );
+    }
+
+    final tracker = _RoutingDiagnosticsTracker();
+    String? nominatimError;
+    int nominatimCount = 0;
+
+    int rawPlacesCount = 0;
+
+    RouteDiscoveryResult createResult(
+      List<SavedRoute> currentRoutes,
+      List<OverpassPlace> currentPlaces,
+      List<OverpassPlace> currentCandidates,
+      Object? failure, {
+      int? rawPlaces,
+    }) {
+      final filtered = filter != null
+          ? currentRoutes.where((r) => filter.matches(r)).toList()
+          : currentRoutes;
+
+      final overpassStatus = failure != null
+          ? (failure is ServiceTimeoutException
+              ? 'timeout'
+              : (failure is RouteRateLimitException ? 'rate_limited' : 'error'))
+          : (_overpass.lastElementCount > 0 ? 'OK' : 'zero_elements');
+
+      final emptyReason = _determineEmptyReason(
+        routeCount: filtered.length,
+        overpassFailure: failure,
+        overpassRemark: _overpass.lastRemark,
+        nominatimError: nominatimError,
+        placesCount: rawPlaces ?? rawPlacesCount,
+        candidatesCount: currentCandidates.length,
+        tracker: tracker,
+      );
+
+      final diag = RouteDiscoveryDiagnostics(
+        timestamp: DateTime.now(),
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+        roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+        searchRadiusMeters: radiusMeters,
+        overpassStatus: overpassStatus,
+        overpassElementCount: _overpass.lastElementCount,
+        overpassRemark: _overpass.lastRemark,
+        nominatimCount: nominatimCount,
+        nominatimError: nominatimError,
+        candidatesCount: currentCandidates.length,
+        valhallaAttempts: tracker.valhallaAttempts,
+        valhallaSuccesses: tracker.valhallaSuccesses,
+        valhallaNulls: tracker.valhallaNulls,
+        valhallaErrors: tracker.valhallaErrors,
+        droppedTooShort: tracker.droppedTooShort,
+        droppedTooFewPoints: tracker.droppedTooFewPoints,
+        droppedDuplicate: tracker.droppedDuplicate,
+        finalRouteCount: filtered.length,
+        emptyReason: emptyReason,
+      );
+
+      final res = RouteDiscoveryResult(routes: filtered, diagnostics: diag);
+      _lastDiscoveryResult = res;
+      return res;
     }
 
     try {
@@ -148,7 +290,11 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         center: center,
         radiusMeters: radiusMeters,
         requestId: requestId,
-      ).then<List<OverpassPlace>>((res) => res).catchError((nomErr) {
+      ).then<List<OverpassPlace>>((res) {
+        nominatimCount = res.length;
+        return res;
+      }).catchError((nomErr) {
+        nominatimError = nomErr.toString();
         if (nomErr is RouteRateLimitException) {
           overpassFailure = nomErr;
         }
@@ -212,6 +358,8 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         // proceed to grid-waypoint fallback so Valhalla can calculate real routes.
       }
 
+      rawPlacesCount = places.length;
+
       // -----------------------------------------------------------------------
       // Grid-waypoint fallback: when neither Overpass nor Nominatim returned
       // any named places (e.g. all Overpass mirrors are timing out from this
@@ -239,14 +387,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           throw OverpassServiceException(
               'Failed to discover routes: $err');
         }
-        yield const [];
+        yield createResult(const [], places, const [], overpassFailure);
         return;
       }
 
       // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
       final candidates = _pickCandidateWaypoints(center, places);
       if (candidates.isEmpty) {
-        yield const [];
+        yield createResult(const [], places, candidates, overpassFailure);
         return;
       }
 
@@ -265,6 +413,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
               seenOsmPairs: seenOsmPairs,
               existingRoutes: routes,
               requestId: requestId,
+              tracker: tracker,
             ));
 
         List<_CandidateRouteResult?> batchResults;
@@ -274,10 +423,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           _cancelGeneration(requestId);
           // If some valid routes were already found in earlier batches, preserve them!
           if (routes.isNotEmpty) {
-            final filtered = filter != null
-                ? routes.where((r) => filter.matches(r)).toList()
-                : routes;
-            yield List<SavedRoute>.unmodifiable(filtered);
+            yield createResult(routes, places, candidates, overpassFailure);
             return;
           }
           rethrow;
@@ -298,22 +444,18 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
         // Progressive publication of route batches as soon as batch completes
         if (newlyAdded) {
-          final filtered = filter != null
-              ? routes.where((r) => filter.matches(r)).toList()
-              : List<SavedRoute>.from(routes);
-          yield List<SavedRoute>.unmodifiable(filtered);
+          yield createResult(routes, places, candidates, overpassFailure);
         }
       }
 
       if (routes.isEmpty) {
-        yield const [];
+        yield createResult(const [], places, candidates, overpassFailure);
       } else {
-        final filtered = filter != null
-            ? routes.where((r) => filter.matches(r)).toList()
-            : routes;
-        if (filtered.isNotEmpty) {
-          _cache.set(cacheKey, filtered);
+        final res = createResult(routes, places, candidates, overpassFailure);
+        if (res.isNotEmpty) {
+          _cache.set(cacheKey, res.routes);
         }
+        yield res;
       }
     } finally {
       _cancelGeneration(requestId);
@@ -321,10 +463,12 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
   }
 
   @override
-  Future<List<SavedRoute>> discoverRoutes({
+  Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) async {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
@@ -337,14 +481,32 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     // 1. Check in-memory LRU cache
     final cached = _cache.get<List<SavedRoute>>(cacheKey);
-    if (cached != null) return cached;
+    if (cached != null) {
+      final diag = RouteDiscoveryDiagnostics(
+        timestamp: DateTime.now(),
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+        roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+        searchRadiusMeters: radiusMeters,
+        overpassStatus: 'cached',
+        nominatimCount: 0,
+        candidatesCount: 0,
+        finalRouteCount: cached.length,
+        emptyReason:
+            cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
+      );
+      final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
+      _lastDiscoveryResult = res;
+      return res;
+    }
 
     // 2. Join in-flight identical request if active
     if (_inFlightDiscoveries.containsKey(cacheKey)) {
       return _inFlightDiscoveries[cacheKey]!;
     }
 
-    final completer = Completer<List<SavedRoute>>();
+    final completer = Completer<RouteDiscoveryResult>();
     _inFlightDiscoveries[cacheKey] = completer.future;
     completer.future.ignore();
 
@@ -355,26 +517,45 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         center: center,
         radiusKm: radiusKm,
         filter: filter,
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
       );
 
-      List<SavedRoute> lastEmitted = const [];
+      RouteDiscoveryResult? lastEmitted;
       await for (final routes in progressiveStream.timeout(
         overallTimeout,
         onTimeout: (sink) {
           _cancelGeneration(requestId);
           sink.addError(const ServiceTimeoutException(
               serviceName: 'Route Discovery',
-              message: 'Route discovery timed out waiting for external services.'));
+              message:
+                  'Route discovery timed out waiting for external services.'));
           sink.close();
         },
       )) {
         lastEmitted = routes;
       }
 
+      final finalRes = lastEmitted ??
+          RouteDiscoveryResult.empty(
+            diagnostics: RouteDiscoveryDiagnostics(
+              timestamp: DateTime.now(),
+              searchCenterSource: searchCenterSource,
+              hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+              roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+              roundedLon:
+                  RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+              searchRadiusMeters: radiusMeters,
+              overpassStatus: 'none',
+              finalRouteCount: 0,
+              emptyReason: EmptyReason.genuineEmpty,
+            ),
+          );
+
       if (!completer.isCompleted) {
-        completer.complete(lastEmitted);
+        completer.complete(finalRes);
       }
-      return lastEmitted;
+      return finalRes;
     } catch (e, st) {
       _cancelGeneration(requestId);
       if (!completer.isCompleted) {
@@ -397,6 +578,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     required Set<String> seenOsmPairs,
     required List<SavedRoute> existingRoutes,
     required int requestId,
+    required _RoutingDiagnosticsTracker tracker,
   }) async {
     if (requestId != _activeRequestId) return null;
 
@@ -406,6 +588,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
     try {
       if (companion != null) {
+        tracker.valhallaAttempts++;
         // Multi-point loop: Center -> Waypoint 1 -> Waypoint 2 -> Center
         routed = await _valhalla.route(
           origin: center,
@@ -413,44 +596,63 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           requestId: requestId,
         );
         if (routed != null) {
+          tracker.valhallaSuccesses++;
           actualSecondary = companion;
+        } else {
+          tracker.valhallaNulls++;
         }
       }
 
       // If multi-point was unroutable (null) or companion was null, try single waypoint
       if (routed == null) {
+        tracker.valhallaAttempts++;
         routed = await _valhalla.route(
           origin: center,
           waypoints: [primary.latLng, center],
           requestId: requestId,
         );
-        actualSecondary = null;
+        if (routed != null) {
+          tracker.valhallaSuccesses++;
+          actualSecondary = null;
+        } else {
+          tracker.valhallaNulls++;
+        }
       }
     } on RouteDiscoveryException {
+      tracker.valhallaErrors++;
       // Service-wide rate limit, outage, or network failure: rethrow so pipeline stops early
       rethrow;
     } catch (e) {
+      tracker.valhallaErrors++;
       // Individual candidate failure: log and return null to let other candidates proceed
       if (kDebugMode) {
         debugPrint(
-            '[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed');
+            '[RouteDiscovery][req-$requestId] Candidate ${primary.id} routing failed: $e');
       }
       return null;
     }
 
     if (routed == null) return null;
-    if (routed.distanceMeters < 300) return null;
-    if (routed.points.length < 2) return null;
+    if (routed.distanceMeters < 300) {
+      tracker.droppedTooShort++;
+      return null;
+    }
+    if (routed.points.length < 2) {
+      tracker.droppedTooFewPoints++;
+      return null;
+    }
 
     // Check OSM element pairs
     final pairKey = '${primary.id}:${actualSecondary?.id ?? 0}';
     final reversePairKey = '${actualSecondary?.id ?? 0}:${primary.id}';
     if (seenOsmPairs.contains(pairKey) || seenOsmPairs.contains(reversePairKey)) {
+      tracker.droppedDuplicate++;
       return null;
     }
 
     // Check geometric similarity against existing routes
     if (_isGeometricDuplicate(routed, existingRoutes)) {
+      tracker.droppedDuplicate++;
       return null;
     }
 

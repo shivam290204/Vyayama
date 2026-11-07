@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
@@ -600,20 +601,41 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
       onDiscover;
 
   @override
-  Future<List<SavedRoute>> discoverRoutes({
+  Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
-  }) {
-    return onDiscover(center, filter);
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
+  }) async {
+    final routes = await onDiscover(center, filter);
+    return RouteDiscoveryResult(
+      routes: routes,
+      diagnostics: RouteDiscoveryDiagnostics(
+        timestamp: DateTime.now(),
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        overpassStatus: 'OK',
+        finalRouteCount: routes.length,
+        emptyReason: routes.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
+      ),
+    );
   }
 
   @override
-  Stream<List<SavedRoute>> discoverRoutesProgressive({
+  Stream<RouteDiscoveryResult> discoverRoutesProgressive({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) async* {
-    yield await onDiscover(center, filter);
+    yield await discoverRoutes(
+      center: center,
+      radiusKm: radiusKm,
+      filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+    );
   }
 }

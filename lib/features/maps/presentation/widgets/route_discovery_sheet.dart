@@ -1,8 +1,10 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/map_services_check_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_card.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
@@ -395,6 +397,84 @@ class RouteDiscoverySheet extends ConsumerWidget {
                       );
                     }
 
+                    final diag = ref.watch(latestDiscoveryDiagnosticsProvider);
+                    final isServiceFailure = diag?.isServiceFailure ?? false;
+
+                    if (isServiceFailure) {
+                      String failureSubtitle;
+                      switch (diag?.emptyReason) {
+                        case EmptyReason.serviceTimeout:
+                          failureSubtitle =
+                              'Mapping service timed out while querying nearby paths. Please check your internet connection and try again.';
+                          break;
+                        case EmptyReason.rateLimited:
+                          failureSubtitle =
+                              'OpenStreetMap or routing services are temporarily busy. Please wait a moment and try again.';
+                          break;
+                        case EmptyReason.allRoutesFailed:
+                          failureSubtitle =
+                              'Found nearby candidate paths, but could not calculate walkable routes between them. Please try again.';
+                          break;
+                        default:
+                          failureSubtitle =
+                              'Unable to retrieve route data from mapping services. Please check your connection and try again.';
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 28),
+                        child: Column(
+                          children: [
+                            Icon(Icons.sync_problem_rounded, size: 40, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Search failed, try again',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                failureSubtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry Search'),
+                            ),
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const MapServicesCheckScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.info_outline_rounded, size: 14),
+                              label: const Text(
+                                'View Diagnostics',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     final hasActiveFilter = filter.activityType != null ||
                         filter.minDistanceKm != null ||
                         filter.maxDistanceKm != null ||
@@ -448,6 +528,21 @@ class RouteDiscoverySheet extends ConsumerWidget {
                               icon: const Icon(Icons.refresh_rounded, size: 16),
                               label: const Text('Check Again'),
                             ),
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const MapServicesCheckScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.help_outline_rounded, size: 14),
+                            label: const Text(
+                              'Why no routes?',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
                         ],
                       ),
                     );

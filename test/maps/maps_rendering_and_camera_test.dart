@@ -1,6 +1,6 @@
 import 'package:fitbuddy/features/maps/data/services/map_tile_config.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
-import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
@@ -379,21 +379,40 @@ class _DummyLocationService extends LocationTrackingService {
 
 class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
   @override
-  Future<List<SavedRoute>> discoverRoutes({
+  Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) async {
-    return [];
+    return RouteDiscoveryResult.empty(
+      diagnostics: RouteDiscoveryDiagnostics(
+        timestamp: DateTime.now(),
+        searchCenterSource: searchCenterSource,
+        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        overpassStatus: 'OK',
+        finalRouteCount: 0,
+        emptyReason: EmptyReason.genuineEmpty,
+      ),
+    );
   }
 
   @override
-  Stream<List<SavedRoute>> discoverRoutesProgressive({
+  Stream<RouteDiscoveryResult> discoverRoutesProgressive({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) async* {
-    yield await discoverRoutes(center: center, radiusKm: radiusKm, filter: filter);
+    yield await discoverRoutes(
+      center: center,
+      radiusKm: radiusKm,
+      filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+    );
   }
 }
 
