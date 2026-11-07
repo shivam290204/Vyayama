@@ -172,17 +172,20 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           return;
         }
         // Hard-stop errors: propagate immediately without trying the grid fallback.
-        // - DeviceOfflineException: device has no internet, grid waypoints won't route.
+        // - DeviceOfflineException: device has confirmed no internet connection.
         // - RouteRateLimitException: server explicitly asked us to back off.
-        // - RouteNetworkException (generic connectivity): device may be offline.
+        // - RouteNetworkException: connectivity failure (excluding server-specific timeout/unreachable).
         if (overpassFailure is DeviceOfflineException ||
             overpassFailure is RouteRateLimitException ||
-            overpassFailure is RouteNetworkException) {
+            (overpassFailure is RouteNetworkException &&
+                overpassFailure is! ServiceTimeoutException &&
+                overpassFailure is! ServiceUnreachableException)) {
           _cancelGeneration(requestId);
           throw overpassFailure;
         }
-        // Soft errors (server-side: OverpassServiceException, ServiceTimeoutException etc.)
-        // — try grid-waypoint fallback below before giving up.
+        // Server-side errors (OverpassServiceException, ServiceTimeoutException,
+        // ServiceUnreachableException, BadResponseException) are soft errors:
+        // proceed to grid-waypoint fallback so Valhalla can calculate real routes.
       }
 
       // -----------------------------------------------------------------------
@@ -203,6 +206,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
 
       if (places.isEmpty) {
+        if (overpassFailure != null) {
+          _cancelGeneration(requestId);
+          if (overpassFailure is RouteDiscoveryException) {
+            throw overpassFailure;
+          }
+          throw OverpassServiceException(
+              'Failed to discover routes: $overpassFailure');
+        }
         yield const [];
         return;
       }

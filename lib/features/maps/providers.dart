@@ -264,8 +264,15 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
     return;
   }
 
-  yield* engine.discoverRoutesProgressive(
+  bool hasEmitted = false;
+  await for (final routes in engine.discoverRoutesProgressive(
     center: center,
     filter: filter,
-  );
+  )) {
+    hasEmitted = true;
+    yield routes;
+  }
+  if (!hasEmitted) {
+    yield const [];
+  }
 });

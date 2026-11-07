@@ -115,7 +115,7 @@ class OverpassService {
   final ServiceCircuitBreaker _circuitBreaker;
   /// Per-request HTTP client timeout (connect + response).
   /// Shorter than the server-side `[timeout:N]` to avoid hanging.
-  static const Duration _timeout = Duration(seconds: 10);
+  static const Duration _timeout = Duration(seconds: 4);
 
   /// Maximum number of places returned per Overpass query.
   static const int _maxResults = 30;
@@ -127,7 +127,7 @@ class OverpassService {
   static const double _expandedRadiusMeters = 5000;
 
   /// Overall budget for a single findNearbyPlaces call (all mirrors + retries).
-  static const Duration _overallBudget = Duration(seconds: 25);
+  static const Duration _overallBudget = Duration(seconds: 10);
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
@@ -517,7 +517,7 @@ out center $_maxResults;
             continue;
           }
 
-          final body = await response.transform(utf8.decoder).join();
+          final body = await response.transform(utf8.decoder).join().timeout(_timeout);
           final places = parseOverpassResponse(body);
 
           _lastMirrorAttempts.add(OverpassMirrorAttempt(
@@ -612,7 +612,7 @@ out center $_maxResults;
               _generationClients[requestId]?.remove(client);
             }
             try {
-              client.close();
+              client.close(force: true);
             } catch (_) {}
           }
         }

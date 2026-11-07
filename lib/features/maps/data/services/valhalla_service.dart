@@ -208,7 +208,7 @@ class ValhallaService {
           );
         }
 
-        final responseBody = await response.transform(utf8.decoder).join();
+        final responseBody = await response.transform(utf8.decoder).join().timeout(_timeout);
         final parsed = _parseRoute(responseBody);
         if (parsed != null) {
           _cache.set(cacheKey, parsed);

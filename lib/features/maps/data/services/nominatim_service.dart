@@ -172,7 +172,7 @@ class NominatimService {
 
       if (response.statusCode != 200) return [];
 
-      final body = await response.transform(utf8.decoder).join();
+      final body = await response.transform(utf8.decoder).join().timeout(_timeout);
       final results = _parse(body);
       _cache.set(cacheKey, results);
       return results;
@@ -184,7 +184,7 @@ class NominatimService {
       if (client != null) {
         _activeClients.remove(client);
         try {
-          client.close();
+          client.close(force: true);
         } catch (_) {}
       }
     }
@@ -297,7 +297,7 @@ class NominatimService {
 
         if (response.statusCode != 200) continue;
 
-        final body = await response.transform(utf8.decoder).join();
+        final body = await response.transform(utf8.decoder).join().timeout(_timeout);
         final places = parseNominatimPlaces(body, category);
         for (final p in places) {
           if (seenIds.add(p.id)) {
@@ -316,7 +316,7 @@ class NominatimService {
             _generationClients[requestId]?.remove(client);
           }
           try {
-            client.close();
+            client.close(force: true);
           } catch (_) {}
         }
       }
