@@ -115,7 +115,7 @@ class OverpassService {
   final ServiceCircuitBreaker _circuitBreaker;
   /// Per-request HTTP client timeout (connect + response).
   /// Shorter than the server-side `[timeout:N]` to avoid hanging.
-  static const Duration _timeout = Duration(seconds: 4);
+  static const Duration _timeout = Duration(seconds: 5);
 
   /// Maximum number of places returned per Overpass query.
   static const int _maxResults = 30;
@@ -127,7 +127,7 @@ class OverpassService {
   static const double _expandedRadiusMeters = 5000;
 
   /// Overall budget for a single findNearbyPlaces call (all mirrors + retries).
-  static const Duration _overallBudget = Duration(seconds: 10);
+  static const Duration _overallBudget = Duration(seconds: 12);
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
@@ -317,7 +317,9 @@ class OverpassService {
       }
     }
 
-    _cache.set(cacheKey, results);
+    if (!_isCancelled(requestId)) {
+      _cache.set(cacheKey, results);
+    }
     _circuitBreaker.recordSuccess();
     return results;
   }

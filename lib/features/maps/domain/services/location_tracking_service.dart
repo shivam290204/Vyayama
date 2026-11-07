@@ -284,13 +284,29 @@ class LocationTrackingService extends ValueNotifier<TrackingState> {
       final hasPerm = await checkAndRequestPermission();
       if (!hasPerm) return null;
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
-        ),
-      );
-      return LatLng(pos.latitude, pos.longitude);
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 8),
+          ),
+        );
+        return LatLng(pos.latitude, pos.longitude);
+      } catch (highAccErr) {
+        debugPrint(
+            '[LocationTrackingService] High-accuracy GPS timed out or failed ($highAccErr). Falling back to cached/medium fix.');
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          return LatLng(lastKnown.latitude, lastKnown.longitude);
+        }
+        final mediumPos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 5),
+          ),
+        );
+        return LatLng(mediumPos.latitude, mediumPos.longitude);
+      }
     } catch (e) {
       debugPrint('[LocationTrackingService] Error getting current position: $e');
       return null;

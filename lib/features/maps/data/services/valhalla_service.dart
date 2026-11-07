@@ -320,6 +320,7 @@ class ValhallaService {
         'lat': ll.latitude,
         'lon': ll.longitude,
         'type': 'break',
+        'radius': 250,
       };
 
   /// Decodes a Valhalla/OSRM encoded polyline (precision 6).

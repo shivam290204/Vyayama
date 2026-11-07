@@ -322,7 +322,9 @@ class NominatimService {
       }
     }
 
-    _cache.set(cacheKey, allPlaces);
+    if (!_isCancelled(requestId)) {
+      _cache.set(cacheKey, allPlaces);
+    }
     return allPlaces;
   }
 

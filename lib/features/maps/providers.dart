@@ -177,6 +177,12 @@ class UserLocationNotifier extends StateNotifier<UserLocationState> {
           timestamp: DateTime.now(),
           errorMessage: null,
         );
+      } else if (state.lastKnownPosition != null) {
+        state = state.copyWith(
+          status: UserLocationStatus.available,
+          position: state.lastKnownPosition,
+          errorMessage: null,
+        );
       } else {
         state = state.copyWith(
           status: UserLocationStatus.timedOut,

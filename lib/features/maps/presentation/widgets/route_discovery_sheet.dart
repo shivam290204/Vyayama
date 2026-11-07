@@ -346,6 +346,55 @@ class RouteDiscoverySheet extends ConsumerWidget {
                       );
                     }
 
+                    if (!isManual &&
+                        (locState.status == UserLocationStatus.timedOut ||
+                            locState.status == UserLocationStatus.failed ||
+                            !locState.hasPosition)) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.gps_off_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Unable to Acquire GPS',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'GPS fix timed out. Make sure you have a clear view of the sky or tap below to retry.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                ref
+                                    .read(userLocationNotifierProvider.notifier)
+                                    .refreshLocation();
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry Location'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     final hasActiveFilter = filter.activityType != null ||
                         filter.minDistanceKm != null ||
                         filter.maxDistanceKm != null ||
@@ -390,7 +439,12 @@ class RouteDiscoverySheet extends ConsumerWidget {
                             )
                           else
                             OutlinedButton.icon(
-                              onPressed: () => ref.invalidate(discoveredRoutesProvider),
+                              onPressed: () {
+                                ref
+                                    .read(userLocationNotifierProvider.notifier)
+                                    .refreshLocation();
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
                               icon: const Icon(Icons.refresh_rounded, size: 16),
                               label: const Text('Check Again'),
                             ),
