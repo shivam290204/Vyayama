@@ -39,7 +39,7 @@ class BrowsePlansTab extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '5 structured routines: Warm-up, Guided Bodyweight Sessions & Recovery',
+                'Zero-equipment guided routines • Exercise animations included',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -83,15 +83,27 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
     }
   }
 
+  String _getButtonLabel(BodyweightLevel level) {
+    switch (level) {
+      case BodyweightLevel.warmup:
+        return 'Start Warm-up';
+      case BodyweightLevel.cooldown:
+        return 'Start Cool-down';
+      default:
+        return 'Start Workout';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final flow = widget.flow;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final diffColor = _getDifficultyColor(context, flow.level);
+    final durationFormatted = flow.estimatedDuration.replaceAll(' minutes', ' min');
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -107,7 +119,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
           Stack(
             children: [
               Container(
-                height: 180,
+                height: 160,
                 width: double.infinity,
                 color: cs.surfaceContainerHighest.withValues(alpha: 0.35),
                 child: Image.asset(
@@ -116,7 +128,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                   errorBuilder: (_, __, ___) => Center(
                     child: Icon(
                       flow.level.icon,
-                      size: 64,
+                      size: 56,
                       color: cs.primary,
                     ),
                   ),
@@ -124,13 +136,13 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
               ),
               // Difficulty Badge positioned at top right
               Positioned(
-                top: 14,
-                right: 14,
+                top: 12,
+                right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: diffColor,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.15),
@@ -143,7 +155,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                     flow.badge,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.3,
                     ),
@@ -155,14 +167,14 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
 
           // Body Content
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Category Title
                 Text(
                   flow.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.2,
                   ),
@@ -178,7 +190,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
+                        color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -186,12 +198,12 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                         children: [
                           Icon(
                             Icons.schedule_rounded,
-                            size: 15,
-                            color: cs.primary,
+                            size: 14,
+                            color: cs.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 4),
                           Text(
-                            flow.estimatedDuration,
+                            durationFormatted,
                             style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: cs.onSurfaceVariant,
@@ -205,7 +217,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
+                        color: cs.surfaceContainerHighest.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -213,10 +225,10 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                         children: [
                           Icon(
                             Icons.fitness_center_rounded,
-                            size: 14,
-                            color: cs.primary,
+                            size: 13,
+                            color: cs.onSurfaceVariant,
                           ),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 4),
                           Text(
                             '${flow.totalExerciseCount} exercises',
                             style: theme.textTheme.labelMedium?.copyWith(
@@ -229,30 +241,17 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
-                // Short Description
-                Text(
-                  flow.description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Expandable Exercise List Preview
+                // Sleek Exercise List Preview Trigger
                 InkWell(
                   onTap: () => setState(() => _expanded = !_expanded),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: cs.surfaceContainerLowest,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.35),
-                      ),
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
@@ -260,7 +259,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                           _expanded
                               ? Icons.keyboard_arrow_up_rounded
                               : Icons.format_list_bulleted_rounded,
-                          size: 18,
+                          size: 16,
                           color: cs.primary,
                         ),
                         const SizedBox(width: 8),
@@ -268,9 +267,9 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                           child: Text(
                             _expanded
                                 ? 'Hide exercises'
-                                : 'View all ${flow.totalExerciseCount} exercises',
+                                : 'Preview all ${flow.totalExerciseCount} exercises',
                             style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: cs.primary,
                             ),
                           ),
@@ -279,7 +278,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                           _expanded
                               ? Icons.expand_less_rounded
                               : Icons.expand_more_rounded,
-                          size: 20,
+                          size: 18,
                           color: cs.onSurfaceVariant,
                         ),
                       ],
@@ -288,15 +287,16 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                 ),
 
                 if (_expanded) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerLowest,
+                  const SizedBox(height: 10),
+                  Material(
+                    color: cs.surfaceContainerLowest,
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
+                      side: BorderSide(
                         color: cs.outlineVariant.withValues(alpha: 0.25),
                       ),
                     ),
+                    clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
                         for (int i = 0; i < flow.exercises.length; i++) ...[
@@ -307,7 +307,7 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                               vertical: 2,
                             ),
                             leading: CircleAvatar(
-                              radius: 14,
+                              radius: 13,
                               backgroundColor: cs.primaryContainer,
                               child: Text(
                                 '${i + 1}',
@@ -356,26 +356,26 @@ class _WorkoutCategoryCardState extends State<_WorkoutCategoryCard> {
                   ),
                 ],
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Primary "Start Workout" Button
+                // Primary "Start Workout" Button with consistent brand primary color
                 FilledButton.icon(
                   onPressed: () {
                     final plan = flow.toWorkoutPlan();
                     final day = plan.days.first;
                     context.push(AppRoutes.workoutSessionPath(day.id));
                   },
-                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
                   label: Text(
-                    'Start ${flow.badge}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    _getButtonLabel(flow.level),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: diffColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
