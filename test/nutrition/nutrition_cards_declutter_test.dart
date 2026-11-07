@@ -69,6 +69,21 @@ void main() {
       // Verify duplicate medical disclaimer was removed
       expect(find.textContaining('This is a general estimate, not medical advice'), findsNothing);
     });
+
+    testWidgets('renders cleanly without overflow on narrow 320px screen', (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(createTestWidget(const CalorieTargetCard()));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Daily Calorie Target'), findsOneWidget);
+      expect(find.text('Resting Energy (BMR)'), findsOneWidget);
+      expect(find.text('With Activity (TDEE)'), findsOneWidget);
+    });
   });
 
   group('MacroCard Declutter', () {

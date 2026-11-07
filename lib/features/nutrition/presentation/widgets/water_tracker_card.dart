@@ -242,12 +242,14 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard> {
                           const SizedBox(width: 6),
                           Text('Goal reached! ', style: text.bodySmall?.copyWith(color: scheme.tertiary, fontWeight: FontWeight.bold)),
                         ],
-                        Text(
-                          'About 250 ml per glass. Stay hydrated!',
-                          style: text.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            'About 250 ml per glass. Stay hydrated!',
+                            style: text.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
