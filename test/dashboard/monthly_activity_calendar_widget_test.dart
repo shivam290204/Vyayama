@@ -139,6 +139,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('November 2026'), findsOneWidget);
     });
+
+    testWidgets('4. SelectedDateDetailsCard renders large values without overflow on narrow screens', (tester) async {
+      tester.view.physicalSize = const Size(320 * 2, 600 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 320,
+                child: SelectedDateDetailsCard(
+                  selectedDate: DateTime(2026, 11, 6),
+                  stats: DailyStats(
+                    date: DateTime(2026, 11, 6),
+                    steps: 13584,
+                    activeMinutes: 136,
+                    calories: 543,
+                  ),
+                  targets: const DailyTargets(
+                    steps: 8000,
+                    activeMinutes: 30,
+                    activeCalories: 400,
+                  ),
+                  today: DateTime(2026, 11, 6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Ensure no Flutter overflow error occurred and text is present
+      expect(tester.takeException(), isNull);
+      expect(find.text('13,584'), findsOneWidget);
+      expect(find.text('/ 8,000 steps'), findsOneWidget);
+      expect(find.text('136'), findsOneWidget);
+      expect(find.text('/ 30 mins'), findsOneWidget);
+      expect(find.text('543'), findsOneWidget);
+      expect(find.text('/ 400 kcal'), findsOneWidget);
+    });
   });
 }
 

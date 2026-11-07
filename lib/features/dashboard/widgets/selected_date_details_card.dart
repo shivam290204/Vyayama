@@ -78,7 +78,7 @@ class SelectedDateDetailsCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -188,7 +188,7 @@ class SelectedDateDetailsCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 22),
+                const SizedBox(width: 16),
 
                 // Right: Detailed numeric metrics with targets
                 Expanded(
@@ -265,20 +265,31 @@ class _MetricRow extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: iconColor),
         const SizedBox(width: 8),
-        Text(
-          valueText,
-          style: text.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: textPrimary,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$targetText $unit',
-          style: text.bodySmall?.copyWith(
-            color: textMuted,
-            fontSize: 13,
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  valueText,
+                  style: text.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$targetText $unit',
+                  style: text.bodySmall?.copyWith(
+                    color: textMuted,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
