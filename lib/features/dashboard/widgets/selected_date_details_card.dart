@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/dashboard/daily_targets.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
@@ -5,6 +6,7 @@ import 'package:fitbuddy/features/dashboard/widgets/concentric_rings_painter.dar
 import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:fitbuddy/features/schedule/format_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// Card showing the selected calendar date's detailed metrics with a large concentric ring display.
 class SelectedDateDetailsCard extends StatelessWidget {
@@ -230,6 +232,73 @@ class SelectedDateDetailsCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 14),
+
+            // 3. Action bridge to Maps & Outdoor Route Discovery
+            InkWell(
+              onTap: () => context.push(AppRoutes.maps),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppPalette.limeGreen.withValues(alpha: 0.08)
+                      : AppPalette.softLime.withValues(alpha: 0.50),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark
+                        ? AppPalette.limeGreen.withValues(alpha: 0.20)
+                        : AppPalette.forestGreen.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppPalette.limeGreen.withValues(alpha: 0.20)
+                            : AppPalette.forestGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.explore_rounded,
+                        size: 16,
+                        color: isDark ? AppPalette.limeGreen : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Explore Nearby Walking Routes',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Walk or run outdoor loops to hit your daily goal',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 13,
+                      color: textMuted,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

@@ -184,6 +184,8 @@ void main() {
       expect(find.text('/ 30 mins'), findsOneWidget);
       expect(find.text('543'), findsOneWidget);
       expect(find.text('/ 400 kcal'), findsOneWidget);
+      expect(find.text('Explore Nearby Walking Routes'), findsOneWidget);
+      expect(find.text('Walk or run outdoor loops to hit your daily goal'), findsOneWidget);
     });
   });
 }
