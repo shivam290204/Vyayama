@@ -1,4 +1,3 @@
-import 'package:fitbuddy/features/health_profile/presentation/widgets/medical_disclaimer_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/wellness_app_bar.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/nutrition/presentation/widgets/calorie_target_card.dart';
@@ -35,21 +34,31 @@ class NutritionScreen extends ConsumerWidget {
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-              children: const <Widget>[
+              children: [
                 StaggeredEntrance(
                   children: [
-                    MedicalDisclaimerCard(),
-                    SizedBox(height: 16),
-                    CalorieTargetCard(),
-                    SizedBox(height: 16),
-                    MacroCard(),
-                    SizedBox(height: 16),
-                    WaterTrackerCard(),
-                    SizedBox(height: 16),
-                    EatLimitCard(),
-                    SizedBox(height: 24),
-                    MealSuggestionsSection(),
-                    SizedBox(height: 24),
+                    const CalorieTargetCard(),
+                    const SizedBox(height: 16),
+                    const MacroCard(),
+                    const SizedBox(height: 16),
+                    const WaterTrackerCard(),
+                    const SizedBox(height: 16),
+                    const EatLimitCard(),
+                    const SizedBox(height: 24),
+                    const MealSuggestionsSection(),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: Text(
+                        'General wellness information, not medical advice. Consult a doctor or registered dietitian before starting a new diet program.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              height: 1.4,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ],

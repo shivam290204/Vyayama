@@ -91,23 +91,35 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
+                    color: Colors.blue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.water_drop, color: Colors.blue),
+                  child: const Icon(
+                    Icons.water_drop_rounded,
+                    color: Colors.blue,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Water Tracker', style: text.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                ),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    'assets/images/mascot/happy.png',
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Water Tracker',
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Target: ${(target * 250 / 1000).toStringAsFixed(1)} L ($target glasses)',
+                        style: text.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -234,7 +246,6 @@ class _WaterTrackerCardState extends ConsumerState<WaterTrackerCard> {
                           'About 250 ml per glass. Stay hydrated!',
                           style: text.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
-                            fontStyle: FontStyle.italic,
                           ),
                           textAlign: TextAlign.center,
                         ),

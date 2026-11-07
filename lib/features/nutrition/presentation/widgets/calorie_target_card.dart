@@ -142,15 +142,19 @@ class _EstimateBody extends ConsumerWidget {
             const SizedBox(height: 8),
             SegmentedButton<NutritionGoal>(
               style: SegmentedButton.styleFrom(
-                minimumSize: const Size(48, 48),
+                minimumSize: const Size(48, 44),
                 backgroundColor: scheme.surface.withValues(alpha: 0.5),
+                visualDensity: VisualDensity.compact,
               ),
-              showSelectedIcon: true,
+              showSelectedIcon: false,
               segments: <ButtonSegment<NutritionGoal>>[
                 for (final goal in goals)
                   ButtonSegment<NutritionGoal>(
                     value: goal,
-                    label: Text(goal.label),
+                    label: Text(
+                      goal.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
                   ),
               ],
               selected: <NutritionGoal>{estimate.effectiveGoal},
@@ -161,68 +165,135 @@ class _EstimateBody extends ConsumerWidget {
             const SizedBox(height: 24),
             Text('Activity Level', style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                for (final level in ActivityLevel.values)
-                  ChoiceChip(
-                    label: Text(level.label),
-                    selected: level == activity,
-                    onSelected: (_) =>
-                        ref.read(activityLevelProvider.notifier).select(level),
-                    backgroundColor: scheme.surface.withValues(alpha: 0.5),
+            Row(
+              children: [
+                for (final level in ActivityLevel.values) ...[
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => ref.read(activityLevelProvider.notifier).select(level),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: level == activity
+                              ? scheme.primary
+                              : scheme.surface.withValues(alpha: isDark ? 0.4 : 0.6),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: level == activity
+                                ? scheme.primary
+                                : scheme.outlineVariant.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          level.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: level == activity ? FontWeight.bold : FontWeight.w600,
+                            color: level == activity ? scheme.onPrimary : scheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
                   ),
+                  if (level != ActivityLevel.values.last) const SizedBox(width: 6),
+                ],
               ],
             ),
             const SizedBox(height: 6),
             Text(
               activity.description,
-              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+              style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: scheme.surface.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(16),
+                color: scheme.surface.withValues(alpha: isDark ? 0.4 : 0.6),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Recommended Range',
-                    style: text.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${formatKcal(estimate.lowKcal)} - ${formatKcal(estimate.highKcal)}',
-                    style: text.displaySmall?.copyWith(
-                      color: scheme.onSurface,
-                      fontWeight: FontWeight.w800,
+                    'Recommended Daily Range',
+                    style: text.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  Text('kcal per day', style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant), textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Resting Energy:', style: text.bodyMedium),
-                      Text('${formatKcal(estimate.bmr.round())} kcal', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    ],
+                  const SizedBox(height: 6),
+                  Text(
+                    '${formatKcal(estimate.lowKcal)} – ${formatKcal(estimate.highKcal)}',
+                    style: text.headlineMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('With Activity:', style: text.bodyMedium),
-                      Text('${formatKcal(estimate.tdee.round())} kcal', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    ],
+                  Text(
+                    'kcal per day',
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Column(
+                          children: [
+                            Text(
+                              'Resting Energy (BMR)',
+                              style: text.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${formatKcal(estimate.bmr.round())} kcal',
+                              style: text.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          height: 28,
+                          width: 1,
+                          color: scheme.outlineVariant.withValues(alpha: 0.4),
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              'With Activity (TDEE)',
+                              style: text.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${formatKcal(estimate.tdee.round())} kcal',
+                              style: text.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -237,10 +308,6 @@ class _EstimateBody extends ConsumerWidget {
                 'Weight-loss targets are not shown for under 18s, so this is '
                 'a maintenance estimate.',
               ),
-            const _Note(
-              'This is a general estimate, not medical advice. Real needs '
-              'vary from person to person.',
-            ),
           ],
         ),
       ),
