@@ -12,7 +12,6 @@ import 'package:fitbuddy/features/home/widgets/time_blocks_section.dart';
 import 'package:fitbuddy/features/home/widgets/today_workout_card.dart';
 import 'package:fitbuddy/features/home/widgets/wellness_summary_cards.dart';
 import 'package:fitbuddy/features/intelligence/providers.dart';
-import 'package:fitbuddy/features/mascot/mascot_debug_panel.dart';
 import 'package:fitbuddy/features/motivation/providers.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_boost_card.dart';
 import 'package:fitbuddy/features/motivation/widgets/daily_quote_dialog.dart';
@@ -151,7 +150,6 @@ class _HomeContent extends StatelessWidget {
         ),
         QuickLinksGrid(),
         SizedBox(height: 16),
-        MascotDebugPanel(),
       ],
     );
   }
