@@ -302,35 +302,29 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       });
 
       // Await Nominatim first (typically completes in 200-400ms)
+      // Phase 2a/c: Concurrent resolution of Overpass and Nominatim.
+      // Overpass provides fine-grained parks, paths, and footways; Nominatim provides
+      // rapid fallback place discovery. We give Overpass up to 6 seconds to return
+      // mapped pedestrian ways without hanging the UI.
+      List<OverpassPlace> opPlaces = const [];
+      try {
+        opPlaces = await overpassFuture.timeout(const Duration(seconds: 6));
+      } catch (_) {
+        // Overpass timed out or is slow; proceed with Nominatim / grid fallback
+      }
+
       final nomPlaces = await nominatimFuture;
       if (requestId != _activeRequestId) return;
 
-      if (nomPlaces.isNotEmpty) {
-        // Fast-path: Nominatim provided verified places. Give Overpass a short
-        // window (1500ms) to supplement with pedestrian trails, but never block
-        // the user for 15+ seconds on dead Overpass mirrors.
-        List<OverpassPlace> opPlaces = const [];
-        try {
-          opPlaces = await overpassFuture.timeout(const Duration(milliseconds: 1500));
-        } catch (_) {
-          // Overpass timed out or is slow; proceed immediately with Nominatim places
-        }
-
-        final seenIds = <int>{};
-        for (final p in opPlaces) {
-          if (seenIds.add(p.id)) places.add(p);
-        }
-        for (final p in nomPlaces) {
-          if (seenIds.add(p.id)) places.add(p);
-        }
+      final seenIds = <int>{};
+      for (final p in opPlaces) {
+        if (seenIds.add(p.id)) places.add(p);
+      }
+      for (final p in nomPlaces) {
+        if (seenIds.add(p.id)) places.add(p);
+      }
+      if (places.isNotEmpty) {
         overpassFailure = null;
-      } else {
-        // Nominatim found 0 places: wait for Overpass to complete
-        try {
-          places = await overpassFuture;
-        } catch (e) {
-          overpassFailure = e;
-        }
       }
 
       if (requestId != _activeRequestId) return;
@@ -393,6 +387,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
 
       // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
       final candidates = _pickCandidateWaypoints(center, places);
+
       if (candidates.isEmpty) {
         yield createResult(const [], places, candidates, overpassFailure);
         return;
@@ -841,8 +836,14 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       if (normalizedDiff >= 40 && normalizedDiff <= 160) {
         final d1 = haversineDistance(center, p1.latLng);
         final d2 = haversineDistance(center, candidate.latLng);
-        // Ensure distance ratio is balanced
-        final ratio = d1 > d2 ? d1 / d2 : d2 / d1;
+        // Ensure distance ratio is balanced, using a 200m floor so places close
+        // to the user's position (e.g. standing inside a park) can still pair with
+        // nearby perimeter or neighborhood waypoints to form a loop.
+        final effectiveD1 = math.max(d1, 200.0);
+        final effectiveD2 = math.max(d2, 200.0);
+        final ratio = effectiveD1 > effectiveD2
+            ? effectiveD1 / effectiveD2
+            : effectiveD2 / effectiveD1;
         if (ratio < 3.0) {
           return candidate;
         }

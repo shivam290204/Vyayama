@@ -114,20 +114,24 @@ class OverpassService {
   final Future<bool> Function()? _isOfflineProbe;
   final ServiceCircuitBreaker _circuitBreaker;
   /// Per-request HTTP client timeout (connect + response).
-  /// Shorter than the server-side `[timeout:N]` to avoid hanging.
-  static const Duration _timeout = Duration(seconds: 5);
+  /// Aligned with the server-side `[timeout:20]` budget to avoid prematurely
+  /// aborting working Overpass mirrors.
+  static const Duration _timeout = Duration(seconds: 15);
 
   /// Maximum number of places returned per Overpass query.
   static const int _maxResults = 30;
 
-  /// Starting search radius when the caller does not specify one.
-  static const double _initialRadiusMeters = 2000;
+  /// Starting search radius (Phase 2a: 1.5 km initial).
+  static const double _initialRadiusMeters = 1500;
 
-  /// Expanded radius used when the first pass returns too few results.
+  /// Intermediate search radius (Phase 2a: 3.0 km).
+  static const double _intermediateRadiusMeters = 3000;
+
+  /// Expanded radius used when the earlier passes return too few results (Phase 2a: 5.0 km).
   static const double _expandedRadiusMeters = 5000;
 
-  /// Overall budget for a single findNearbyPlaces call (all mirrors + retries).
-  static const Duration _overallBudget = Duration(seconds: 12);
+  /// Overall budget for a single findNearbyPlaces call (Phase 2a: 25 seconds).
+  static const Duration _overallBudget = Duration(seconds: 25);
 
   final RouteCache _cache;
   DateTime? _lastRequestTime;
@@ -296,8 +300,8 @@ class OverpassService {
     final lon = center.longitude;
 
     // -------------------------------------------------------------------------
-    // Phase 2(a): Progressive radius — start small (~2.5 km), expand only if
-    // the first pass returns no results.
+    // Phase 2(a): Progressive radius — start small (~1.5 km), expand in steps
+    // (1.5 -> 3.0 -> 5.0 km) if results are too few (< 3).
     // -------------------------------------------------------------------------
     final deadline = DateTime.now().add(_overallBudget);
 
@@ -310,20 +314,34 @@ class OverpassService {
       deadline: deadline,
     );
 
-    // Expand only if there are too few (or zero) results and radiusMeters was larger
+    // Expand only if the initial pass returned zero results and caller requested larger radius
     if (results.isEmpty &&
         radiusMeters > _initialRadiusMeters &&
         DateTime.now().isBefore(deadline)) {
-      final expandedR = radiusMeters.clamp(300, _expandedRadiusMeters).round();
-      final expanded = await _queryWithRadius(
+      final intermediateR =
+          math.min(radiusMeters, _intermediateRadiusMeters).round();
+      final intermediate = await _queryWithRadius(
         lat: lat,
         lon: lon,
-        radiusMeters: expandedR,
+        radiusMeters: intermediateR,
         requestId: requestId,
         deadline: deadline,
       );
-      if (expanded.isNotEmpty) {
-        results = expanded;
+      if (intermediate.isNotEmpty) {
+        results = intermediate;
+      } else if (radiusMeters > _intermediateRadiusMeters &&
+          DateTime.now().isBefore(deadline)) {
+        final expandedR = radiusMeters.clamp(300, _expandedRadiusMeters).round();
+        final expanded = await _queryWithRadius(
+          lat: lat,
+          lon: lon,
+          radiusMeters: expandedR,
+          requestId: requestId,
+          deadline: deadline,
+        );
+        if (expanded.isNotEmpty) {
+          results = expanded;
+        }
       }
     }
 
@@ -336,32 +354,35 @@ class OverpassService {
 
   // ---------------------------------------------------------------------------
   // Split query strategy (Phase 2a):
-  //   Pass 1 — named leisure areas only (small, fast, index-friendly).
-  //   Pass 2 — footways/paths/tracks (can be large; use smaller sub-radius).
+  //   Query 1: Named & mapped parks, recreation grounds, nature reserves, gardens.
+  //   Query 2: Tracks, paths, and footways EXCLUDING sidewalks and crossings.
+  //   Query 3: Hiking and foot route relations.
+  //   Merged and prioritized: Parks & named paths first.
   // ---------------------------------------------------------------------------
 
-  /// Builds the named-parks Overpass QL for a given radius.
+  /// Builds the parks Overpass QL for a given radius (Phase 2a).
   String _parksQuery(int r, double lat, double lon) => '''
 [out:json][timeout:20];
 (
-  node["leisure"="park"]["name"](around:$r,$lat,$lon);
-  way["leisure"="park"]["name"](around:$r,$lat,$lon);
-  node["leisure"="recreation_ground"]["name"](around:$r,$lat,$lon);
-  way["leisure"="recreation_ground"]["name"](around:$r,$lat,$lon);
-  way["leisure"="nature_reserve"]["name"](around:$r,$lat,$lon);
-  way["leisure"="garden"]["name"](around:$r,$lat,$lon);
+  node["leisure"="park"](around:$r,$lat,$lon);
+  way["leisure"="park"](around:$r,$lat,$lon);
+  relation["leisure"="park"](around:$r,$lat,$lon);
+  node["leisure"="recreation_ground"](around:$r,$lat,$lon);
+  way["leisure"="recreation_ground"](around:$r,$lat,$lon);
+  way["leisure"="nature_reserve"](around:$r,$lat,$lon);
+  way["leisure"="garden"](around:$r,$lat,$lon);
 );
 out center $_maxResults;
 ''';
 
-  /// Builds the footways/paths query for a given (smaller) radius.
+  /// Builds the footways/paths query excluding sidewalks and crossings (Phase 2a).
   String _pathsQuery(int r, double lat, double lon) => '''
 [out:json][timeout:20];
 (
-  way["highway"="footway"](around:$r,$lat,$lon);
-  way["highway"="pedestrian"](around:$r,$lat,$lon);
   way["highway"="path"](around:$r,$lat,$lon);
   way["highway"="track"](around:$r,$lat,$lon);
+  way["highway"="footway"]["footway"!~"sidewalk|crossing"](around:$r,$lat,$lon);
+  way["highway"="pedestrian"]["pedestrian"!~"crossing"](around:$r,$lat,$lon);
   relation["route"="hiking"](around:$r,$lat,$lon);
   relation["route"="foot"](around:$r,$lat,$lon);
 );
@@ -369,8 +390,8 @@ out center $_maxResults;
 ''';
 
   /// Runs progressive queries for [radiusMeters].
-  /// Queries named parks first (lightweight, index-friendly). If found, returns them immediately.
-  /// Only falls back to paths/tracks if no named parks were found.
+  /// Queries parks and recreation areas first (fast, index-friendly).
+  /// Falls back to paths/footways only if no parks were found (Phase 2a).
   Future<List<OverpassPlace>> _queryWithRadius({
     required double lat,
     required double lon,
@@ -378,7 +399,7 @@ out center $_maxResults;
     required int? requestId,
     required DateTime deadline,
   }) async {
-    // Named parks first — fast and index-friendly.
+    // 1. Parks and recreation areas
     final parks = await _executeQuery(
       query: _parksQuery(radiusMeters, lat, lon),
       requestId: requestId,
@@ -391,17 +412,38 @@ out center $_maxResults;
       return parks;
     }
 
-    // Paths in a tighter sub-radius to keep response size manageable.
-    final pathRadius = (radiusMeters * 0.6).round().clamp(300, radiusMeters);
+    // 2. Paths, tracks, and footways excluding sidewalks and crossings
+    final pathRadius = (radiusMeters * 0.7).round().clamp(300, radiusMeters);
     try {
       final paths = await _executeQuery(
         query: _pathsQuery(pathRadius, lat, lon),
         requestId: requestId,
         deadline: deadline,
       );
-      return paths;
+
+      // Merge and prioritize (Phase 2a):
+      // (1) Named parks
+      // (2) Named paths and routes
+      // (3) Unnamed parks
+      // (4) Unnamed paths/footways
+      final seenIds = <int>{};
+      final merged = <OverpassPlace>[];
+
+      for (final p in parks.where((p) => p.isNamed)) {
+        if (seenIds.add(p.id)) merged.add(p);
+      }
+      for (final p in paths.where((p) => p.isNamed)) {
+        if (seenIds.add(p.id)) merged.add(p);
+      }
+      for (final p in parks.where((p) => !p.isNamed)) {
+        if (seenIds.add(p.id)) merged.add(p);
+      }
+      for (final p in paths.where((p) => !p.isNamed)) {
+        if (seenIds.add(p.id)) merged.add(p);
+      }
+
+      return merged.take(_maxResults).toList();
     } catch (_) {
-      // Return whatever we have (even if empty)
       return parks;
     }
   }
