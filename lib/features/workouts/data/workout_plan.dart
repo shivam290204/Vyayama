@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 /// One exercise inside a plan day (table `plan_exercises`).
 @immutable
@@ -21,7 +22,13 @@ class PlanExercise {
   }) {
     return PlanExercise(
       id: json['id']?.toString() ?? '${dayId ?? 'day'}_ex$index',
-      exerciseId: json['exercise_id'].toString(),
+      exerciseId: () {
+        final rawEx = json['exercise'];
+        if (rawEx is Map && rawEx['catalog_id'] != null) {
+          return rawEx['catalog_id'].toString();
+        }
+        return json['exercise_id'].toString();
+      }(),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? index,
       sets: (json['sets'] as num?)?.toInt(),
       reps: (json['reps'] as num?)?.toInt(),
@@ -150,7 +157,7 @@ class WorkoutPlan {
 
   /// A blank custom plan for the builder.
   factory WorkoutPlan.draft() => WorkoutPlan(
-        id: 'draft_${DateTime.now().microsecondsSinceEpoch}',
+        id: const Uuid().v4(),
         title: '',
         goal: 'maintain',
         level: 'beginner',

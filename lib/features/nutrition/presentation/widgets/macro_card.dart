@@ -23,8 +23,10 @@ class MacroCard extends ConsumerWidget {
     final isDark = scheme.brightness == Brightness.dark;
 
     final proteinColor = isDark ? AppPalette.limeGreen : AppPalette.forestGreen;
-    final carbColor = isDark ? const Color(0xFFFFB74D) : const Color(0xFFF57C00);
-    final fatColor = isDark ? const Color(0xFF4DD0E1) : const Color(0xFF0097A7);
+    final carbColor =
+        isDark ? AppPalette.macroCarbsDark : AppPalette.macroCarbsLight;
+    final fatColor =
+        isDark ? AppPalette.macroFatDark : AppPalette.macroFatLight;
 
     return Container(
       decoration: BoxDecoration(

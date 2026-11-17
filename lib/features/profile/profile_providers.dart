@@ -69,14 +69,14 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
       final saved = await ref.read(profileRepositoryProvider).upsertProfile(profile);
       state = AsyncData(saved);
       return saved;
+    } on ProfileUpdateException catch (e) {
+      if (e.isLocalOnly) {
+        state = AsyncData(profile);
+      }
+      rethrow;
     } catch (e) {
       debugPrint('[CurrentProfileNotifier] save error: $e');
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('cached_profile_${profile.id}', jsonEncode(profile.toJson()));
-      } catch (_) {}
-      state = AsyncData(profile);
-      return profile;
+      rethrow;
     }
   }
 }

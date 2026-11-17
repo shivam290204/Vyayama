@@ -87,7 +87,9 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
   }
 
   Future<void> _save() async {
-    final plan = _plan!;
+    if (_saving) return;
+    final plan = _plan;
+    if (plan == null) return;
     final error = plan.validationError;
     if (error != null) {
       _snack(error);
@@ -195,7 +197,8 @@ class _PlanBuilderScreenState extends ConsumerState<PlanBuilderScreen> {
 
   Widget _editor(BuildContext context) {
     final theme = Theme.of(context);
-    final plan = _plan!;
+    final plan = _plan;
+    if (plan == null) return const SizedBox.shrink();
     final library = ref.watch(exerciseLibraryProvider).maybeWhen(
           data: (d) => d,
           orElse: () => const <Exercise>[],

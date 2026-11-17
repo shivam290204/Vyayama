@@ -120,12 +120,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: homeRoutes),
           StatefulShellBranch(routes: workoutsRoutes),
-          StatefulShellBranch(routes: mapsRoutes),
+          StatefulShellBranch(routes: snapsRoutes),
           StatefulShellBranch(routes: friendsRoutes),
-          StatefulShellBranch(routes: profileRoutes),
+          StatefulShellBranch(routes: mapsRoutes),
         ],
       ),
       // Everything below is top-level (no bottom bar).
+      ...profileRoutes,
       ...dashboardRoutes,
       ...scheduleRoutes,
       ...motivationRoutes,
@@ -134,7 +135,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ...healthProfileRoutes,
       ...sleepRoutes,
       ...teamsRoutes,
-      ...snapsRoutes,
       ...settingsRoutes,
     ],
   );

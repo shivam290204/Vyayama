@@ -207,22 +207,21 @@ class _InteractiveTimeBlock extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 18, color: accentColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        label,
-                        style: text.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: accentColor,
-                        ),
+                  Icon(icon, size: 18, color: accentColor),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: accentColor,
                       ),
-                    ],
+                    ),
                   ),
+                  const SizedBox(width: 4),
                   Icon(
                     Icons.edit_outlined,
                     size: 14,
@@ -245,6 +244,8 @@ class _InteractiveTimeBlock extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: text.labelSmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),

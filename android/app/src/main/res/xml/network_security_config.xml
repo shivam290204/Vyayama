@@ -6,4 +6,12 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!-- Allow cleartext communication with local dev host during local development -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.26.97.36</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
 </network-security-config>

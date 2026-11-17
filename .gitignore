@@ -51,6 +51,11 @@ app.*.map.json
 .env.*
 !.env.example
 
+# Supabase local snippets & scratch queries
+/supabase/snippets/
+/supabase/.branches/
+/supabase/.temp/
+
 # Signing keys & Keystores
 key.properties
 *.keystore

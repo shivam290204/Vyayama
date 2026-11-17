@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/services/shared_prefs_provider.dart';
 import 'package:fitbuddy/features/sleep/presentation/sleep_screen.dart';
+import 'package:fitbuddy/features/sleep/presentation/widgets/sleep_plan_card.dart';
 import 'package:fitbuddy/features/sleep/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(find.text('Sleep & alarm'), findsOneWidget);
+    expect(find.text('Bedtime'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -81,6 +82,45 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SleepPlanCard renders without RenderFlex overflow on narrow viewport and high text scale', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    addTearDown(() => tester.view.resetDevicePixelRatio());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(320, 640),
+              textScaler: TextScaler.linear(1.3),
+            ),
+            child: const Scaffold(
+              body: Padding(
+                padding: EdgeInsets.all(16),
+                child: SleepPlanCard(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    for (int i = 0; i < 15; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.text('Bedtime'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -54,6 +54,13 @@ abstract final class AppPalette {
   static const Color activitySteps = limeGreen; // #8BCF45
   static const Color activityMinutes = Color(0xFF06B6D4); // Cyan / Teal
   static const Color activityCalories = Color(0xFFA855F7); // Purple
+
+  // Macro Distribution Tokens (Nutrition)
+  static const Color macroProtein = limeGreen;
+  static const Color macroCarbsLight = Color(0xFFF57C00); // Warm amber / orange
+  static const Color macroCarbsDark = Color(0xFFFFB74D);
+  static const Color macroFatLight = Color(0xFF0097A7);   // Teal / Cyan
+  static const Color macroFatDark = Color(0xFF4DD0E1);
 }
 
 /// Material 3 light and dark themes built using the Forest Green & Lime Green system.

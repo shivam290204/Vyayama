@@ -34,6 +34,8 @@ class AppShell extends ConsumerStatefulWidget {
   /// Paths inside a tab branch that must hide the bottom bar.
   static const List<String> _fullScreenPrefixes = [
     AppRoutes.workoutSessionPrefix,
+    AppRoutes.snapsPreview,
+    '/snaps/view',
   ];
 
   @override
@@ -225,7 +227,6 @@ class _AppShellState extends ConsumerState<AppShell>
 
     final requests = ref.watch(incomingRequestCountProvider);
     final unviewedSnaps = ref.watch(unviewedSnapsCountProvider);
-    final totalBadges = requests + unviewedSnaps;
 
     return Scaffold(
       body: widget.navigationShell,
@@ -233,7 +234,8 @@ class _AppShellState extends ConsumerState<AppShell>
           ? null
           : AppBottomBar(
               selectedBranch: widget.navigationShell.currentIndex,
-              friendsBadgeCount: totalBadges,
+              snapBadgeCount: unviewedSnaps,
+              friendsBadgeCount: requests,
               onBranchSelected: (index) => widget.navigationShell.goBranch(
                 index,
                 initialLocation: index == widget.navigationShell.currentIndex,
