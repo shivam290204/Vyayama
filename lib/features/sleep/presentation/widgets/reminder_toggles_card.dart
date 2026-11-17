@@ -5,7 +5,6 @@ import 'package:fitbuddy/core/widgets/glass_card.dart';
 import 'package:fitbuddy/features/health_profile/presentation/widgets/async_value_view.dart';
 import 'package:fitbuddy/features/sleep/data/day_time_convert.dart';
 import 'package:fitbuddy/features/sleep/data/sleep_settings.dart';
-import 'package:fitbuddy/features/sleep/presentation/widgets/alarm_test_dialog.dart';
 import 'package:fitbuddy/features/sleep/presentation/widgets/safe_action.dart';
 import 'package:fitbuddy/features/sleep/providers.dart';
 import 'package:flutter/material.dart';
@@ -476,40 +475,7 @@ class ReminderTogglesCard extends ConsumerWidget {
                         onChanged: notifier.setVibrate,
                       ),
                     ),
-                    const SizedBox(height: 8),
 
-                    // Test Alarm Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: context.colors.streak,
-                          side: BorderSide(
-                            color: context.colors.streak,
-                            width: 1.2,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () {
-                          AlarmTestDialog.show(
-                            context,
-                            alarmTime: wake,
-                            alarmSound: settings.alarmSound,
-                            vibrate: isVibrate,
-                            snoozeMinutes: settings.snoozeMinutes,
-                          );
-                        },
-                        icon: const Icon(Icons.play_circle_outline_rounded,
-                            size: 18),
-                        label: const Text(
-                          'Test Alarm Now',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

@@ -5,6 +5,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 abstract final class Env {
   static const String _urlDefine = String.fromEnvironment('SUPABASE_URL');
   static const String _keyDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
+  static const String _googleWebClientIdDefine =
+      String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 
   static String get supabaseUrl {
     if (_urlDefine.isNotEmpty) return _urlDefine;
@@ -16,6 +18,13 @@ abstract final class Env {
   static String get supabaseAnonKey {
     if (_keyDefine.isNotEmpty) return _keyDefine;
     final envVal = _read('SUPABASE_ANON_KEY', '');
+    if (envVal.isNotEmpty) return envVal;
+    return '';
+  }
+
+  static String get googleWebClientId {
+    if (_googleWebClientIdDefine.isNotEmpty) return _googleWebClientIdDefine;
+    final envVal = _read('GOOGLE_WEB_CLIENT_ID', '');
     if (envVal.isNotEmpty) return envVal;
     return '';
   }

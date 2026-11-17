@@ -24,12 +24,24 @@ class YogaSectionTab extends ConsumerWidget {
         // Section Header
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md, top: 4),
-          child: Text(
-            'Yoga Sanctuary',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.3,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Yoga Sanctuary',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Guided asanas & mindful breathwork routines',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
 

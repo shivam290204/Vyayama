@@ -4,6 +4,8 @@ import 'package:fitbuddy/features/maps/domain/services/location_tracking_service
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('LocationTrackingService State Machine Tests', () {
     test('1. TrackingState initial values are zeroed', () {
       final state = TrackingState.initial;
@@ -65,7 +67,7 @@ void main() {
       service.dispose();
     });
 
-    test('4. Finish compiling completed OutdoorActivity', () {
+    test('4. Finish compiling completed OutdoorActivity', () async {
       final service = LocationTrackingService();
       service.value = const TrackingState(
         status: OutdoorActivityStatus.active,
@@ -78,7 +80,7 @@ void main() {
         currentPosition: null,
       );
 
-      final activity = service.finishRecording(title: 'Morning 3K Jog');
+      final activity = await service.finishRecording(title: 'Morning 3K Jog');
       expect(activity, isNotNull);
       expect(activity!.title, equals('Morning 3K Jog'));
       expect(activity.distanceMeters, equals(3000));

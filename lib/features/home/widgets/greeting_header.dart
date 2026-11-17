@@ -1,3 +1,4 @@
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/auth/widgets/brand_mark.dart';
 import 'package:fitbuddy/features/mascot/mascot_message_picker.dart';
@@ -7,9 +8,8 @@ import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fitbuddy/core/router/app_routes.dart';
 
-/// "Good morning, Asha!" header with brand logo.
+/// "Good morning, Shivam!" header with brand logo and Profile button.
 class GreetingHeader extends ConsumerWidget {
   /// Creates the header.
   const GreetingHeader({super.key});
@@ -27,7 +27,7 @@ class GreetingHeader extends ConsumerWidget {
     };
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    
+
     IconData timeIcon;
     Color iconColor;
     switch (DayPart.of(now)) {
@@ -79,17 +79,32 @@ class GreetingHeader extends ConsumerWidget {
               const Spacer(),
               Semantics(
                 button: true,
-                label: 'Take fitness snap',
-                child: FilledButton.tonalIcon(
-                  onPressed: () => context.push(AppRoutes.snapsCamera),
-                  icon: const Icon(Icons.photo_camera_rounded, size: 18),
-                  label: const Text(
-                    'Snap',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    visualDensity: VisualDensity.compact,
+                label: 'View profile',
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('home_profile_button'),
+                    onTap: () => context.go(AppRoutes.profile),
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.person_rounded,
+                        color: scheme.primary,
+                        size: 22,
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -83,7 +83,23 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
         reason: 'Verification is currently in progress.',
       );
     } catch (e) {
-      debugPrint('verify-snap Edge function error ($e). Snap queued for retry.');
+      debugPrint('verify-snap Edge function error ($e). Attempting verify_snap RPC fallback.');
+      try {
+        final rpcRes = await _client.rpc('verify_snap', params: {
+          'p_snap_id': snapId,
+        });
+        if (rpcRes is Map) {
+          final status = rpcRes['status'] as String?;
+          if (status == 'verified') {
+            return VerificationResult.verified(
+              activity: rpcRes['activity'] as String? ?? 'workout',
+              confidence: (rpcRes['confidence'] as num?)?.toDouble() ?? 0.95,
+            );
+          }
+        }
+      } catch (rpcError) {
+        debugPrint('verify_snap RPC fallback error: $rpcError');
+      }
       String? serverReason;
       if (e is FunctionException) {
         if (e.details is Map) {
@@ -195,6 +211,7 @@ class SupabaseSnapRepository implements SnapRepository {
     }
 
     final results = <Snap>[];
+    Object? insertError;
 
     // 2. Direct snap for recipients (counts for streak)
     if (draft.recipientIds.isNotEmpty) {
@@ -226,13 +243,16 @@ class SupabaseSnapRepository implements SnapRepository {
           }
         }
       } catch (e) {
+        insertError = e;
         debugPrint('Direct snap insert failed: $e');
       }
     }
 
     // 3. Optional Friends Feed post (is_story: true) or fallback
     if (draft.postToFeed || draft.recipientIds.isEmpty) {
-      final storyId = _generateUuid();
+      // If we already inserted a direct snap, use a new UUID for the story clone.
+      // Otherwise, reuse snapId so the snap ID matches the uploaded image path.
+      final storyId = draft.recipientIds.isNotEmpty ? _generateUuid() : snapId;
       try {
         final res = await _client.from('snaps').insert({
           'id': storyId,
@@ -249,8 +269,13 @@ class SupabaseSnapRepository implements SnapRepository {
         final storySnap = Snap.fromJson(Map<String, dynamic>.from(res));
         results.add(storySnap);
       } catch (e) {
+        insertError = e;
         debugPrint('Story snap insert failed: $e');
       }
+    }
+
+    if (results.isEmpty && insertError != null) {
+      throw StateError('Failed to record snap in database: $insertError');
     }
 
     // If database was offline or insert failed, return a local completed snap

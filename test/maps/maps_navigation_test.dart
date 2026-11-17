@@ -20,15 +20,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify all 5 tab labels exist
+      // Verify all 5 tab labels exist: Home, Workouts, Snap, Friends, Maps
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Workouts'), findsOneWidget);
-      expect(find.text('Maps'), findsOneWidget);
+      expect(find.text('Snap'), findsOneWidget);
       expect(find.text('Friends'), findsOneWidget);
-      expect(find.text('Profile'), findsOneWidget);
+      expect(find.text('Maps'), findsOneWidget);
 
-      // Tap Maps tab (branch 2)
-      await tester.tap(find.text('Maps'));
+      // Tap Snap tab (branch 2)
+      await tester.tap(find.text('Snap'));
       await tester.pumpAndSettle();
       expect(selectedBranch, equals(2));
 
@@ -42,8 +42,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(selectedBranch, equals(3));
 
-      // Tap Profile tab (branch 4)
-      await tester.tap(find.text('Profile'));
+      // Tap Maps tab (branch 4)
+      await tester.tap(find.text('Maps'));
       await tester.pumpAndSettle();
       expect(selectedBranch, equals(4));
     });

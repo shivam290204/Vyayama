@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/services/system_features_service.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
@@ -106,52 +104,6 @@ class NotificationsSection extends ConsumerWidget {
             ),
             trailing: const Icon(Icons.open_in_new_rounded, size: 18),
             onTap: () => SystemFeaturesService.instance.openPipSettings(),
-          ),
-          const Divider(height: AppSpacing.md),
-          Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: context.colors.streak.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: context.colors.streak.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: 4,
-              ),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: context.colors.streak.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.healing_rounded,
-                  color: context.colors.streak,
-                  size: 24,
-                ),
-              ),
-              title: const Text(
-                'Alarm & Notification Diagnostics',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              subtitle: const Text(
-                'Check exact alarms, music & audio permissions, notification channels & run tests',
-                style: TextStyle(fontSize: 12),
-              ),
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: context.colors.streak,
-              ),
-              onTap: () => context.push(AppRoutes.notificationDiagnostics),
-            ),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],

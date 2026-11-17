@@ -1,12 +1,11 @@
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
 
 /// Screen for inspecting a specific route in detail before starting.
 class RouteDetailScreen extends ConsumerWidget {
@@ -28,9 +27,6 @@ class RouteDetailScreen extends ConsumerWidget {
         isDark ? AppPalette.darkOutline : AppPalette.lightOutline;
 
     final polylinePoints = route.points.map((p) => p.toLatLng()).toList();
-    final center = polylinePoints.isNotEmpty
-        ? polylinePoints[polylinePoints.length ~/ 2]
-        : const LatLng(40.785091, -73.968285);
 
     final savedRoutes = ref.watch(savedRoutesListProvider).asData?.value ?? [];
     final isSaved = savedRoutes.any((r) => r.id == route.id);
@@ -60,59 +56,76 @@ class RouteDetailScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // 1. Interactive Route Map
+          // 1. Interactive Route Map or Empty State
           Expanded(
             flex: 5,
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: center,
-                initialZoom: 14.5,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.vyayama.fitbuddy',
-                ),
-                      RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            onTap: () => launchUrl(
-                              Uri.parse('https://openstreetmap.org/copyright'),
-                              mode: LaunchMode.externalApplication,
+            child: polylinePoints.isEmpty
+                ? Container(
+                    color: cardBg,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.map_outlined,
+                            size: 48,
+                            color: textMuted,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No Route Geometry Available',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'This route does not contain any map coordinates.',
+                            style: TextStyle(fontSize: 13, color: textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : FlutterMap(
+                    options: MapOptions(
+                      initialCenter:
+                          polylinePoints[polylinePoints.length ~/ 2],
+                      initialZoom: 14.5,
+                    ),
+                    children: [
+                      const AppMapTileLayer(),
+                      const AppMapAttribution(),
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: polylinePoints,
+                            strokeWidth: 5.0,
+                            color: AppPalette.limeGreen,
+                          ),
+                        ],
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: polylinePoints.first,
+                            width: 32,
+                            height: 32,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: AppPalette.forestGreen,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.play_arrow,
+                                  color: Colors.white, size: 18),
                             ),
                           ),
                         ],
                       ),
-                if (polylinePoints.isNotEmpty)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: polylinePoints,
-                        strokeWidth: 5.0,
-                        color: AppPalette.limeGreen,
-                      ),
                     ],
                   ),
-                if (polylinePoints.isNotEmpty)
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: polylinePoints.first,
-                        width: 32,
-                        height: 32,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: AppPalette.forestGreen,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
           ),
 
           // 2. Route Details Sheet

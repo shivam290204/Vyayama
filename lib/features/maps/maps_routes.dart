@@ -1,4 +1,5 @@
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/map_services_check_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/maps_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_recording_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/saved_routes_screen.dart';
@@ -17,6 +18,10 @@ final List<RouteBase> mapsRoutes = [
       GoRoute(
         path: 'saved',
         builder: (context, state) => const SavedRoutesScreen(),
+      ),
+      GoRoute(
+        path: 'diagnostics',
+        builder: (context, state) => const MapServicesCheckScreen(),
       ),
     ],
   ),

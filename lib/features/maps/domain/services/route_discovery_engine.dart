@@ -2,8 +2,10 @@ import 'dart:math' as math;
 import 'package:fitbuddy/features/maps/data/services/real_route_discovery_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -24,22 +26,61 @@ abstract class RouteDiscoveryProvider {
 ///
 /// Returns an empty list (never fake data) when no routes can be found.
 class RouteDiscoveryEngine implements RouteDiscoveryProvider {
-  RouteDiscoveryEngine({RealRouteDiscoveryService? realService})
-      : _realService = realService ?? RealRouteDiscoveryService();
+  RouteDiscoveryEngine({
+    RealRouteDiscoveryService? realService,
+    ConnectivityMonitor? connectivityMonitor,
+  })  : _realService = realService ??
+            RealRouteDiscoveryService(
+              connectivityMonitor: connectivityMonitor,
+            );
 
   final RealRouteDiscoveryService _realService;
 
+  /// Latest discovery result with diagnostics and stage counts.
+  RouteDiscoveryResult? get lastDiscoveryResult =>
+      _realService.lastDiscoveryResult;
+
+  /// Latest discovery diagnostics breakdown.
+  RouteDiscoveryDiagnostics? get lastDiagnostics =>
+      _realService.lastDiagnostics;
+
   @override
-  Future<List<SavedRoute>> discoverRoutes({
+  Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
     double radiusKm = 10.0,
     RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
   }) {
     return _realService.discoverRoutes(
       center: center,
       radiusKm: radiusKm,
       filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
     );
+  }
+
+  /// Discovers routes progressively, yielding updated sets as candidate batches resolve.
+  Stream<RouteDiscoveryResult> discoverRoutesProgressive({
+    required LatLng center,
+    double radiusKm = 10.0,
+    RouteFilter? filter,
+    SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
+    bool hasValidNonFallbackLocation = true,
+  }) {
+    return _realService.discoverRoutesProgressive(
+      center: center,
+      radiusKm: radiusKm,
+      filter: filter,
+      searchCenterSource: searchCenterSource,
+      hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+    );
+  }
+
+  /// Cancels in-flight discovery requests and invalidates active generation.
+  void cancelCurrentDiscovery() {
+    _realService.cancelCurrentDiscovery();
   }
 
   // ---------------------------------------------------------------------------

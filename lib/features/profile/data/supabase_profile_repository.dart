@@ -7,10 +7,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase implementation of [ProfileRepository] backed by the `profiles` table.
 class SupabaseProfileRepository implements ProfileRepository {
-  SupabaseProfileRepository({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+  SupabaseProfileRepository({
+    SupabaseClient? client,
+    SharedPreferences? prefs,
+    String? currentUserIdOverride,
+  })  : _client = client ?? Supabase.instance.client,
+        _prefs = prefs,
+        _currentUserIdOverride = currentUserIdOverride;
 
   final SupabaseClient _client;
+  final SharedPreferences? _prefs;
+  final String? _currentUserIdOverride;
+
+  Future<SharedPreferences> get _effectivePrefs async =>
+      _prefs ?? await SharedPreferences.getInstance();
+
+  String? get currentUserId =>
+      _currentUserIdOverride ?? _client.auth.currentUser?.id;
 
   @override
   Future<Profile?> fetchProfile(String userId) async {
@@ -24,8 +37,11 @@ class SupabaseProfileRepository implements ProfileRepository {
       if (res == null) return null;
       final profile = Profile.fromJson(Map<String, dynamic>.from(res));
       try {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await _effectivePrefs;
         await prefs.setString('cached_profile_$userId', jsonEncode(profile.toJson()));
+        if (profile.onboardingCompleted) {
+          await prefs.setBool('onboarding_completed_$userId', true);
+        }
       } catch (_) {}
       return profile;
     } on PostgrestException catch (e) {
@@ -52,7 +68,7 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   Future<Profile?> _getCachedProfile(String userId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _effectivePrefs;
       final raw = prefs.getString('cached_profile_$userId');
       if (raw != null && raw.isNotEmpty) {
         return Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -71,46 +87,56 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<Profile> upsertProfile(Profile profile) async {
-    final effectiveId = _client.auth.currentUser?.id ?? profile.id;
-    final sanitizedProfile = effectiveId == profile.id
-        ? profile
-        : Profile(
-            id: effectiveId,
-            name: profile.name,
-            age: profile.age,
-            gender: profile.gender,
-            weightKg: profile.weightKg,
-            heightCm: profile.heightCm,
-            goal: profile.goal,
-            fitnessLevel: profile.fitnessLevel,
-            wakeTime: profile.wakeTime,
-            sleepTime: profile.sleepTime,
-            workStart: profile.workStart,
-            workEnd: profile.workEnd,
-            username: profile.username,
-            avatarUrl: profile.avatarUrl,
-            timezone: profile.timezone,
-            onboardingCompleted: profile.onboardingCompleted,
-          );
-
-    // 1. Always persist to local cache FIRST (<1ms) so offline changes
-    // are immediately stored and never lost due to connection drops.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'cached_profile_$effectiveId',
-        jsonEncode(sanitizedProfile.toJson()),
-      );
-      if (sanitizedProfile.onboardingCompleted) {
-        await prefs.setBool('onboarding_completed_$effectiveId', true);
-      }
-    } catch (e) {
-      debugPrint('[SupabaseProfileRepository] Local cache save error: $e');
+    // 1. Recover auth session if needed
+    if (currentUserId == null && _client.auth.currentSession == null) {
+      try {
+        final prefs = await _effectivePrefs;
+        final refreshToken = prefs.getString('cached_auth_refresh_token');
+        if (refreshToken != null && refreshToken.isNotEmpty) {
+          await _client.auth.recoverSession(refreshToken);
+        }
+      } catch (_) {}
     }
 
-    // 2. Prepare payload and strictly sanitize fields to prevent database constraint failures
+    final userId = currentUserId;
+    if (userId == null || userId.isEmpty) {
+      throw const ProfileUpdateException(
+        'Not authenticated. Please sign in again.',
+      );
+    }
+
+    // 2. Verify authenticated user ID matches the profile being edited
+    if (profile.id.isNotEmpty && profile.id != userId) {
+      throw const ProfileUpdateException(
+        'Unauthorized: Cannot update another user\'s profile.',
+      );
+    }
+
+    // 3. Construct sanitized profile
+    final sanitizedProfile = Profile(
+      id: userId,
+      name: profile.name,
+      age: profile.age,
+      gender: profile.gender,
+      weightKg: profile.weightKg,
+      heightCm: profile.heightCm,
+      goal: profile.goal,
+      fitnessLevel: profile.fitnessLevel,
+      wakeTime: profile.wakeTime,
+      sleepTime: profile.sleepTime,
+      workStart: profile.workStart,
+      workEnd: profile.workEnd,
+      username: profile.username,
+      avatarUrl: profile.avatarUrl,
+      timezone: profile.timezone,
+      onboardingCompleted: profile.onboardingCompleted,
+    );
+
+    // 4. Prepare update payload excluding protected/immutable columns (id, invite_token, created_at)
     final data = sanitizedProfile.toJson();
-    data['id'] = effectiveId;
+    data.remove('id');
+    data.remove('invite_token');
+    data.remove('created_at');
 
     // Sanitize username (alphanumeric + underscore, 3 to 20 chars)
     final username = sanitizedProfile.username?.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '');
@@ -154,36 +180,70 @@ class SupabaseProfileRepository implements ProfileRepository {
       data['height_cm'] = null;
     }
 
-    // 3. Attempt remote upsert to Supabase
+    // 5. Execute standard UPDATE on the user's existing row
     try {
-      // If auth session is missing, attempt to recover it from cached refresh token
-      if (_client.auth.currentSession == null) {
-        final prefs = await SharedPreferences.getInstance();
-        final refreshToken = prefs.getString('cached_auth_refresh_token');
-        if (refreshToken != null && refreshToken.isNotEmpty) {
-          await _client.auth.recoverSession(refreshToken);
-        }
-      }
-
       final res = await _client
           .from('profiles')
-          .upsert(data, onConflict: 'id')
+          .update(data)
+          .eq('id', userId)
           .select()
           .single()
           .timeout(const Duration(seconds: 4));
 
       final saved = Profile.fromJson(Map<String, dynamic>.from(res));
+
+      // Persist confirmed saved profile to local cache
       try {
-        final prefs = await SharedPreferences.getInstance();
+        final prefs = await _effectivePrefs;
         await prefs.setString(
           'cached_profile_${saved.id}',
           jsonEncode(saved.toJson()),
         );
+        if (saved.onboardingCompleted) {
+          await prefs.setBool('onboarding_completed_${saved.id}', true);
+        }
       } catch (_) {}
+
       return saved;
+    } on PostgrestException catch (e) {
+      debugPrint('[SupabaseProfileRepository] PostgrestException on update: $e');
+      if (e.code == 'PGRST116' || e.message.contains('0 rows')) {
+        throw ProfileUpdateException(
+          'Profile row not found for user $userId. Please contact support.',
+          cause: e,
+        );
+      }
+      if (e.code == '42501' || e.message.toLowerCase().contains('row-level security')) {
+        throw ProfileUpdateException(
+          'Permission denied updating profile. RLS policy violation.',
+          cause: e,
+        );
+      }
+      throw ProfileUpdateException(
+        'Database update failed: ${e.message}',
+        cause: e,
+      );
     } catch (e) {
-      debugPrint('[SupabaseProfileRepository] Remote upsert failed (profile saved locally): $e');
+      if (e is ProfileUpdateException) rethrow;
+      debugPrint('[SupabaseProfileRepository] Network/remote error on update: $e');
+
+      // Preserve offline cache behavior: save draft locally
+      try {
+        final prefs = await _effectivePrefs;
+        await prefs.setString(
+          'cached_profile_$userId',
+          jsonEncode(sanitizedProfile.toJson()),
+        );
+        if (sanitizedProfile.onboardingCompleted) {
+          await prefs.setBool('onboarding_completed_$userId', true);
+        }
+      } catch (_) {}
+
+      throw ProfileUpdateException(
+        'Profile saved locally (offline). Changes are not synced to the cloud.',
+        isLocalOnly: true,
+        cause: e,
+      );
     }
-    return sanitizedProfile;
   }
 }

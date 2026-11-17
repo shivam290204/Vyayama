@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/snaps/data/activity_type.dart';
 import 'dart:typed_data';
 
 import 'package:fitbuddy/features/friends/data/friend.dart';
@@ -272,6 +273,52 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Try again?'), findsNothing);
+    });
+  });
+
+  group('MlKitSnapPreCheck Activity Detection', () {
+    test('detects Gym activity from dumbbell or barbell labels', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Dumbbell', 'Room']), ActivityType.gym);
+      expect(MlKitSnapPreCheck.detectActivity(['Barbell', 'Physical fitness']), ActivityType.gym);
+    });
+
+    test('detects Running activity from running shoes, track, or treadmill', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Running shoe', 'Track']), ActivityType.running);
+      expect(MlKitSnapPreCheck.detectActivity(['Treadmill']), ActivityType.running);
+    });
+
+    test('detects Cycling activity from bicycle or helmet', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Bicycle wheel', 'Road']), ActivityType.cycling);
+      expect(MlKitSnapPreCheck.detectActivity(['Mountain bike']), ActivityType.cycling);
+    });
+
+    test('detects Yoga activity from yoga mat or meditation', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Yoga mat', 'Barefoot']), ActivityType.yoga);
+    });
+
+    test('detects Walking activity from trail or footpath', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Trail', 'Footwear']), ActivityType.walking);
+    });
+
+    test('detects Stretching activity from stretching or foam roller', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Stretching', 'Exercise mat']), ActivityType.stretching);
+    });
+
+    test('detects Sports activity from ball, racket, or stadium', () {
+      expect(MlKitSnapPreCheck.detectActivity(['Basketball', 'Court']), ActivityType.sports);
+      expect(MlKitSnapPreCheck.detectActivity(['Tennis racket']), ActivityType.sports);
+    });
+
+    test('corroborates targetActivity when present in labels', () {
+      expect(
+        MlKitSnapPreCheck.detectActivity(['Sport', 'Gym'], targetActivity: ActivityType.gym),
+        ActivityType.gym,
+      );
+    });
+
+    test('defaults empty or generic labels to targetActivity or workout', () {
+      expect(MlKitSnapPreCheck.detectActivity([], targetActivity: ActivityType.yoga), ActivityType.yoga);
+      expect(MlKitSnapPreCheck.detectActivity([]), ActivityType.workout);
     });
   });
 }

@@ -1,12 +1,16 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/route_exceptions.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/map_services_check_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_card.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 /// Draggable bottom sheet displaying nearby discoverable routes and quick record action.
 class RouteDiscoverySheet extends ConsumerWidget {
@@ -159,17 +163,17 @@ class RouteDiscoverySheet extends ConsumerWidget {
 
               // Routes List, Error State, or Empty State
               routesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 36),
+                loading: () => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 36),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 12),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 12),
                         Text(
                           'Discovering real mapped routes...',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: TextStyle(fontSize: 13, color: textMuted),
                         ),
                       ],
                     ),
@@ -181,6 +185,296 @@ class RouteDiscoverySheet extends ConsumerWidget {
                 ),
                 data: (routes) {
                   if (routes.isEmpty) {
+                    final locState = ref.watch(userLocationStateProvider);
+                    final isManual = ref.watch(selectedMapCenterProvider) != null;
+
+                    if (!isManual && locState.isResolving) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Acquiring GPS location...',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Nearby routes will appear as soon as your location is resolved.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: textMuted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual && locState.hasPermissionIssue) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 36, color: AppPalette.forestGreen),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Permission Needed',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Vyayama uses your location to discover nearby walking, running, and cycling routes and to track your outdoor workouts.\n\nTo discover real paths and calculate routes, your search coordinates may be sent to external mapping and routing services (such as OpenStreetMap and routing providers).',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 13, height: 1.4),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                if (locState.status ==
+                                    UserLocationStatus.permissionDeniedForever) {
+                                  Geolocator.openAppSettings();
+                                } else {
+                                  ref
+                                      .read(userLocationNotifierProvider.notifier)
+                                      .requestPermission();
+                                }
+                              },
+                              icon: const Icon(Icons.near_me_rounded, size: 16),
+                              label: Text(
+                                locState.status ==
+                                        UserLocationStatus.permissionDeniedForever
+                                    ? 'Open App Settings'
+                                    : 'Allow Location Access',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual && locState.isUnavailable) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_off_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Unavailable',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Location hardware or services are not available on this device.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual &&
+                        locState.status == UserLocationStatus.serviceDisabled) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.location_disabled_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Location Services Disabled',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'Please enable GPS on your device to discover nearby routes.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: Geolocator.openLocationSettings,
+                              icon:
+                                  const Icon(Icons.settings_rounded, size: 16),
+                              label: const Text('Open Location Settings'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (!isManual &&
+                        (locState.status == UserLocationStatus.timedOut ||
+                            locState.status == UserLocationStatus.failed ||
+                            !locState.hasPosition)) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.gps_off_rounded,
+                                size: 36, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Unable to Acquire GPS',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                'GPS fix timed out. Make sure you have a clear view of the sky or tap below to retry.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                ref
+                                    .read(userLocationNotifierProvider.notifier)
+                                    .refreshLocation();
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry Location'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final diag = ref.watch(latestDiscoveryDiagnosticsProvider);
+                    final isServiceFailure = diag?.isServiceFailure ?? false;
+
+                    if (isServiceFailure) {
+                      String failureSubtitle;
+                      switch (diag?.emptyReason) {
+                        case EmptyReason.serviceTimeout:
+                          failureSubtitle =
+                              'Mapping service timed out while querying nearby paths. Please check your internet connection and try again.';
+                          break;
+                        case EmptyReason.rateLimited:
+                          failureSubtitle =
+                              'OpenStreetMap or routing services are temporarily busy. Please wait a moment and try again.';
+                          break;
+                        case EmptyReason.allRoutesFailed:
+                          failureSubtitle =
+                              'Found nearby candidate paths, but could not calculate walkable routes between them. Please try again.';
+                          break;
+                        default:
+                          failureSubtitle =
+                              'Unable to retrieve route data from mapping services. Please check your connection and try again.';
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 28),
+                        child: Column(
+                          children: [
+                            Icon(Icons.sync_problem_rounded, size: 40, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Search failed, try again',
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                failureSubtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppPalette.forestGreen,
+                                foregroundColor: AppPalette.limeGreen,
+                              ),
+                              onPressed: () {
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry Search'),
+                            ),
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const MapServicesCheckScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.info_outline_rounded, size: 14),
+                              label: const Text(
+                                'View Diagnostics',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     final hasActiveFilter = filter.activityType != null ||
                         filter.minDistanceKm != null ||
                         filter.maxDistanceKm != null ||
@@ -225,10 +519,30 @@ class RouteDiscoverySheet extends ConsumerWidget {
                             )
                           else
                             OutlinedButton.icon(
-                              onPressed: () => ref.invalidate(discoveredRoutesProvider),
+                              onPressed: () {
+                                ref
+                                    .read(userLocationNotifierProvider.notifier)
+                                    .refreshLocation();
+                                ref.invalidate(discoveredRoutesProvider);
+                              },
                               icon: const Icon(Icons.refresh_rounded, size: 16),
                               label: const Text('Check Again'),
                             ),
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const MapServicesCheckScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.help_outline_rounded, size: 14),
+                            label: const Text(
+                              'Why no routes?',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -298,30 +612,57 @@ class _RouteErrorView extends StatelessWidget {
     final textMuted =
         isDark ? AppPalette.darkTextMuted : AppPalette.lightTextMuted;
 
+    final err = error;
     IconData icon;
     String title;
     String message;
 
-    if (error is RouteRateLimitException) {
+    final isTimeout = err is ServiceTimeoutException ||
+        (err is RouteNetworkException &&
+            err.toString().toLowerCase().contains('time'));
+
+    if (err is CircuitBreakerOpenException) {
+      icon = Icons.pause_circle_outline_rounded;
+      title = '${err.serviceName} Temporarily Paused';
+      final secs = err.cooldownRemaining.inSeconds;
+      message =
+          'Multiple requests failed. Pausing calls for ${secs > 0 ? '${secs}s' : 'a moment'} to protect battery and network.';
+    } else if (err is ServiceRateLimitedException) {
       icon = Icons.timer_outlined;
-      title = 'Rate Limit Reached';
+      title = 'Nearby places temporarily unavailable.';
       message = 'OpenStreetMap request limit reached. Please wait a moment and try again.';
-    } else if (error is RouteNetworkException) {
-      icon = Icons.wifi_off_rounded;
-      title = 'No Internet Connection';
-      message = 'Unable to reach routing services. Please verify your connection.';
-    } else if (error is OverpassServiceException) {
+    } else if (err is OverpassServiceException) {
       icon = Icons.cloud_off_rounded;
-      title = 'Map Data Temporarily Unavailable';
-      message = 'OpenStreetMap data server is currently busy. Tap below to retry.';
-    } else if (error is ValhallaRoutingException) {
+      title = 'Nearby places temporarily unavailable.';
+      message = 'OpenStreetMap data server is currently busy or experiencing an outage. Tap below to retry.';
+    } else if (err is ValhallaRoutingException) {
       icon = Icons.alt_route_rounded;
       title = 'Routing Engine Unavailable';
       message = 'Pedestrian routing service is temporarily unavailable. Tap below to retry.';
+    } else if (isTimeout) {
+      icon = Icons.hourglass_bottom_rounded;
+      title = 'Mapping service timed out.';
+      message = 'The request to mapping services timed out. Tap below to retry.';
+    } else if (err is ServiceUnreachableException) {
+      icon = Icons.cloud_off_rounded;
+      title = '${err.serviceName} Unreachable';
+      message = 'Unable to connect to ${err.serviceName}. The server may be offline. Tap below to retry.';
+    } else if (err is DeviceOfflineException || err is RouteNetworkException) {
+      icon = Icons.wifi_off_rounded;
+      title = 'No Internet Connection';
+      message = 'Unable to reach routing services. Please verify your connection.';
+    } else if (err is ServiceErrorException) {
+      icon = Icons.dns_outlined;
+      title = '${err.serviceName} Unavailable';
+      message = '${err.serviceName} server is currently experiencing an outage. Tap below to retry.';
+    } else if (err is BadResponseException) {
+      icon = Icons.error_outline_rounded;
+      title = 'Unexpected Response';
+      message = 'Received an invalid response from map services. Tap below to retry.';
     } else {
       icon = Icons.error_outline_rounded;
-      title = 'Route Discovery Error';
-      message = 'Could not load routes right now. Tap below to retry.';
+      title = 'Nearby places temporarily unavailable.';
+      message = 'Could not load routes right now due to an unexpected response. Tap below to retry.';
     }
 
     return Padding(

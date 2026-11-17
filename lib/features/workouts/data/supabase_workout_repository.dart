@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:fitbuddy/features/workouts/data/exercise.dart';
 import 'package:fitbuddy/features/workouts/data/workout_plan.dart';
@@ -37,6 +38,40 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
   List<Exercise>? _assetExercises;
   List<WorkoutPlan>? _assetSystemPlans;
 
+  static const _uuid = Uuid();
+  final Map<String, String> _catalogToDbUuid = {};
+  final Map<String, String> _dbUuidToCatalog = {};
+  final Set<String> _inFlightPlanSaves = {};
+  bool _isSyncing = false;
+  DateTime? _lastSyncTime;
+
+  bool _isUuid(String s) => RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      ).hasMatch(s);
+
+  String _deterministicUuid(String input) {
+    if (_isUuid(input)) return input;
+    return _uuid.v5(Namespace.url.value, input);
+  }
+
+  String resolveExerciseUuid(String exId) {
+    if (_isUuid(exId)) return exId;
+    if (_catalogToDbUuid.containsKey(exId)) {
+      return _catalogToDbUuid[exId]!;
+    }
+    final mapped = _deterministicUuid(exId);
+    _catalogToDbUuid[exId] = mapped;
+    _dbUuidToCatalog[mapped] = exId;
+    return mapped;
+  }
+
+  String resolveExerciseCatalogId(String exId) {
+    if (_dbUuidToCatalog.containsKey(exId)) {
+      return _dbUuidToCatalog[exId]!;
+    }
+    return exId;
+  }
+
   Future<String?> _resolveUserId() async {
     try {
       final user = _client?.auth.currentUser;
@@ -56,12 +91,21 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
   Future<List<Exercise>> _loadAssetExercises() async {
     if (_assetExercises != null) return _assetExercises!;
-    final data = await _loadAsset(exercisesAsset);
-    final list = <Exercise>[
-      for (final j in data['exercises'] as List)
-        Exercise.fromJson(j as Map<String, dynamic>),
-    ];
-    return _assetExercises = List.unmodifiable(list);
+    try {
+      final data = await _loadAsset(exercisesAsset);
+      final list = <Exercise>[
+        for (final j in data['exercises'] as List)
+          Exercise.fromJson(j as Map<String, dynamic>),
+      ];
+      for (final ex in list) {
+        final dbUuid = resolveExerciseUuid(ex.id);
+        _catalogToDbUuid[ex.id] = dbUuid;
+        _dbUuidToCatalog[dbUuid] = ex.id;
+      }
+      return _assetExercises = List.unmodifiable(list);
+    } catch (_) {
+      return _assetExercises = const [];
+    }
   }
 
   Future<List<WorkoutPlan>> _loadAssetPlans() async {
@@ -81,9 +125,21 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
       try {
         final res = await client.from('exercises').select().order('name');
         if (res.isNotEmpty) {
-          return (res as List)
-              .map((r) => Exercise.fromJson(Map<String, dynamic>.from(r)))
-              .toList();
+          for (final r in res) {
+            final dbId = r['id']?.toString();
+            final catId = r['catalog_id']?.toString() ?? dbId;
+            if (dbId != null && catId != null) {
+              _catalogToDbUuid[catId] = dbId;
+              _dbUuidToCatalog[dbId] = catId;
+            }
+          }
+          return (res as List).map((r) {
+            final map = Map<String, dynamic>.from(r);
+            if (map['catalog_id'] != null) {
+              map['id'] = map['catalog_id'];
+            }
+            return Exercise.fromJson(map);
+          }).toList();
         }
       } catch (_) {
         // Fallback to bundled asset
@@ -124,10 +180,14 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
       try {
         final res = await client
             .from('workout_plans')
-            .select('*, days:plan_days(*, exercises:plan_exercises(*))')
+            .select('*, days:plan_days(*, exercises:plan_exercises(*, exercise:exercises(id, catalog_id)))')
             .eq('is_system', false)
             .eq('owner_id', uid)
             .order('created_at', ascending: false);
+
+        if (_catalogToDbUuid.isEmpty) {
+          await _loadAssetExercises();
+        }
 
         final plans = (res as List)
             .map((r) => WorkoutPlan.fromJson(Map<String, dynamic>.from(r)))
@@ -143,7 +203,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             final cachedList = (jsonDecode(cachedRaw) as List)
                 .map((m) => WorkoutPlan.fromJson(Map<String, dynamic>.from(m as Map)));
             for (final cp in cachedList) {
-              if (pendingIds.contains(cp.id) && !plans.any((p) => p.id == cp.id)) {
+              final mappedId = _isUuid(cp.id) ? cp.id : _deterministicUuid(cp.id);
+              if (pendingIds.contains(cp.id) &&
+                  !plans.any((p) => p.id == cp.id || p.id == mappedId)) {
                 plans.insert(0, cp);
               }
             }
@@ -191,10 +253,11 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     final client = _client;
     if (client != null) {
       try {
+        final targetId = _isUuid(id) ? id : _deterministicUuid(id);
         final res = await client
             .from('workout_plans')
-            .select('*, days:plan_days(*, exercises:plan_exercises(*))')
-            .eq('id', id)
+            .select('*, days:plan_days(*, exercises:plan_exercises(*, exercise:exercises(id, catalog_id)))')
+            .eq('id', targetId)
             .maybeSingle();
 
         if (res != null) {
@@ -207,7 +270,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     try {
       final myPlans = await getMyPlans();
       for (final p in myPlans) {
-        if (p.id == id) return p;
+        if (p.id == id || p.id == _deterministicUuid(id)) return p;
       }
     } catch (_) {}
 
@@ -276,140 +339,131 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<WorkoutPlan> savePlan(WorkoutPlan plan) async {
-    final uid = await _resolveUserId();
-    final isNew = plan.id.isEmpty || plan.id.startsWith('draft_');
-    final planTitle = plan.title.trim().isEmpty ? 'My Custom Plan' : plan.title.trim();
+    if (_inFlightPlanSaves.contains(plan.id)) {
+      return plan;
+    }
+    _inFlightPlanSaves.add(plan.id);
 
-    // 1. Attempt cloud save if user is signed in
-    final client = _client;
-    if (client != null && uid != null && uid.isNotEmpty) {
-      try {
-        final planPayload = <String, dynamic>{
-          if (!isNew) 'id': plan.id,
-          'title': planTitle,
-          'goal': plan.goal,
-          'level': plan.level,
-          'is_system': false,
-          'owner_id': uid,
-        };
+    try {
+      final uid = await _resolveUserId();
+      final stablePlanId = _isUuid(plan.id)
+          ? plan.id
+          : _deterministicUuid(plan.id.isNotEmpty ? plan.id : _uuid.v4());
+      final planTitle =
+          plan.title.trim().isEmpty ? 'My Custom Plan' : plan.title.trim();
 
-        final savedPlanRow = await client
-            .from('workout_plans')
-            .upsert(planPayload)
-            .select()
-            .single();
+      if (_catalogToDbUuid.isEmpty) {
+        await _loadAssetExercises();
+      }
 
-        final planId = savedPlanRow['id'].toString();
+      // 1. Attempt atomic cloud save if user is signed in
+      final client = _client;
+      if (client != null && uid != null && uid.isNotEmpty) {
+        try {
+          final planPayload = <String, dynamic>{
+            'id': stablePlanId,
+            'title': planTitle,
+            'goal': plan.goal,
+            'level': plan.level,
+            'is_system': false,
+            'owner_id': uid,
+            'days': [
+              for (final day in plan.days)
+                {
+                  if (_isUuid(day.id)) 'id': day.id,
+                  'day_number': day.dayNumber,
+                  'name': day.name,
+                  'exercises': [
+                    for (final ex in day.exercises)
+                      {
+                        if (_isUuid(ex.id)) 'id': ex.id,
+                        'exercise_id': resolveExerciseUuid(ex.exerciseId),
+                        'sort_order': ex.sortOrder,
+                        'sets': ex.sets,
+                        'reps': ex.reps,
+                        'duration_sec': ex.durationSec,
+                        'rest_sec': ex.restSec,
+                      },
+                  ],
+                },
+            ],
+          };
 
-        if (!isNew) {
-          await client.from('plan_days').delete().eq('plan_id', planId);
-        }
+          await client.rpc('save_workout_plan', params: {'p_plan': planPayload});
 
-        final savedDays = <PlanDay>[];
-        for (final day in plan.days) {
-          final dayRow = await client
-              .from('plan_days')
-              .insert({
-                'plan_id': planId,
-                'day_number': day.dayNumber,
-                'name': day.name,
-              })
-              .select()
-              .single();
+          final savedOnlinePlan = plan.copyWith(
+            id: stablePlanId,
+            title: planTitle,
+            ownerId: uid,
+            isSystem: false,
+          );
 
-          final dayId = dayRow['id'].toString();
-
-          final savedExercises = <PlanExercise>[];
-          for (var i = 0; i < day.exercises.length; i++) {
-            final ex = day.exercises[i];
-            final exRow = await client
-                .from('plan_exercises')
-                .insert({
-                  'plan_day_id': dayId,
-                  'exercise_id': ex.exerciseId,
-                  'sort_order': ex.sortOrder,
-                  'sets': ex.sets,
-                  'reps': ex.reps,
-                  'duration_sec': ex.durationSec,
-                  'rest_sec': ex.restSec,
-                })
-                .select()
-                .single();
-
-            savedExercises.add(PlanExercise.fromJson(Map<String, dynamic>.from(exRow)));
+          await _cacheLocalPlan(
+            savedOnlinePlan,
+            uid: uid,
+            removePendingSyncId: plan.id,
+          );
+          return savedOnlinePlan;
+        } catch (e) {
+          if (e is PostgrestException && (e.code == '28000' || e.code == '42501')) {
+            rethrow;
           }
+          // Fall through to offline cache handling
+        }
+      }
 
-          savedDays.add(PlanDay(
-            id: dayId,
-            dayNumber: day.dayNumber,
-            name: day.name,
-            exercises: savedExercises,
+      // 2. Offline fallback: Persist with stable ID and enqueue
+      final localPlanId = (plan.id.isEmpty || plan.id.startsWith('draft_'))
+          ? 'local_${DateTime.now().millisecondsSinceEpoch}'
+          : plan.id;
+
+      final localDays = <PlanDay>[];
+      for (var dIdx = 0; dIdx < plan.days.length; dIdx++) {
+        final day = plan.days[dIdx];
+        final dayId = (day.id.isEmpty || day.id.startsWith('draft_'))
+            ? '${localPlanId}_d${day.dayNumber}'
+            : day.id;
+
+        final localExercises = <PlanExercise>[];
+        for (var eIdx = 0; eIdx < day.exercises.length; eIdx++) {
+          final ex = day.exercises[eIdx];
+          final exId = (ex.id.isEmpty || ex.id.startsWith('draft_'))
+              ? '${dayId}_ex$eIdx'
+              : ex.id;
+          localExercises.add(PlanExercise(
+            id: exId,
+            exerciseId: ex.exerciseId,
+            sortOrder: ex.sortOrder,
+            sets: ex.sets,
+            reps: ex.reps,
+            durationSec: ex.durationSec,
+            restSec: ex.restSec,
           ));
         }
 
-        final savedOnlinePlan = WorkoutPlan(
-          id: planId,
-          title: savedPlanRow['title'] as String,
-          goal: savedPlanRow['goal'] as String?,
-          level: savedPlanRow['level'] as String?,
-          isSystem: false,
-          ownerId: uid,
-          days: savedDays,
-        );
-
-        await _cacheLocalPlan(savedOnlinePlan, uid: uid, removePendingSyncId: plan.id);
-        return savedOnlinePlan;
-      } catch (_) {
-        // Fall through to offline cache handling
-      }
-    }
-
-    // 2. Offline fallback: Generate local IDs and persist locally
-    final localPlanId = isNew ? 'local_${DateTime.now().millisecondsSinceEpoch}' : plan.id;
-    final localDays = <PlanDay>[];
-    for (var dIdx = 0; dIdx < plan.days.length; dIdx++) {
-      final day = plan.days[dIdx];
-      final dayId = (day.id.isEmpty || day.id.startsWith('draft_'))
-          ? '${localPlanId}_d${day.dayNumber}'
-          : day.id;
-
-      final localExercises = <PlanExercise>[];
-      for (var eIdx = 0; eIdx < day.exercises.length; eIdx++) {
-        final ex = day.exercises[eIdx];
-        final exId = (ex.id.isEmpty || ex.id.startsWith('draft_'))
-            ? '${dayId}_ex$eIdx'
-            : ex.id;
-        localExercises.add(PlanExercise(
-          id: exId,
-          exerciseId: ex.exerciseId,
-          sortOrder: ex.sortOrder,
-          sets: ex.sets,
-          reps: ex.reps,
-          durationSec: ex.durationSec,
-          restSec: ex.restSec,
+        localDays.add(PlanDay(
+          id: dayId,
+          dayNumber: day.dayNumber,
+          name: day.name,
+          exercises: localExercises,
         ));
       }
 
-      localDays.add(PlanDay(
-        id: dayId,
-        dayNumber: day.dayNumber,
-        name: day.name,
-        exercises: localExercises,
-      ));
+      final localPlan = WorkoutPlan(
+        id: localPlanId,
+        title: planTitle,
+        goal: plan.goal,
+        level: plan.level,
+        isSystem: false,
+        ownerId: uid,
+        days: localDays,
+      );
+
+      await _cacheLocalPlan(localPlan, uid: uid, markPendingSync: true);
+      return localPlan;
+    } finally {
+      _inFlightPlanSaves.remove(plan.id);
     }
-
-    final localPlan = WorkoutPlan(
-      id: localPlanId,
-      title: planTitle,
-      goal: plan.goal,
-      level: plan.level,
-      isSystem: false,
-      ownerId: uid,
-      days: localDays,
-    );
-
-    await _cacheLocalPlan(localPlan, uid: uid, markPendingSync: true);
-    return localPlan;
   }
 
   Future<void> _cacheLocalPlan(
@@ -434,8 +488,14 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         } catch (_) {}
       }
 
+      final mappedId = _isUuid(plan.id) ? plan.id : _deterministicUuid(plan.id);
       final existingIndex = cachedPlans.indexWhere(
-        (p) => p.id == plan.id || (removePendingSyncId != null && p.id == removePendingSyncId),
+        (p) =>
+            p.id == plan.id ||
+            p.id == mappedId ||
+            (removePendingSyncId != null &&
+                (p.id == removePendingSyncId ||
+                    p.id == _deterministicUuid(removePendingSyncId))),
       );
       if (existingIndex >= 0) {
         cachedPlans[existingIndex] = plan;
@@ -453,6 +513,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
       if (removePendingSyncId != null) {
         pendingIds.remove(removePendingSyncId);
+        pendingIds.remove(_deterministicUuid(removePendingSyncId));
       }
 
       if (markPendingSync) {
@@ -461,6 +522,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         }
       } else {
         pendingIds.remove(plan.id);
+        pendingIds.remove(mappedId);
       }
       await prefs.setStringList(syncQueueKey, pendingIds);
     } catch (_) {}
@@ -469,6 +531,16 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
   Future<void> _syncPendingPlans(String uid) async {
     final client = _client;
     if (client == null) return;
+    if (_isSyncing) return;
+
+    if (_lastSyncTime != null &&
+        DateTime.now().difference(_lastSyncTime!) < const Duration(seconds: 3)) {
+      return;
+    }
+
+    _isSyncing = true;
+    _lastSyncTime = DateTime.now();
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final syncQueueKey = 'pending_sync_workout_plans_$uid';
@@ -483,6 +555,10 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           .map((m) => WorkoutPlan.fromJson(Map<String, dynamic>.from(m as Map)))
           .toList();
 
+      if (_catalogToDbUuid.isEmpty) {
+        await _loadAssetExercises();
+      }
+
       for (final planId in List<String>.from(pendingIds)) {
         final plan = cachedList.firstWhere(
           (p) => p.id == planId,
@@ -493,102 +569,120 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
           continue;
         }
 
+        final attemptKey = 'sync_attempts_$planId';
+        final attempts = prefs.getInt(attemptKey) ?? 0;
+
         try {
-          final isNew = plan.id.startsWith('draft_') || plan.id.startsWith('local_');
+          final stablePlanId =
+              _isUuid(plan.id) ? plan.id : _deterministicUuid(plan.id);
+          final planTitle =
+              plan.title.trim().isEmpty ? 'My Custom Plan' : plan.title.trim();
+
           final planPayload = <String, dynamic>{
-            if (!isNew) 'id': plan.id,
-            'title': plan.title,
+            'id': stablePlanId,
+            'title': planTitle,
             'goal': plan.goal,
             'level': plan.level,
             'is_system': false,
             'owner_id': uid,
-          };
-
-          final savedPlanRow = await client
-              .from('workout_plans')
-              .upsert(planPayload)
-              .select()
-              .single();
-
-          final remotePlanId = savedPlanRow['id'].toString();
-
-          if (!isNew) {
-            await client.from('plan_days').delete().eq('plan_id', remotePlanId);
-          }
-
-          for (final day in plan.days) {
-            final dayRow = await client
-                .from('plan_days')
-                .insert({
-                  'plan_id': remotePlanId,
+            'days': [
+              for (final day in plan.days)
+                {
+                  if (_isUuid(day.id)) 'id': day.id,
                   'day_number': day.dayNumber,
                   'name': day.name,
-                })
-                .select()
-                .single();
+                  'exercises': [
+                    for (final ex in day.exercises)
+                      {
+                        if (_isUuid(ex.id)) 'id': ex.id,
+                        'exercise_id': resolveExerciseUuid(ex.exerciseId),
+                        'sort_order': ex.sortOrder,
+                        'sets': ex.sets,
+                        'reps': ex.reps,
+                        'duration_sec': ex.durationSec,
+                        'rest_sec': ex.restSec,
+                      },
+                  ],
+                },
+            ],
+          };
 
-            final dayId = dayRow['id'].toString();
-
-            for (final ex in day.exercises) {
-              await client.from('plan_exercises').insert({
-                'plan_day_id': dayId,
-                'exercise_id': ex.exerciseId,
-                'sort_order': ex.sortOrder,
-                'sets': ex.sets,
-                'reps': ex.reps,
-                'duration_sec': ex.durationSec,
-                'rest_sec': ex.restSec,
-              });
-            }
-          }
+          await client.rpc('save_workout_plan', params: {'p_plan': planPayload});
 
           pendingIds.remove(planId);
-          if (plan.id.startsWith('local_')) {
-            final idx = cachedList.indexWhere((p) => p.id == planId);
-            if (idx >= 0) {
-              cachedList[idx] = plan.copyWith(id: remotePlanId);
-            }
+          await prefs.remove(attemptKey);
+
+          final idx = cachedList.indexWhere((p) => p.id == planId);
+          if (idx >= 0) {
+            cachedList[idx] = plan.copyWith(id: stablePlanId);
           }
-        } catch (_) {
+        } catch (e) {
+          final nextAttempts = attempts + 1;
+          await prefs.setInt(attemptKey, nextAttempts);
+
+          final code = e is PostgrestException ? e.code : null;
+          final errStr = e.toString();
+          final isPermanent = nextAttempts >= 3 ||
+              (code != null &&
+                  (code == '42501' ||
+                      code.startsWith('22') ||
+                      code.startsWith('23') ||
+                      code.startsWith('42'))) ||
+              errStr.contains('22P02') ||
+              errStr.contains('42501') ||
+              errStr.contains('235');
+
+          if (isPermanent) {
+            pendingIds.remove(planId);
+            await prefs.remove(attemptKey);
+          }
           break;
         }
       }
 
       await prefs.setStringList(syncQueueKey, pendingIds);
-      await prefs.setString(cacheKey, jsonEncode([for (final p in cachedList) p.toJson()]));
-    } catch (_) {}
+      await prefs.setString(
+          cacheKey, jsonEncode([for (final p in cachedList) p.toJson()]));
+    } catch (_) {
+      // Ignore background sync errors
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   @override
   Future<void> deletePlan(String id) async {
     final uid = await _resolveUserId();
     final client = _client;
+    final targetId = _isUuid(id) ? id : _deterministicUuid(id);
+
     if (client != null && uid != null && uid.isNotEmpty) {
       try {
-        await client
-            .from('workout_plans')
-            .delete()
-            .eq('id', id)
-            .eq('owner_id', uid);
+        await client.from('workout_plans').delete().eq('id', targetId);
       } catch (_) {}
     }
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = uid != null ? 'cached_my_plans_$uid' : null;
-      if (key != null) {
-        final raw = prefs.getString(key);
-        if (raw != null && raw.isNotEmpty) {
-          final list = (jsonDecode(raw) as List)
-              .map((m) => WorkoutPlan.fromJson(Map<String, dynamic>.from(m as Map)))
-              .where((p) => p.id != id)
-              .toList();
-          await prefs.setString(key, jsonEncode([for (final p in list) p.toJson()]));
-        }
-        final syncQueueKey = 'pending_sync_workout_plans_$uid';
-        final pendingIds = prefs.getStringList(syncQueueKey) ?? [];
-        if (pendingIds.remove(id)) {
-          await prefs.setStringList(syncQueueKey, pendingIds);
-        }
+      final cacheKey =
+          uid != null ? 'cached_my_plans_$uid' : 'cached_my_plans_default';
+      final syncQueueKey = uid != null
+          ? 'pending_sync_workout_plans_$uid'
+          : 'pending_sync_workout_plans_default';
+
+      final pendingIds = prefs.getStringList(syncQueueKey) ?? [];
+      pendingIds.remove(id);
+      pendingIds.remove(targetId);
+      await prefs.setStringList(syncQueueKey, pendingIds);
+
+      final raw = prefs.getString(cacheKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List)
+            .map((m) => WorkoutPlan.fromJson(Map<String, dynamic>.from(m as Map)))
+            .where((p) => p.id != id && p.id != targetId)
+            .toList();
+        await prefs
+            .setString(cacheKey, jsonEncode([for (final p in list) p.toJson()]));
       }
     } catch (_) {}
   }

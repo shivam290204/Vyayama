@@ -1,13 +1,15 @@
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
+import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
 import 'package:fitbuddy/features/maps/presentation/screens/outdoor_summary_screen.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
 
 /// Full-screen live GPS outdoor activity recording.
 class OutdoorRecordingScreen extends ConsumerStatefulWidget {
@@ -24,23 +26,60 @@ class _OutdoorRecordingScreenState
     extends ConsumerState<OutdoorRecordingScreen> {
   late OutdoorActivityType _selectedType;
   final MapController _mapController = MapController();
+  bool _isMapReady = false;
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType ?? OutdoorActivityType.walking;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForCrashRecovery();
+    });
+  }
+
+  Future<void> _checkForCrashRecovery() async {
+    if (!mounted) return;
+    await OutdoorSessionRecoveryDialog.promptIfNeeded(context, ref);
   }
 
   void _onStart() async {
     final service = ref.read(locationTrackingServiceProvider);
+
+    // Display plain-language rationale dialog before system prompt if not yet granted
+    final permCheck =
+        await service.checkPermissionDetailed(requestIfNeeded: false);
+    if (permCheck == LocationPermissionResult.denied && mounted) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Location Access for Outdoor Tracking'),
+          content: const Text(
+            'Vyayama needs access to your GPS location while recording to map your path, measure distance, and track pace and speed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppPalette.forestGreen),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     final started = await service.startRecording(_selectedType);
     if (!started && mounted) {
+      final errorMsg = service.value.initializationError ??
+          'Location permission or GPS is required to record outdoor activities.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Location permission is required to record outdoor activities. Please grant permission in Settings.',
-          ),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text(errorMsg),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -54,16 +93,16 @@ class _OutdoorRecordingScreenState
     ref.read(locationTrackingServiceProvider).resumeRecording();
   }
 
-  void _onFinish() {
+  void _onFinish() async {
     final service = ref.read(locationTrackingServiceProvider);
-    final activity = service.finishRecording();
+    final activity = await service.finishRecording();
     if (activity != null && mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => OutdoorSummaryScreen(activity: activity),
         ),
       );
-    } else {
+    } else if (mounted) {
       Navigator.of(context).pop();
     }
   }
@@ -117,14 +156,18 @@ class _OutdoorRecordingScreenState
     final borderColor =
         isDark ? AppPalette.darkOutline : AppPalette.lightOutline;
 
-    // Follow live coordinates with map camera
+    // Follow live coordinates with map camera safely when map is ready
     final currentPos = trackingState?.currentPosition;
-    if (currentPos != null && hasStarted) {
+    if (currentPos != null && hasStarted && _isMapReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(currentPos, _mapController.camera.zoom);
+        try {
+          _mapController.move(currentPos, _mapController.camera.zoom);
+        } catch (_) {}
       });
     }
 
+    final filter = GpsFilterService.forActivity(_selectedType);
+    final segments = filter.splitIntoSegments(trackingState?.points ?? []);
     final polylinePoints =
         trackingState?.points.map((p) => p.toLatLng()).toList() ?? [];
 
@@ -181,69 +224,99 @@ class _OutdoorRecordingScreenState
         ),
         body: Column(
           children: [
-            // 1. Live Map Viewport
+            // 1. Live Map Viewport or Acquiring Signal View
             Expanded(
               flex: 4,
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: currentPos ?? const LatLng(40.785091, -73.968285),
-                      initialZoom: 15.5,
-                      minZoom: 3.0,
-                      maxZoom: 18.0,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.vyayama.fitbuddy',
-                      ),
-                      RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            onTap: () => launchUrl(
-                              Uri.parse('https://openstreetmap.org/copyright'),
-                              mode: LaunchMode.externalApplication,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (polylinePoints.isNotEmpty)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: polylinePoints,
-                              strokeWidth: 5.0,
-                              color: AppPalette.limeGreen,
-                            ),
-                          ],
-                        ),
-                      if (currentPos != null)
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: currentPos,
-                              width: 36,
-                              height: 36,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppPalette.limeGreen,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 3.0),
-                                  boxShadow: const [
-                                    BoxShadow(color: Colors.black38, blurRadius: 6),
-                                  ],
-                                ),
+              child: (currentPos == null && polylinePoints.isEmpty)
+                  ? Container(
+                      color: cardBg,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: AppPalette.forestGreen,
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Acquiring GPS Signal...',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Stand in an open area for best accuracy.',
+                              style: TextStyle(fontSize: 13, color: textMuted),
+                            ),
                           ],
                         ),
-                    ],
-                  ),
-                ],
-              ),
+                      ),
+                    )
+                  : Stack(
+                      children: [
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: currentPos ?? polylinePoints.last,
+                            initialZoom: 15.5,
+                            minZoom: 3.0,
+                            maxZoom: 18.0,
+                            onMapReady: () {
+                              if (mounted) {
+                                setState(() => _isMapReady = true);
+                              }
+                            },
+                          ),
+                          children: [
+                            const AppMapTileLayer(),
+                            const AppMapAttribution(),
+                            if (segments.isNotEmpty)
+                              PolylineLayer(
+                                polylines: segments
+                                    .where((s) => s.length >= 2)
+                                    .map((s) => Polyline(
+                                          points: s.map((p) => p.toLatLng()).toList(),
+                                          strokeWidth: 5.0,
+                                          color: AppPalette.limeGreen,
+                                        ))
+                                    .toList(),
+                              ),
+                            if (currentPos != null)
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: currentPos,
+                                    width: 36,
+                                    height: 36,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: AppPalette.limeGreen,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: AppPalette.offWhite, width: 3.0),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppPalette.darkSurface.withValues(alpha: 0.38),
+                                            blurRadius: 6,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
             ),
 
             // 2. Metrics & Controls Dashboard
@@ -339,11 +412,25 @@ class _OutdoorRecordingScreenState
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          onPressed: _onStart,
-                          icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                          label: const Text(
-                            'START WORKOUT',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          onPressed: trackingState?.isInitializingGps == true
+                              ? null
+                              : _onStart,
+                          icon: trackingState?.isInitializingGps == true
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppPalette.limeGreen,
+                                  ),
+                                )
+                              : const Icon(Icons.play_arrow_rounded, size: 28),
+                          label: Text(
+                            trackingState?.isInitializingGps == true
+                                ? 'ACQUIRING GPS...'
+                                : 'START WORKOUT',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800),
                           ),
                         ),
                       )
@@ -357,7 +444,7 @@ class _OutdoorRecordingScreenState
                               icon: Icons.pause_rounded,
                               label: 'Pause',
                               backgroundColor: AppPalette.deepGreen,
-                              iconColor: Colors.white,
+                              iconColor: AppPalette.offWhite,
                               onPressed: _onPause,
                             )
                           else
@@ -466,7 +553,7 @@ class _ControlButton extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
+                  color: AppPalette.darkSurface.withValues(alpha: 0.18),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -484,4 +571,3 @@ class _ControlButton extends StatelessWidget {
     );
   }
 }
-

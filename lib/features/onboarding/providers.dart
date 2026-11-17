@@ -6,6 +6,7 @@ import 'package:fitbuddy/core/utils/unit_conversion.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/onboarding/onboarding_step.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
+import 'package:fitbuddy/features/profile/data/profile_repository.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/profile/profile_validators.dart';
 import 'package:fitbuddy/features/settings/providers.dart';
@@ -207,7 +208,11 @@ class OnboardingNotifier extends Notifier<OnboardingDraft> {
       workEnd: d.workEnd,
       onboardingCompleted: true,
     );
-    await ref.read(currentProfileProvider.notifier).save(profile);
+    try {
+      await ref.read(currentProfileProvider.notifier).save(profile);
+    } on ProfileUpdateException catch (e) {
+      if (!e.isLocalOnly) rethrow;
+    }
   }
 }
 

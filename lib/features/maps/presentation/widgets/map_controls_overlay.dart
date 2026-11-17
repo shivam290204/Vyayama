@@ -1,5 +1,6 @@
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/data/services/nominatim_service.dart';
+import 'package:fitbuddy/features/maps/presentation/screens/map_services_check_screen.dart';
 import 'package:fitbuddy/features/maps/presentation/widgets/route_filter_sheet.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
@@ -142,7 +143,9 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
   void _selectPlace(NominatimResult place) {
     _searchCtrl.text = place.shortName;
     ref.read(selectedMapCenterProvider.notifier).state = place.latLng;
-    widget.mapController.move(place.latLng, 14.5);
+    try {
+      widget.mapController.move(place.latLng, 14.5);
+    } catch (_) {}
     ref.invalidate(discoveredRoutesProvider);
 
     if (mounted) {
@@ -282,11 +285,13 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   borderColor: borderColor,
                   iconColor: textPrimary,
                   onPressed: () {
-                    final currentZoom = widget.mapController.camera.zoom;
-                    widget.mapController.move(
-                      widget.mapController.camera.center,
-                      currentZoom + 1,
-                    );
+                    try {
+                      final currentZoom = widget.mapController.camera.zoom;
+                      widget.mapController.move(
+                        widget.mapController.camera.center,
+                        currentZoom + 1,
+                      );
+                    } catch (_) {}
                   },
                 ),
                 const SizedBox(height: 10),
@@ -299,11 +304,13 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   borderColor: borderColor,
                   iconColor: textPrimary,
                   onPressed: () {
-                    final currentZoom = widget.mapController.camera.zoom;
-                    widget.mapController.move(
-                      widget.mapController.camera.center,
-                      currentZoom - 1,
-                    );
+                    try {
+                      final currentZoom = widget.mapController.camera.zoom;
+                      widget.mapController.move(
+                        widget.mapController.camera.center,
+                        currentZoom - 1,
+                      );
+                    } catch (_) {}
                   },
                 ),
                 const SizedBox(height: 10),
@@ -318,6 +325,23 @@ class _MapControlsOverlayState extends ConsumerState<MapControlsOverlay> {
                   iconColor: AppPalette.activitySteps,
                   onPressed: widget.onSavedRoutesTap,
                 ),
+                if (isMapDiagnosticsAccessible) ...[
+                  const SizedBox(height: 10),
+                  _MapFloatingButton(
+                    icon: Icons.health_and_safety_outlined,
+                    tooltip: 'Map Services Check',
+                    cardBg: cardBg,
+                    borderColor: borderColor,
+                    iconColor: isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const MapServicesCheckScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -365,16 +389,19 @@ class _MapFloatingButton extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Center(
-            child: Badge(
-              isLabelVisible: badgeCount > 0,
-              label: Text('$badgeCount'),
-              backgroundColor: AppPalette.limeGreen,
-              textColor: AppPalette.charcoalGreen,
-              child: Icon(icon, color: iconColor, size: 20),
+        child: Tooltip(
+          message: tooltip,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: Center(
+              child: Badge(
+                isLabelVisible: badgeCount > 0,
+                label: Text('$badgeCount'),
+                backgroundColor: AppPalette.limeGreen,
+                textColor: AppPalette.charcoalGreen,
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
             ),
           ),
         ),

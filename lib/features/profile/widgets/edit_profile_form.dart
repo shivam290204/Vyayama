@@ -8,6 +8,7 @@ import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/core/utils/unit_conversion.dart';
 import 'package:fitbuddy/features/auth/widgets/button_spinner.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
+import 'package:fitbuddy/features/profile/data/profile_repository.dart';
 import 'package:fitbuddy/features/profile/measurement_converter.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:fitbuddy/features/profile/profile_validators.dart';
@@ -146,7 +147,19 @@ class _EditProfileFormState extends ConsumerState<EditProfileForm> {
       }
     } catch (e, st) {
       debugPrint('[EditProfileForm] Save failed: $e\n$st');
-      _toast("We couldn't save your profile. Please try again.");
+      if (e is ProfileUpdateException && e.isLocalOnly) {
+        _toast('Profile saved locally (offline). Changes are not synced.');
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(AppRoutes.profile);
+        }
+      } else {
+        final msg = e is ProfileUpdateException
+            ? e.message
+            : "We couldn't save your profile. Please try again.";
+        _toast(msg);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

@@ -1,4 +1,5 @@
 import 'package:fitbuddy/features/maps/domain/models/gps_point.dart';
+import 'package:fitbuddy/features/maps/domain/models/outdoor_activity_type.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -104,6 +105,51 @@ void main() {
 
       expect(paceSec, equals(300));
       expect(speedKmh, closeTo(12.0, 0.01));
+    });
+
+    test('9. Activity profiles configure appropriate speed limits (walking 4.5 m/s vs running 8.5 m/s)', () {
+      final walkFilter = GpsFilterService.forActivity(OutdoorActivityType.walking);
+      expect(walkFilter.maxRealisticSpeedMps, equals(4.5));
+      expect(walkFilter.maxAcceptableGapSeconds, equals(120.0));
+
+      final runFilter = GpsFilterService.forActivity(OutdoorActivityType.running);
+      expect(runFilter.maxRealisticSpeedMps, equals(8.5));
+      expect(runFilter.maxAcceptableGapSeconds, equals(90.0));
+    });
+
+    test('10. isSignalGap detects gaps exceeding maxAcceptableGapSeconds', () {
+      final p1 = GpsPoint(latitude: 40.7128, longitude: -74.0060, timestamp: t0);
+      final pNormal = GpsPoint(latitude: 40.7130, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 10)));
+      final pGap = GpsPoint(latitude: 40.7130, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 130)));
+
+      expect(service.isSignalGap(p1, pNormal), isFalse);
+      expect(service.isSignalGap(p1, pGap), isTrue);
+    });
+
+    test('11. calculateTotalDistance skips distance across signal gaps', () {
+      final p1 = GpsPoint(latitude: 40.7128, longitude: -74.0060, timestamp: t0);
+      final p2 = GpsPoint(latitude: 40.7138, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 30)));
+      // Large time gap (150s > 120s) and large jump (500m)
+      final p3 = GpsPoint(latitude: 40.7188, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 180)));
+      final p4 = GpsPoint(latitude: 40.7198, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 210)));
+
+      final d12 = service.distanceBetween(p1, p2);
+      final d34 = service.distanceBetween(p3, p4);
+
+      final totalWithGapSkipped = service.calculateTotalDistance([p1, p2, p3, p4]);
+      expect(totalWithGapSkipped, closeTo(d12 + d34, 0.1));
+    });
+
+    test('12. splitIntoSegments partitions points into discrete segments across signal gaps', () {
+      final p1 = GpsPoint(latitude: 40.7128, longitude: -74.0060, timestamp: t0);
+      final p2 = GpsPoint(latitude: 40.7138, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 30)));
+      final p3 = GpsPoint(latitude: 40.7188, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 180)));
+      final p4 = GpsPoint(latitude: 40.7198, longitude: -74.0060, timestamp: t0.add(const Duration(seconds: 210)));
+
+      final segments = service.splitIntoSegments([p1, p2, p3, p4]);
+      expect(segments, hasLength(2));
+      expect(segments[0], equals([p1, p2]));
+      expect(segments[1], equals([p3, p4]));
     });
   });
 }

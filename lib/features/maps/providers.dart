@@ -3,10 +3,15 @@ import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.d
 import 'package:fitbuddy/features/maps/data/repositories/outdoor_activity_repository.dart';
 import 'package:fitbuddy/features/maps/data/repositories/saved_routes_repository.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/models/route_discovery_result.dart';
 import 'package:fitbuddy/features/maps/domain/models/route_filter.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/domain/models/user_location_state.dart';
+import 'package:fitbuddy/features/maps/domain/services/connectivity_monitor.dart';
 import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/services/location_tracking_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_session_recovery_service.dart';
+import 'package:fitbuddy/features/maps/domain/services/outdoor_sync_coordinator.dart';
 import 'package:fitbuddy/features/maps/domain/services/route_discovery_engine.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -26,14 +31,54 @@ final savedRoutesRepositoryProvider = Provider<SavedRoutesRepository>((ref) {
   return SavedRoutesRepository(storage: storage);
 });
 
+final connectivityMonitorProvider = Provider<ConnectivityMonitor>((ref) {
+  final monitor = ConnectivityMonitor(
+    reachabilityProbe: ConnectivityMonitor.defaultReachabilityProbe,
+    enablePlatformListener: true,
+  );
+  ref.onDispose(monitor.dispose);
+  return monitor;
+});
+
+final outdoorSyncCoordinatorProvider = Provider<OutdoorSyncCoordinator>((ref) {
+  final actRepo = ref.watch(outdoorActivityRepositoryProvider);
+  final routesRepo = ref.watch(savedRoutesRepositoryProvider);
+  final connectivity = ref.watch(connectivityMonitorProvider);
+  final coordinator = OutdoorSyncCoordinator(
+    activityRepository: actRepo,
+    routesRepository: routesRepo,
+    connectivityMonitor: connectivity,
+  );
+  ref.onDispose(coordinator.dispose);
+  return coordinator;
+});
+
 final routeDiscoveryEngineProvider = Provider<RouteDiscoveryEngine>((ref) {
-  return RouteDiscoveryEngine();
+  final connectivity = ref.watch(connectivityMonitorProvider);
+  return RouteDiscoveryEngine(
+    connectivityMonitor: connectivity,
+  );
+});
+
+final outdoorSessionRecoveryServiceProvider =
+    Provider<OutdoorSessionRecoveryService>((ref) {
+  return OutdoorSessionRecoveryService();
+});
+
+final activeOutdoorCheckpointProvider =
+    FutureProvider<OutdoorSessionCheckpoint?>((ref) async {
+  final recoveryService = ref.watch(outdoorSessionRecoveryServiceProvider);
+  return recoveryService.getActiveCheckpoint();
 });
 
 final locationTrackingServiceProvider =
     Provider<LocationTrackingService>((ref) {
+  final repository = ref.watch(outdoorActivityRepositoryProvider);
+  final recoveryService = ref.watch(outdoorSessionRecoveryServiceProvider);
   final service = LocationTrackingService(
     filterService: const GpsFilterService(),
+    repository: repository,
+    recoveryService: recoveryService,
   );
   ref.onDispose(service.dispose);
   return service;
@@ -60,9 +105,120 @@ final trackingStateProvider = StreamProvider<TrackingState>((ref) {
   return controller.stream;
 });
 
-final userCurrentLocationProvider = FutureProvider<LatLng?>((ref) async {
+/// StateNotifier managing unified, high-accuracy user location state.
+class UserLocationNotifier extends StateNotifier<UserLocationState> {
+  UserLocationNotifier(this._service) : super(UserLocationState.initial) {
+    refreshLocation();
+  }
+
+  final LocationTrackingService _service;
+
+  /// Acquires or refreshes the user's GPS position with deduplicated queries.
+  /// When [requestIfNeeded] is false (default on startup), it does not trigger the OS
+  /// prompt automatically, allowing the app to show a plain-language disclosure first.
+  Future<void> refreshLocation({bool requestIfNeeded = false}) async {
+    // Preserve any existing position as lastKnownPosition while refreshing
+    state = state.copyWith(
+      status: UserLocationStatus.waitingForSignal,
+      lastKnownPosition: state.position ?? state.lastKnownPosition,
+    );
+
+    // Fast-path: read last known position from OS cache if no position is known yet
+    if (state.lastKnownPosition == null) {
+      final lastKnown = await _service.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        state = state.copyWith(lastKnownPosition: lastKnown);
+      }
+    }
+
+    final perm = await _service.checkPermissionDetailed(
+      requestIfNeeded: requestIfNeeded,
+    );
+    if (!mounted) return;
+
+    switch (perm) {
+      case LocationPermissionResult.serviceDisabled:
+        state = state.copyWith(
+          status: UserLocationStatus.serviceDisabled,
+          errorMessage: 'Location services are disabled on this device.',
+        );
+        return;
+      case LocationPermissionResult.unavailable:
+        state = state.copyWith(
+          status: UserLocationStatus.unavailable,
+          errorMessage:
+              'Location services or hardware are unavailable on this device.',
+        );
+        return;
+      case LocationPermissionResult.denied:
+        state = state.copyWith(
+          status: UserLocationStatus.permissionDenied,
+          errorMessage: 'Location permission was denied.',
+        );
+        return;
+      case LocationPermissionResult.deniedForever:
+        state = state.copyWith(
+          status: UserLocationStatus.permissionDeniedForever,
+          errorMessage:
+              'Location permission permanently denied. Please enable in settings.',
+        );
+        return;
+      case LocationPermissionResult.granted:
+        break;
+    }
+
+    try {
+      final pos = await _service.getCurrentPosition();
+      if (!mounted) return;
+      if (pos != null) {
+        state = state.copyWith(
+          status: UserLocationStatus.available,
+          position: pos,
+          lastKnownPosition: pos,
+          timestamp: DateTime.now(),
+          errorMessage: null,
+        );
+      } else if (state.lastKnownPosition != null) {
+        state = state.copyWith(
+          status: UserLocationStatus.available,
+          position: state.lastKnownPosition,
+          errorMessage: null,
+        );
+      } else {
+        state = state.copyWith(
+          status: UserLocationStatus.timedOut,
+          errorMessage: 'Could not acquire GPS position.',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        status: UserLocationStatus.failed,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  /// Explicitly requests location permission after the user has seen the plain-language disclosure.
+  Future<void> requestPermission() async {
+    await refreshLocation(requestIfNeeded: true);
+  }
+}
+
+final userLocationNotifierProvider =
+    StateNotifierProvider<UserLocationNotifier, UserLocationState>((ref) {
   final service = ref.watch(locationTrackingServiceProvider);
-  return service.getCurrentPosition();
+  return UserLocationNotifier(service);
+});
+
+final userLocationStateProvider = Provider<UserLocationState>((ref) {
+  return ref.watch(userLocationNotifierProvider);
+});
+
+/// Exposes the current verified GPS position (or null if not acquired).
+/// Does not trigger duplicate requests when watched by multiple widgets.
+final userCurrentLocationProvider = Provider<LatLng?>((ref) {
+  return ref.watch(userLocationStateProvider).position;
 });
 
 final outdoorActivitiesListProvider =
@@ -80,18 +236,73 @@ final activeRouteFilterProvider = StateProvider<RouteFilter>((ref) {
   return const RouteFilter();
 });
 
-final selectedMapCenterProvider = StateProvider<LatLng>((ref) {
-  // Default fallback center: scenic Central Park coordinates if GPS not yet loaded
-  return const LatLng(40.785091, -73.968285);
+/// Holds an explicitly chosen manual search center (e.g. from search or map drag).
+/// Defaults to null. When null, the system uses the live user GPS position.
+final selectedMapCenterProvider = StateProvider<LatLng?>((ref) {
+  return null;
 });
 
-final discoveredRoutesProvider = FutureProvider<List<SavedRoute>>((ref) async {
-  final engine = ref.watch(routeDiscoveryEngineProvider);
-  final center = ref.watch(selectedMapCenterProvider);
-  final filter = ref.watch(activeRouteFilterProvider);
+/// The effective geographic center for route discovery:
+/// 1. An explicitly selected manual center (if set by the user).
+/// 2. Otherwise, the verified user GPS location (if available).
+/// 3. Otherwise null (discovery is paused until a location is known).
+final effectiveMapCenterProvider = Provider<LatLng?>((ref) {
+  final manualCenter = ref.watch(selectedMapCenterProvider);
+  if (manualCenter != null) return manualCenter;
+  final locState = ref.watch(userLocationStateProvider);
+  final pos = locState.position ?? locState.lastKnownPosition;
+  if (pos == null) return null;
+  // Stabilize coordinates to 4 decimal places (~11m) so micro GPS jitter while standing
+  // or walking in a park does not cancel active route discovery requests.
+  final roundedLat = (pos.latitude * 10000).round() / 10000;
+  final roundedLon = (pos.longitude * 10000).round() / 10000;
+  return LatLng(roundedLat, roundedLon);
+});
 
-  return engine.discoverRoutes(
+/// Discovered routes near the effective center.
+/// Streams verified routes progressively as candidate batches complete.
+/// NEVER queries using arbitrary fallback coordinates.
+final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
+  final engine = ref.watch(routeDiscoveryEngineProvider);
+  final center = ref.watch(effectiveMapCenterProvider);
+  final filter = ref.watch(activeRouteFilterProvider);
+  final isManual = ref.watch(selectedMapCenterProvider) != null;
+
+  final source = isManual
+      ? SearchCenterSource.mapCenter
+      : (center != null
+          ? SearchCenterSource.userGps
+          : SearchCenterSource.none);
+
+  ref.onDispose(() {
+    engine.cancelCurrentDiscovery();
+  });
+
+  // If no legitimate location is known yet, yield empty list without querying the network.
+  if (center == null) {
+    yield const [];
+    return;
+  }
+
+  bool hasEmitted = false;
+  await for (final routes in engine.discoverRoutesProgressive(
     center: center,
     filter: filter,
-  );
+    searchCenterSource: source,
+    hasValidNonFallbackLocation: true,
+  )) {
+    hasEmitted = true;
+    yield routes;
+  }
+  if (!hasEmitted) {
+    yield const [];
+  }
+});
+
+/// Exposes the latest route discovery diagnostics report reactively.
+final latestDiscoveryDiagnosticsProvider =
+    Provider<RouteDiscoveryDiagnostics?>((ref) {
+  final engine = ref.watch(routeDiscoveryEngineProvider);
+  ref.watch(discoveredRoutesProvider);
+  return engine.lastDiagnostics;
 });

@@ -154,9 +154,11 @@ void main() {
           : fileName.startsWith('step_b')
               ? 'step_b'
               : 'after';
-      final repoFile = File('test/screenshots/$folder/$fileName');
-      await repoFile.parent.create(recursive: true);
-      await repoFile.writeAsBytes(bytes);
+      // Write to isolated test-output directory to protect tracked reference screenshots
+      final outputDir = Directory('build/test_screenshots/$folder');
+      final outputFile = File('${outputDir.path}/$fileName');
+      await outputFile.parent.create(recursive: true);
+      await outputFile.writeAsBytes(bytes);
 
       final artFile = File('$artifactDir/$fileName');
       await artFile.parent.create(recursive: true);

@@ -1,6 +1,5 @@
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/sleep/data/day_time_convert.dart';
-import 'package:fitbuddy/features/sleep/presentation/widgets/alarm_test_dialog.dart';
 import 'package:fitbuddy/features/sleep/presentation/widgets/sleep_format.dart';
 import 'package:fitbuddy/features/sleep/providers.dart';
 import 'package:flutter/material.dart';
@@ -152,11 +151,7 @@ class SleepHeroCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
+                      Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
@@ -177,39 +172,6 @@ class SleepHeroCard extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                          ),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppPalette.limeGreen.withValues(alpha: 0.15),
-                              foregroundColor: AppPalette.limeGreen,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () {
-                              AlarmTestDialog.show(
-                                context,
-                                alarmTime: wake,
-                                alarmSound: settings?.alarmSound ?? 'Gentle Chime',
-                                vibrate: settings?.vibrate ?? true,
-                                snoozeMinutes: settings?.snoozeMinutes ?? 10,
-                              );
-                            },
-                            icon: const Icon(Icons.volume_up_rounded, size: 16),
-                            label: const Text(
-                              'Test Alarm',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),

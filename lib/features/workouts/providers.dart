@@ -56,16 +56,23 @@ final systemPlansProvider = FutureProvider<List<WorkoutPlan>>(
 
 /// The user's custom plans, with save and delete.
 class MyPlansNotifier extends AsyncNotifier<List<WorkoutPlan>> {
+  final Set<String> _inFlightPlanIds = {};
   @override
   Future<List<WorkoutPlan>> build() =>
       ref.read(workoutRepositoryProvider).getMyPlans();
 
   /// Creates or updates a custom plan.
   Future<WorkoutPlan> save(WorkoutPlan plan) async {
+    if (_inFlightPlanIds.contains(plan.id)) return plan;
+    _inFlightPlanIds.add(plan.id);
+    try {
     final repo = ref.read(workoutRepositoryProvider);
     final saved = await repo.savePlan(plan);
     state = AsyncData(await repo.getMyPlans());
-    return saved;
+      return saved;
+    } finally {
+      _inFlightPlanIds.remove(plan.id);
+    }
   }
 
   /// Deletes a custom plan.

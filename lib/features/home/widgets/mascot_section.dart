@@ -1,6 +1,7 @@
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/home/providers/daily_completion_provider.dart';
 import 'package:fitbuddy/features/home/widgets/speech_bubble.dart';
+import 'package:fitbuddy/features/mascot/mascot_message_picker.dart';
 import 'package:fitbuddy/features/mascot/providers.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
 import 'package:flutter/material.dart';
@@ -57,9 +58,7 @@ class MascotSection extends ConsumerWidget {
     final variant = ref.watch(mascotVariantProvider);
     final profile = ref.watch(currentProfileProvider).asData?.value;
     final rawName = profile?.name;
-    final name = (rawName != null && rawName.trim().isNotEmpty)
-        ? rawName.trim()
-        : 'Shivam';
+    final name = const MascotMessagePicker().displayName(rawName);
 
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;

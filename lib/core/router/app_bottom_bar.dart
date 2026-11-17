@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 
-/// Bottom bar with five clean navigation tabs: Home, Workouts, Maps, Friends, and Profile.
+/// Bottom bar with five clean navigation tabs: Home, Workouts, Snap, Friends, and Maps.
 class AppBottomBar extends StatelessWidget {
   const AppBottomBar({
     super.key,
     required this.selectedBranch,
     required this.onBranchSelected,
     this.onCameraPressed,
+    this.snapBadgeCount = 0,
     this.friendsBadgeCount = 0,
   });
 
   final int selectedBranch;
   final ValueChanged<int> onBranchSelected;
   final VoidCallback? onCameraPressed;
+  final int snapBadgeCount;
   final int friendsBadgeCount;
 
   static const _home = _TabSpec(0, 'Home', Icons.home_outlined, Icons.home_rounded);
@@ -24,11 +26,11 @@ class AppBottomBar extends StatelessWidget {
     Icons.fitness_center_outlined,
     Icons.fitness_center_rounded,
   );
-  static const _maps = _TabSpec(
+  static const _snap = _TabSpec(
     2,
-    'Maps',
-    Icons.explore_outlined,
-    Icons.explore_rounded,
+    'Snap',
+    Icons.photo_camera_outlined,
+    Icons.photo_camera_rounded,
   );
   static const _friends = _TabSpec(
     3,
@@ -36,19 +38,24 @@ class AppBottomBar extends StatelessWidget {
     Icons.people_outline_rounded,
     Icons.people_rounded,
   );
-  static const _profile = _TabSpec(
+  static const _maps = _TabSpec(
     4,
-    'Profile',
-    Icons.person_outline_rounded,
-    Icons.person_rounded,
+    'Maps',
+    Icons.explore_outlined,
+    Icons.explore_rounded,
   );
 
-  Widget _tab(_TabSpec spec) => _TabButton(
-        spec: spec,
-        selected: selectedBranch == spec.branch,
-        badgeCount: spec.branch == 3 ? friendsBadgeCount : 0,
-        onTap: () => onBranchSelected(spec.branch),
-      );
+  Widget _tab(_TabSpec spec) {
+    int badge = 0;
+    if (spec.branch == 2) badge = snapBadgeCount;
+    if (spec.branch == 3) badge = friendsBadgeCount;
+    return _TabButton(
+      spec: spec,
+      selected: selectedBranch == spec.branch,
+      badgeCount: badge,
+      onTap: () => onBranchSelected(spec.branch),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,9 +73,9 @@ class AppBottomBar extends StatelessWidget {
             children: [
               _tab(_home),
               _tab(_workouts),
-              _tab(_maps),
+              _tab(_snap),
               _tab(_friends),
-              _tab(_profile),
+              _tab(_maps),
             ],
           ),
         ),

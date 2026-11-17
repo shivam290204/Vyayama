@@ -13,6 +13,8 @@ import 'package:fitbuddy/core/services/notification_service.dart';
 import 'package:fitbuddy/core/services/push_notification_service.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/outdoor_recovery_dialog.dart';
+import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:fitbuddy/features/snaps/data/snap.dart';
 import 'package:fitbuddy/features/snaps/providers.dart';
@@ -32,6 +34,8 @@ class AppShell extends ConsumerStatefulWidget {
   /// Paths inside a tab branch that must hide the bottom bar.
   static const List<String> _fullScreenPrefixes = [
     AppRoutes.workoutSessionPrefix,
+    AppRoutes.snapsPreview,
+    '/snaps/view',
   ];
 
   @override
@@ -66,6 +70,8 @@ class _AppShellState extends ConsumerState<AppShell>
       if (currentId.isNotEmpty && currentId != 'u-me') {
         BackgroundSyncService.instance.syncCurrentUserId(currentId);
       }
+      OutdoorSessionRecoveryDialog.promptIfNeeded(context, ref);
+      ref.read(outdoorSyncCoordinatorProvider).syncAll(trigger: 'startup');
     });
   }
 
@@ -221,7 +227,6 @@ class _AppShellState extends ConsumerState<AppShell>
 
     final requests = ref.watch(incomingRequestCountProvider);
     final unviewedSnaps = ref.watch(unviewedSnapsCountProvider);
-    final totalBadges = requests + unviewedSnaps;
 
     return Scaffold(
       body: widget.navigationShell,
@@ -229,7 +234,8 @@ class _AppShellState extends ConsumerState<AppShell>
           ? null
           : AppBottomBar(
               selectedBranch: widget.navigationShell.currentIndex,
-              friendsBadgeCount: totalBadges,
+              snapBadgeCount: unviewedSnaps,
+              friendsBadgeCount: requests,
               onBranchSelected: (index) => widget.navigationShell.goBranch(
                 index,
                 initialLocation: index == widget.navigationShell.currentIndex,

@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fitbuddy/core/services/background_sync_service.dart';
 import 'package:fitbuddy/core/services/push_notification_service.dart';
@@ -10,6 +12,18 @@ class SupabaseAuthRepository implements AuthRepository {
   final _client = supa.Supabase.instance.client.auth;
 
   static AuthUser? _cachedUser;
+  static bool _googleSignInInitialized = false;
+
+  static Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+    final serverClientId = Env.googleWebClientId;
+    if (serverClientId.isNotEmpty) {
+      await GoogleSignIn.instance.initialize(
+        serverClientId: serverClientId,
+      );
+      _googleSignInInitialized = true;
+    }
+  }
 
   AuthUser _mapUser(supa.User user) {
     final mapped = AuthUser(
@@ -163,14 +177,46 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signInWithGoogle() async {
     try {
+      final serverClientId = Env.googleWebClientId;
+      if (!kIsWeb && serverClientId.isNotEmpty) {
+        await _ensureGoogleSignInInitialized();
+        final account = await GoogleSignIn.instance.authenticate();
+        final idToken = account.authentication.idToken;
+
+        final scopes = ['email'];
+        final authorization =
+            await account.authorizationClient.authorizationForScopes(scopes) ??
+            await account.authorizationClient.authorizeScopes(scopes);
+
+        if (idToken == null || idToken.isEmpty) {
+          throw const AuthFailure('Failed to obtain Google ID token.');
+        }
+        if (authorization.accessToken.isEmpty) {
+          throw const AuthFailure('Failed to obtain Google access token.');
+        }
+
+        await _client.signInWithIdToken(
+          provider: supa.OAuthProvider.google,
+          idToken: idToken,
+          accessToken: authorization.accessToken,
+        );
+        return;
+      }
+
       await _client.signInWithOAuth(
         supa.OAuthProvider.google,
         redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://login-callback',
       );
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return;
+      }
+      throw AuthFailure('Google sign-in error: ${e.description ?? e.code.name}');
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
-      throw AuthFailure('Failed to sign in with Google.');
+      if (e is AuthFailure) rethrow;
+      throw const AuthFailure('Failed to sign in with Google.');
     }
   }
 
@@ -191,6 +237,11 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     _clearCachedUser();
+    if (!kIsWeb && Env.googleWebClientId.isNotEmpty) {
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (_) {}
+    }
     try {
       await PushNotificationService.instance.unregisterDeviceToken();
     } catch (_) {}

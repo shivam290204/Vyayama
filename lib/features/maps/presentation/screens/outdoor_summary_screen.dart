@@ -1,12 +1,12 @@
-import 'package:url_launcher/url_launcher.dart';
 import 'package:fitbuddy/core/theme/app_palette.dart';
 import 'package:fitbuddy/features/maps/domain/models/outdoor_activity.dart';
+import 'package:fitbuddy/features/maps/domain/services/gps_filter_service.dart';
 import 'package:fitbuddy/features/maps/domain/models/saved_route.dart';
+import 'package:fitbuddy/features/maps/presentation/widgets/map_tile_layer.dart';
 import 'package:fitbuddy/features/maps/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
 
 /// Screen displaying the completed outdoor workout summary with route map and metrics.
 class OutdoorSummaryScreen extends ConsumerStatefulWidget {
@@ -111,11 +111,10 @@ class _OutdoorSummaryScreenState extends ConsumerState<OutdoorSummaryScreen> {
     final borderColor =
         isDark ? AppPalette.darkOutline : AppPalette.lightOutline;
 
+    final filter = GpsFilterService.forActivity(widget.activity.activityType);
+    final segments = filter.splitIntoSegments(widget.activity.points);
     final polylinePoints =
         widget.activity.points.map((p) => p.toLatLng()).toList();
-    final center = polylinePoints.isNotEmpty
-        ? polylinePoints[polylinePoints.length ~/ 2]
-        : const LatLng(40.785091, -73.968285);
 
     return Scaffold(
       appBar: AppBar(
@@ -132,74 +131,93 @@ class _OutdoorSummaryScreenState extends ConsumerState<OutdoorSummaryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Map Overview with Route Polyline
+            // 1. Map Overview with Route Polyline or Empty State
             SizedBox(
               height: 240,
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: center,
-                  initialZoom: 14.0,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none,
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.vyayama.fitbuddy',
-                  ),
-                      RichAttributionWidget(
-                        attributions: [
-                          TextSourceAttribution(
-                            'OpenStreetMap contributors',
-                            onTap: () => launchUrl(
-                              Uri.parse('https://openstreetmap.org/copyright'),
-                              mode: LaunchMode.externalApplication,
+              child: polylinePoints.isEmpty
+                  ? Container(
+                      color: cardBg,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.location_off_outlined,
+                                size: 40, color: textMuted),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No GPS Path Recorded',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: textPrimary,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'No route coordinates were recorded for this workout.',
+                              style: TextStyle(fontSize: 12, color: textMuted),
+                            ),
+                          ],
+                        ),
                       ),
-                  if (polylinePoints.isNotEmpty)
-                    PolylineLayer(
-                      polylines: [
-                        Polyline(
-                          points: polylinePoints,
-                          strokeWidth: 4.5,
-                          color: AppPalette.limeGreen,
+                    )
+                  : FlutterMap(
+                      options: MapOptions(
+                        initialCenter:
+                            polylinePoints[polylinePoints.length ~/ 2],
+                        initialZoom: 14.0,
+                        interactionOptions: const InteractionOptions(
+                          flags: InteractiveFlag.none,
                         ),
+                      ),
+                      children: [
+                        const AppMapTileLayer(),
+                        const AppMapAttribution(),
+                        if (segments.isNotEmpty)
+                          PolylineLayer(
+                            polylines: segments
+                                .where((s) => s.length >= 2)
+                                .map((s) => Polyline(
+                                      points: s.map((p) => p.toLatLng()).toList(),
+                                      strokeWidth: 4.5,
+                                      color: AppPalette.limeGreen,
+                                    ))
+                                .toList(),
+                          ),
+                        if (polylinePoints.isNotEmpty)
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: polylinePoints.first,
+                                width: 24,
+                                height: 24,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: AppPalette.forestGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.play_arrow,
+                                      color: Colors.white, size: 14),
+                                ),
+                              ),
+                              Marker(
+                                point: polylinePoints.last,
+                                width: 24,
+                                height: 24,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: AppPalette.limeGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.flag_rounded,
+                                      color: AppPalette.charcoalGreen,
+                                      size: 14),
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
-                  if (polylinePoints.isNotEmpty)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: polylinePoints.first,
-                          width: 24,
-                          height: 24,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: AppPalette.forestGreen,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.play_arrow, color: Colors.white, size: 14),
-                          ),
-                        ),
-                        Marker(
-                          point: polylinePoints.last,
-                          width: 24,
-                          height: 24,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: AppPalette.limeGreen,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.flag_rounded, color: AppPalette.charcoalGreen, size: 14),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
             ),
 
             // 2. Summary Details Card
