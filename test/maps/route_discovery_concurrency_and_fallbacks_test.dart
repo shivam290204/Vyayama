@@ -2033,14 +2033,14 @@ void main() {
           name: 'Neighborhood Garden',
           lat: 28.5980, // ~600m away
           lon: 77.2230,
-          tags: const {'leisure': 'park'},
+          tags: {'leisure': 'park'},
         ),
         const OverpassPlace(
           id: 202,
           name: 'Lake Track',
           lat: 28.6020, // ~1100m away
           lon: 77.2270,
-          tags: const {'highway': 'track'},
+          tags: {'highway': 'track'},
         ),
       ];
 
