@@ -460,7 +460,9 @@ class RouteDiscoverySheet extends ConsumerWidget {
                               onPressed: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute<void>(
-                                    builder: (_) => const MapServicesCheckScreen(),
+                                    builder: (_) => MapServicesCheckScreen(
+                                      discoveryDiagnostics: diag,
+                                    ),
                                   ),
                                 );
                               },
@@ -533,7 +535,9 @@ class RouteDiscoverySheet extends ConsumerWidget {
                             onPressed: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const MapServicesCheckScreen(),
+                                  builder: (_) => MapServicesCheckScreen(
+                                    discoveryDiagnostics: diag,
+                                  ),
                                 ),
                               );
                             },

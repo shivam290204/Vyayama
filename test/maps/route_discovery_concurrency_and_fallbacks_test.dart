@@ -2074,6 +2074,51 @@ void main() {
       expect(result.isNotEmpty, isTrue, reason: 'Must find valid routes even when standing in a park cluster');
       expect(result.first.distanceMeters, greaterThanOrEqualTo(300.0));
     });
+
+    test('31d. User in park: ONLY features under 200m returned by Overpass triggers synthetic grid supplementation to guarantee routes >= 300m', () async {
+      const center = LatLng(28.5933, 77.2197);
+      // Simulate standing in a park where Overpass ONLY returned 10 features inside the park (< 150m)
+      // and NO other places in the entire response.
+      final parkOnlyPlaces = <OverpassPlace>[
+        for (int i = 1; i <= 10; i++)
+          OverpassPlace(
+            id: 100 + i,
+            name: 'Park Feature $i',
+            lat: center.latitude + (i * 0.0001), // ~11m each, max ~110m
+            lon: center.longitude + (i * 0.0001),
+            tags: const {'leisure': 'park'},
+          ),
+      ];
+
+      final valhalla = _DynamicValhalla(
+        routeHandler: (origin, waypoints) {
+          final maxDist = waypoints.map((w) => haversineDistance(origin, w)).reduce(math.max);
+          if (maxDist < 200) {
+            return const ValhallaRoute(
+              points: [center, center],
+              distanceMeters: 180.0, // < 300m, dropped
+              durationSeconds: 120.0,
+            );
+          }
+          return ValhallaRoute(
+            points: [origin, ...waypoints, origin],
+            distanceMeters: maxDist * 2.2, // >= 1000m, kept
+            durationSeconds: 900.0,
+          );
+        },
+      );
+
+      final service = RealRouteDiscoveryService(
+        overpass: _StaticOverpass(parkOnlyPlaces),
+        valhalla: valhalla,
+        nominatim: _StaticNominatim([]),
+      );
+
+      final result = await service.discoverRoutes(center: center);
+      expect(result.isNotEmpty, isTrue,
+          reason: 'Must supplement with grid waypoints and find routes even when 100% of Overpass places are inside the park');
+      expect(result.first.distanceMeters, greaterThanOrEqualTo(300.0));
+    });
   });
 
   // ---------------------------------------------------------------------------

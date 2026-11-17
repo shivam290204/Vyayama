@@ -284,7 +284,7 @@ void main() {
 
       expect(result.isEmpty, isTrue);
       expect(result.emptyReason, equals(EmptyReason.allRoutesFiltered));
-      expect(result.diagnostics.droppedTooShort, equals(1));
+      expect(result.diagnostics.droppedTooShort, greaterThanOrEqualTo(1));
     });
   });
 

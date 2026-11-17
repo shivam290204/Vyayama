@@ -321,6 +321,7 @@ class ValhallaService {
         'lon': ll.longitude,
         'type': 'break',
         'radius': 250,
+        'search_cutoff': 350,
       };
 
   /// Decodes a Valhalla/OSRM encoded polyline (precision 6).

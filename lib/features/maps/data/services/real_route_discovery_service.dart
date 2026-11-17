@@ -356,18 +356,43 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       rawPlacesCount = places.length;
 
       // -----------------------------------------------------------------------
-      // Grid-waypoint fallback: when neither Overpass nor Nominatim returned
-      // any named places (e.g. all Overpass mirrors are timing out from this
-      // network), synthesise compass-direction waypoints at multiple distances.
+      // Grid-waypoint fallback & supplementation:
+      // Case A: When neither Overpass nor Nominatim returned any places (e.g.
+      //         all Overpass mirrors are timing out from this network), synthesise
+      //         compass-direction waypoints at multiple distances.
+      // Case B: When OSM returned places, but fewer than 4 are at a practical
+      //         walking distance (>= 250m) from the user (e.g. user is standing
+      //         in a park or plaza where all returned nodes are within 50-200m),
+      //         supplement with synthetic compass waypoints so the router has
+      //         destinations outside the immediate bubble to form realistic
+      //         loops and routes >= 300m.
       // Valhalla will route to them along REAL pedestrian paths that actually
       // exist on the map — the waypoints are just hints, not synthetic geometry.
       // -----------------------------------------------------------------------
+      final nonCloseCount = places
+          .where((p) => haversineDistance(center, p.latLng) >= 250.0)
+          .length;
+
       if (places.isEmpty) {
         places = _syntheticGridWaypoints(center, radiusMeters);
         if (kDebugMode) {
           debugPrint(
             '[RouteDiscovery][req-$requestId] No OSM places found — '
             'using ${places.length} synthetic grid waypoints as routing hints.',
+          );
+        }
+      } else if (nonCloseCount < 4) {
+        final grid = _syntheticGridWaypoints(center, radiusMeters);
+        final existingIds = places.map((p) => p.id).toSet();
+        for (final gp in grid) {
+          if (existingIds.add(gp.id)) {
+            places.add(gp);
+          }
+        }
+        if (kDebugMode) {
+          debugPrint(
+            '[RouteDiscovery][req-$requestId] Only $nonCloseCount places >= 250m found — '
+            'supplemented with ${grid.length} synthetic grid waypoints.',
           );
         }
       }
@@ -841,6 +866,26 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
     }
 
+    // Ensure we have sufficient mid and far targets even if places only contained
+    // a dense local cluster inside a park or single block.
+    if (mid.length < 4 || far.length < 2) {
+      final grid = _syntheticGridWaypoints(center, 5000);
+      final existingIds = {
+        ...close.map((p) => p.id),
+        ...mid.map((p) => p.id),
+        ...far.map((p) => p.id),
+      };
+      for (final p in grid) {
+        if (!existingIds.add(p.id)) continue;
+        final d = haversineDistance(center, p.latLng);
+        if (d >= 250.0 && d < 1500.0) {
+          if (mid.length < 8) mid.add(p);
+        } else if (d >= 1500.0) {
+          if (far.length < 4) far.add(p);
+        }
+      }
+    }
+
     final selected = <OverpassPlace>[];
     final seen = <int>{};
 
@@ -866,9 +911,23 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       addCandidate(p);
     }
 
-    // 4. Fill any remaining slots up to _maxCandidateWaypoints from ordered
+    // 4. Fill any remaining slots up to _maxCandidateWaypoints from mid, far, and ordered:
+    // Do NOT fill with remaining < 250m items if 2 close items were already included.
+    for (final p in mid.skip(4)) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
+    for (final p in far.skip(2)) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
     for (final p in ordered) {
       if (selected.length >= _maxCandidateWaypoints) break;
+      final d = haversineDistance(center, p.latLng);
+      if (d < 250.0 && close.isNotEmpty) {
+        // Skip over-clustering on < 250m points to avoid sub-300m discarded routes
+        continue;
+      }
       addCandidate(p);
     }
 
@@ -883,15 +942,34 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     List<OverpassPlace> pool,
   ) {
     final b1 = _bearing(center, p1.latLng);
-    for (final candidate in pool) {
+    final d1 = haversineDistance(center, p1.latLng);
+
+    // If p1 is close (< 250m), sort candidates so >= 250m waypoints are evaluated
+    // first to ensure the loop reaches out beyond the immediate cluster.
+    final candidatePool = List<OverpassPlace>.from(pool);
+    if (d1 < 250.0) {
+      candidatePool.sort((a, b) {
+        final da = haversineDistance(center, a.latLng);
+        final db = haversineDistance(center, b.latLng);
+        final aFar = da >= 250.0 ? 1 : 0;
+        final bFar = db >= 250.0 ? 1 : 0;
+        return bFar.compareTo(aFar);
+      });
+    }
+
+    for (final candidate in candidatePool) {
       if (candidate.id == p1.id) continue;
       final b2 = _bearing(center, candidate.latLng);
       final angleDiff = (b1 - b2).abs();
       final normalizedDiff = angleDiff > 180 ? 360 - angleDiff : angleDiff;
 
       if (normalizedDiff >= 40 && normalizedDiff <= 160) {
-        final d1 = haversineDistance(center, p1.latLng);
         final d2 = haversineDistance(center, candidate.latLng);
+        // If both are < 250m, skip this companion to prevent tiny loops (< 300m)
+        if (d1 < 250.0 && d2 < 250.0) {
+          continue;
+        }
+
         // Ensure distance ratio is balanced, using a 200m floor so places close
         // to the user's position (e.g. standing inside a park) can still pair with
         // nearby perimeter or neighborhood waypoints to form a loop.
