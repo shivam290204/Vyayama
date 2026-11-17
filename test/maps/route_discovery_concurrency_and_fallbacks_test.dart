@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fitbuddy/features/maps/data/repositories/local_outdoor_storage.dart';
@@ -2012,6 +2013,66 @@ void main() {
       } finally {
         debugPrint = originalDebugPrint;
       }
+    });
+
+    test('31c. User in park: dense cluster of places under 200m does not crowd out mid/far candidates, enabling routes >= 300m', () async {
+      const center = LatLng(28.5933, 77.2197);
+      // Simulate standing in a park with 10 features clustered within 150m,
+      // and 2 neighborhood features at 600m and 1200m.
+      final parkPlaces = <OverpassPlace>[
+        for (int i = 1; i <= 10; i++)
+          OverpassPlace(
+            id: 100 + i,
+            name: 'Park Feature $i',
+            lat: center.latitude + (i * 0.0001), // ~11m each, max ~110m
+            lon: center.longitude + (i * 0.0001),
+            tags: const {'leisure': 'park'},
+          ),
+        const OverpassPlace(
+          id: 201,
+          name: 'Neighborhood Garden',
+          lat: 28.5980, // ~600m away
+          lon: 77.2230,
+          tags: const {'leisure': 'park'},
+        ),
+        const OverpassPlace(
+          id: 202,
+          name: 'Lake Track',
+          lat: 28.6020, // ~1100m away
+          lon: 77.2270,
+          tags: const {'highway': 'track'},
+        ),
+      ];
+
+      final valhalla = _DynamicValhalla(
+        routeHandler: (origin, waypoints) {
+          // If all waypoints are under 200m from origin, route is short (150m)
+          final maxDist = waypoints.map((w) => haversineDistance(origin, w)).reduce(math.max);
+          if (maxDist < 200) {
+            return const ValhallaRoute(
+              points: [center, center],
+              distanceMeters: 180.0, // < 300m, will be dropped
+              durationSeconds: 120.0,
+            );
+          }
+          // If routed to the 600m or 1100m candidate, route is valid (1400m)
+          return ValhallaRoute(
+            points: [origin, ...waypoints, origin],
+            distanceMeters: maxDist * 2.2, // ~1300m - 2400m
+            durationSeconds: 900.0,
+          );
+        },
+      );
+
+      final service = RealRouteDiscoveryService(
+        overpass: _StaticOverpass(parkPlaces),
+        valhalla: valhalla,
+        nominatim: _StaticNominatim([]),
+      );
+
+      final result = await service.discoverRoutes(center: center);
+      expect(result.isNotEmpty, isTrue, reason: 'Must find valid routes even when standing in a park cluster');
+      expect(result.first.distanceMeters, greaterThanOrEqualTo(300.0));
     });
   });
 

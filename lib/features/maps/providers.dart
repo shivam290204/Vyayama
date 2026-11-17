@@ -250,7 +250,13 @@ final effectiveMapCenterProvider = Provider<LatLng?>((ref) {
   final manualCenter = ref.watch(selectedMapCenterProvider);
   if (manualCenter != null) return manualCenter;
   final locState = ref.watch(userLocationStateProvider);
-  return locState.position ?? locState.lastKnownPosition;
+  final pos = locState.position ?? locState.lastKnownPosition;
+  if (pos == null) return null;
+  // Stabilize coordinates to 4 decimal places (~11m) so micro GPS jitter while standing
+  // or walking in a park does not cancel active route discovery requests.
+  final roundedLat = (pos.latitude * 10000).round() / 10000;
+  final roundedLon = (pos.longitude * 10000).round() / 10000;
+  return LatLng(roundedLat, roundedLon);
 });
 
 /// Discovered routes near the effective center.
@@ -261,11 +267,10 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   final center = ref.watch(effectiveMapCenterProvider);
   final filter = ref.watch(activeRouteFilterProvider);
   final isManual = ref.watch(selectedMapCenterProvider) != null;
-  final locState = ref.watch(userLocationStateProvider);
 
   final source = isManual
       ? SearchCenterSource.mapCenter
-      : (locState.hasPosition
+      : (center != null
           ? SearchCenterSource.userGps
           : SearchCenterSource.none);
 

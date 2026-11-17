@@ -304,11 +304,12 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       // Await Nominatim first (typically completes in 200-400ms)
       // Phase 2a/c: Concurrent resolution of Overpass and Nominatim.
       // Overpass provides fine-grained parks, paths, and footways; Nominatim provides
-      // rapid fallback place discovery. We give Overpass up to 6 seconds to return
-      // mapped pedestrian ways without hanging the UI.
+      // rapid fallback place discovery. On mobile networks, Overpass queries can take
+      // 8-12 seconds; we give Overpass up to 14 seconds within the 25s discovery budget
+      // so genuine mapped features are not prematurely discarded.
       List<OverpassPlace> opPlaces = const [];
       try {
-        opPlaces = await overpassFuture.timeout(const Duration(seconds: 6));
+        opPlaces = await overpassFuture.timeout(const Duration(seconds: 14));
       } catch (_) {
         // Overpass timed out or is slow; proceed with Nominatim / grid fallback
       }
@@ -798,11 +799,17 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     return 'North-West';
   }
 
-  /// Picks geographically distributed candidates around [center] (bounded to max 8).
+  /// Picks geographically and distance-distributed candidates around [center] (bounded to max 8).
+  ///
+  /// Prevents the "park cluster" problem where taking only the 8 closest features
+  /// causes all candidates to sit within 150m of the user, leading all resulting routes
+  /// to be dropped by the < 300m filter.
   List<OverpassPlace> _pickCandidateWaypoints(
     LatLng center,
     List<OverpassPlace> places,
   ) {
+    if (places.isEmpty) return const [];
+
     final sorted = List<OverpassPlace>.from(places)
       ..sort((a, b) {
         final da = haversineDistance(center, a.latLng);
@@ -813,10 +820,59 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     // Prefer named places and parks, followed by mapped trails and footways
     final namedPlaces = sorted.where((p) => p.isNamed).toList();
     final unnamedPlaces = sorted.where((p) => !p.isNamed).toList();
-
     final ordered = [...namedPlaces, ...unnamedPlaces];
+
+    // Partition by distance from search center:
+    // Close (< 250m) - features in the immediate park/location
+    // Mid (250m - 1500m) - neighborhood parks, pathways, loops
+    // Far (1500m - 5000m) - longer perimeter routes and adjacent areas
+    final close = <OverpassPlace>[];
+    final mid = <OverpassPlace>[];
+    final far = <OverpassPlace>[];
+
+    for (final p in ordered) {
+      final d = haversineDistance(center, p.latLng);
+      if (d < 250.0) {
+        close.add(p);
+      } else if (d < 1500.0) {
+        mid.add(p);
+      } else {
+        far.add(p);
+      }
+    }
+
+    final selected = <OverpassPlace>[];
     final seen = <int>{};
-    return ordered.where((p) => seen.add(p.id)).take(_maxCandidateWaypoints).toList();
+
+    void addCandidate(OverpassPlace p) {
+      if (selected.length < _maxCandidateWaypoints && seen.add(p.id)) {
+        selected.add(p);
+      }
+    }
+
+    // 1. Cap very close waypoints (< 250m) to at most 2 so they don't crowd out
+    // waypoints needed to form routes >= 300m.
+    for (final p in close.take(2)) {
+      addCandidate(p);
+    }
+
+    // 2. Select up to 4 mid-range candidates (250m - 1500m) for practical 1-3km walks/runs
+    for (final p in mid.take(4)) {
+      addCandidate(p);
+    }
+
+    // 3. Select up to 2 far-range candidates (1500m+) for varied distance options
+    for (final p in far.take(2)) {
+      addCandidate(p);
+    }
+
+    // 4. Fill any remaining slots up to _maxCandidateWaypoints from ordered
+    for (final p in ordered) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
+
+    return selected;
   }
 
   /// Finds a second waypoint [p2] separated by an angular divergence of 40°-160°
