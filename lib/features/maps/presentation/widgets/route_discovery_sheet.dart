@@ -219,6 +219,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                 error: (err, _) => _RouteErrorView(
                   error: err,
                   onRetry: () {
+                    ref.read(connectivityMonitorProvider).refreshConnectivity();
                     ref.read(forceRefreshProvider.notifier).trigger();
                     ref.invalidate(discoveredRoutesProvider);
                   },
@@ -758,6 +759,21 @@ class _RouteErrorView extends StatelessWidget {
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded, size: 16),
             label: const Text('Retry'),
+          ),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const MapServicesCheckScreen(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.info_outline_rounded, size: 14),
+            label: const Text(
+              'Check Map Services',
+              style: TextStyle(fontSize: 12),
+            ),
           ),
         ],
       ),

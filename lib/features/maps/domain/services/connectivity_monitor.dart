@@ -204,8 +204,23 @@ class ConnectivityMonitor with WidgetsBindingObserver {
   /// - Returns [NetworkReachabilityStatus.unknown] if probe fails, throws, or is indeterminate
   ///   (never falsely assumes offline on probe failure).
   Future<NetworkReachabilityStatus> checkReachability() async {
-    // If explicitly marked offline (no network, disconnected interface), it is definitely offline.
+    // If platform reports offline (or before platform listener binds),
+    // verify with reachability probe if available to prevent false-offline states.
     if (!_isOnline || _connectionType == NetworkConnectionType.none) {
+      final probe = _reachabilityProbe;
+      if (probe != null) {
+        try {
+          final result = await probe();
+          final status = _normalizeReachability(result);
+          if (status == NetworkReachabilityStatus.online) {
+            _isOnline = true;
+            _connectionType = NetworkConnectionType.other;
+            return NetworkReachabilityStatus.online;
+          }
+        } catch (_) {
+          // Probe failed or threw, confirm offline
+        }
+      }
       return NetworkReachabilityStatus.offline;
     }
 
