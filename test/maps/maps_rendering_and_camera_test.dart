@@ -385,6 +385,7 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) async {
     return RouteDiscoveryResult.empty(
       diagnostics: RouteDiscoveryDiagnostics(
@@ -405,6 +406,7 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) async* {
     yield await discoverRoutes(
       center: center,
@@ -412,6 +414,7 @@ class _MockRouteDiscoveryEngine extends RouteDiscoveryEngine {
       filter: filter,
       searchCenterSource: searchCenterSource,
       hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+      forceRefresh: forceRefresh,
     );
   }
 }

@@ -160,6 +160,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) async* {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
@@ -170,27 +171,31 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       filter: filter,
     );
 
-    // 1. Check in-memory LRU cache
-    final cached = _cache.get<List<SavedRoute>>(cacheKey);
-    if (cached != null) {
-      final diag = RouteDiscoveryDiagnostics(
-        timestamp: DateTime.now(),
-        searchCenterSource: searchCenterSource,
-        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
-        roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
-        roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
-        searchRadiusMeters: radiusMeters,
-        overpassStatus: 'cached',
-        nominatimCount: 0,
-        candidatesCount: 0,
-        finalRouteCount: cached.length,
-        emptyReason:
-            cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
-      );
-      final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
-      _lastDiscoveryResult = res;
-      yield res;
-      return;
+    // 1. Check in-memory LRU cache (bypassed if forceRefresh == true)
+    if (forceRefresh) {
+      _cache.invalidate(cacheKey);
+    } else {
+      final cached = _cache.get<List<SavedRoute>>(cacheKey);
+      if (cached != null) {
+        final diag = RouteDiscoveryDiagnostics(
+          timestamp: DateTime.now(),
+          searchCenterSource: searchCenterSource,
+          hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+          roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+          roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+          searchRadiusMeters: radiusMeters,
+          overpassStatus: 'cached',
+          nominatimCount: 0,
+          candidatesCount: 0,
+          finalRouteCount: cached.length,
+          emptyReason:
+              cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
+        );
+        final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
+        _lastDiscoveryResult = res;
+        yield res;
+        return;
+      }
     }
 
     // 2. Mark new generation and cancel outdated network tasks
@@ -211,8 +216,8 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     final tracker = _RoutingDiagnosticsTracker();
     String? nominatimError;
     int nominatimCount = 0;
-
     int rawPlacesCount = 0;
+    String? candidateRejectionReason;
 
     RouteDiscoveryResult createResult(
       List<SavedRoute> currentRoutes,
@@ -254,6 +259,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         nominatimCount: nominatimCount,
         nominatimError: nominatimError,
         candidatesCount: currentCandidates.length,
+        candidateRejectionReason: candidateRejectionReason,
         valhallaAttempts: tracker.valhallaAttempts,
         valhallaSuccesses: tracker.valhallaSuccesses,
         valhallaNulls: tracker.valhallaNulls,
@@ -281,6 +287,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         center: center,
         radiusMeters: radiusMeters,
         requestId: requestId,
+        forceRefresh: forceRefresh,
       ).then<List<OverpassPlace>>((res) => res).catchError((e) {
         overpassFailure = e;
         return <OverpassPlace>[];
@@ -290,6 +297,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         center: center,
         radiusMeters: radiusMeters,
         requestId: requestId,
+        forceRefresh: forceRefresh,
       ).then<List<OverpassPlace>>((res) {
         nominatimCount = res.length;
         return res;
@@ -326,6 +334,19 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
       if (places.isNotEmpty) {
         overpassFailure = null;
+      }
+
+      if (kDebugMode) {
+        final parksCount = places.where((p) => p.isPark).length;
+        final pathsCount = places.where((p) => p.isTrail).length;
+        final expandedCount = places
+            .where((p) => haversineDistance(center, p.latLng) > 3000)
+            .length;
+        debugPrint(
+          '[RouteDiscovery][req-$requestId] Overpass/Nominatim places: ${places.length} '
+          '(parks: $parksCount, paths: $pathsCount, expanded-radius (>3km): $expandedCount)'
+          '${_overpass.lastRemark != null ? ", remark: ${_overpass.lastRemark}" : ""}',
+        );
       }
 
       if (requestId != _activeRequestId) return;
@@ -412,7 +433,19 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
 
       // 2. Select candidates prioritized by geographic diversity and feature type (max 8)
-      final candidates = _pickCandidateWaypoints(center, places);
+      var candidates = _pickCandidateWaypoints(center, places);
+
+      if (candidates.isEmpty && places.isNotEmpty) {
+        candidateRejectionReason = _diagnoseCandidateGate(center, places);
+        if (kDebugMode) {
+          debugPrint(
+            '[RouteDiscovery][req-$requestId] places > 0 (${places.length}) but candidates == 0 '
+            '($candidateRejectionReason). Falling back to synthetic grid candidates.',
+          );
+        }
+        final gridFallback = _syntheticGridWaypoints(center, radiusMeters);
+        candidates = _pickCandidateWaypoints(center, gridFallback);
+      }
 
       if (candidates.isEmpty) {
         yield createResult(const [], places, candidates, overpassFailure);
@@ -483,6 +516,24 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     }
   }
 
+  static String _diagnoseCandidateGate(LatLng center, List<OverpassPlace> places) {
+    if (places.isEmpty) return 'no_places';
+    final close = places.where((p) => haversineDistance(center, p.latLng) < 250.0).length;
+    final mid = places.where((p) {
+      final d = haversineDistance(center, p.latLng);
+      return d >= 250.0 && d < 1500.0;
+    }).length;
+    final far = places.where((p) => haversineDistance(center, p.latLng) >= 1500.0).length;
+
+    if (close > 0 && mid == 0 && far == 0) {
+      return 'distance_cluster_under_250m';
+    } else if (close == 0 && mid == 0 && far == 0) {
+      return 'distance_all_out_of_bounds';
+    } else {
+      return 'spacing_and_cluster_dedup';
+    }
+  }
+
   @override
   Future<RouteDiscoveryResult> discoverRoutes({
     required LatLng center,
@@ -490,6 +541,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) async {
     final radiusMeters = math.min(radiusKm * 1000, _maxSearchRadiusMeters);
 
@@ -500,31 +552,38 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       filter: filter,
     );
 
-    // 1. Check in-memory LRU cache
-    final cached = _cache.get<List<SavedRoute>>(cacheKey);
-    if (cached != null) {
-      final diag = RouteDiscoveryDiagnostics(
-        timestamp: DateTime.now(),
-        searchCenterSource: searchCenterSource,
-        hasValidNonFallbackLocation: hasValidNonFallbackLocation,
-        roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
-        roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
-        searchRadiusMeters: radiusMeters,
-        overpassStatus: 'cached',
-        nominatimCount: 0,
-        candidatesCount: 0,
-        finalRouteCount: cached.length,
-        emptyReason:
-            cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
-      );
-      final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
-      _lastDiscoveryResult = res;
-      return res;
+    // 1. Check in-memory LRU cache (bypassed if forceRefresh == true)
+    if (forceRefresh) {
+      _cache.invalidate(cacheKey);
+    } else {
+      final cached = _cache.get<List<SavedRoute>>(cacheKey);
+      if (cached != null) {
+        final diag = RouteDiscoveryDiagnostics(
+          timestamp: DateTime.now(),
+          searchCenterSource: searchCenterSource,
+          hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+          roundedLat: RouteDiscoveryDiagnostics.roundCoord(center.latitude),
+          roundedLon: RouteDiscoveryDiagnostics.roundCoord(center.longitude),
+          searchRadiusMeters: radiusMeters,
+          overpassStatus: 'cached',
+          nominatimCount: 0,
+          candidatesCount: 0,
+          finalRouteCount: cached.length,
+          emptyReason:
+              cached.isEmpty ? EmptyReason.genuineEmpty : EmptyReason.none,
+        );
+        final res = RouteDiscoveryResult(routes: cached, diagnostics: diag);
+        _lastDiscoveryResult = res;
+        return res;
+      }
     }
 
-    // 2. Join in-flight identical request if active
-    if (_inFlightDiscoveries.containsKey(cacheKey)) {
+    // 2. Join in-flight identical request if active (bypassed if forceRefresh == true)
+    if (!forceRefresh && _inFlightDiscoveries.containsKey(cacheKey)) {
       return _inFlightDiscoveries[cacheKey]!;
+    }
+    if (forceRefresh) {
+      _inFlightDiscoveries.remove(cacheKey);
     }
 
     final completer = Completer<RouteDiscoveryResult>();
@@ -540,6 +599,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         filter: filter,
         searchCenterSource: searchCenterSource,
         hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+        forceRefresh: forceRefresh,
       );
 
       RouteDiscoveryResult? lastEmitted;
@@ -805,7 +865,7 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
           name: '$label Walk',
           lat: latDeg,
           lon: lonDeg,
-          tags: const {'highway': 'footway'},
+          tags: const {'highway': 'footway', 'synthetic': 'grid'},
           isNamed: false,
         ));
       }
@@ -842,10 +902,11 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
         return da.compareTo(db);
       });
 
-    // Prefer named places and parks, followed by mapped trails and footways
-    final namedPlaces = sorted.where((p) => p.isNamed).toList();
-    final unnamedPlaces = sorted.where((p) => !p.isNamed).toList();
-    final ordered = [...namedPlaces, ...unnamedPlaces];
+    // Prefer named places and parks, followed by mapped trails and footways, then synthetic grid waypoints
+    final realNamed = sorted.where((p) => p.isNamed && p.tags['synthetic'] != 'grid').toList();
+    final realUnnamed = sorted.where((p) => !p.isNamed && p.tags['synthetic'] != 'grid').toList();
+    final synthetic = sorted.where((p) => p.tags['synthetic'] == 'grid').toList();
+    final ordered = [...realNamed, ...realUnnamed, ...synthetic];
 
     // Partition by distance from search center:
     // Close (< 250m) - features in the immediate park/location
@@ -895,37 +956,56 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
       }
     }
 
-    // 1. Cap very close waypoints (< 250m) to at most 2 so they don't crowd out
-    // waypoints needed to form routes >= 300m.
-    for (final p in close.take(2)) {
+    // Distinguish real OSM places from synthetic grid waypoints
+    final realClose = close.where((p) => p.tags['synthetic'] != 'grid').toList();
+    final realMid = mid.where((p) => p.tags['synthetic'] != 'grid').toList();
+    final realFar = far.where((p) => p.tags['synthetic'] != 'grid').toList();
+    final synClose = close.where((p) => p.tags['synthetic'] == 'grid').toList();
+    final synMid = mid.where((p) => p.tags['synthetic'] == 'grid').toList();
+    final synFar = far.where((p) => p.tags['synthetic'] == 'grid').toList();
+
+    // 1. First prioritize real OSM places:
+    // Cap very close real places (< 250m) to at most 2
+    for (final p in realClose.take(2)) {
       addCandidate(p);
     }
-
-    // 2. Select up to 4 mid-range candidates (250m - 1500m) for practical 1-3km walks/runs
-    for (final p in mid.take(4)) {
+    // Real mid-range places (250m - 1500m)
+    for (final p in realMid.take(4)) {
       addCandidate(p);
     }
-
-    // 3. Select up to 2 far-range candidates (1500m+) for varied distance options
-    for (final p in far.take(2)) {
+    // Real far-range places (1500m+)
+    for (final p in realFar.take(2)) {
       addCandidate(p);
     }
-
-    // 4. Fill any remaining slots up to _maxCandidateWaypoints from mid, far, and ordered:
-    // Do NOT fill with remaining < 250m items if 2 close items were already included.
-    for (final p in mid.skip(4)) {
+    // Additional real mid/far places
+    for (final p in realMid.skip(4)) {
       if (selected.length >= _maxCandidateWaypoints) break;
       addCandidate(p);
     }
-    for (final p in far.skip(2)) {
+    for (final p in realFar.skip(2)) {
       if (selected.length >= _maxCandidateWaypoints) break;
       addCandidate(p);
     }
+
+    // 2. Fill remaining slots with synthetic waypoints if needed
+    for (final p in synMid) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
+    for (final p in synFar) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
+    for (final p in synClose) {
+      if (selected.length >= _maxCandidateWaypoints) break;
+      addCandidate(p);
+    }
+
+    // 3. Fallback to any remaining ordered if not filled
     for (final p in ordered) {
       if (selected.length >= _maxCandidateWaypoints) break;
       final d = haversineDistance(center, p.latLng);
-      if (d < 250.0 && close.isNotEmpty) {
-        // Skip over-clustering on < 250m points to avoid sub-300m discarded routes
+      if (d < 250.0 && close.isNotEmpty && p.tags['synthetic'] != 'grid') {
         continue;
       }
       addCandidate(p);
@@ -1004,19 +1084,27 @@ class RealRouteDiscoveryService implements RouteDiscoveryProvider {
     bool isLoop,
   ) {
     // For named places (from Overpass/Nominatim), use the place name.
-    // For synthetic grid waypoints (isNamed=false, name="North Walk" etc.)
+    // For real unnamed places (isNamed=false, name="Mapped Footway"), use the feature name.
+    // For synthetic grid waypoints (isNamed=false, name="North Walk" etc.),
     // use a direction-based label that makes sense to the user.
-    if (p1.isNamed) {
-      if (isLoop) {
-        if (p2 != null && p2.isNamed && p1.name != p2.name) {
-          return '${p1.name} & ${p2.name} Loop';
+    final isSynthetic = p1.tags['synthetic'] == 'grid' ||
+        (!p1.isNamed && p1.name.endsWith(' Walk'));
+    if (!isSynthetic) {
+      if (p1.isNamed) {
+        if (isLoop) {
+          if (p2 != null && p2.isNamed && p1.name != p2.name) {
+            return '${p1.name} & ${p2.name} Loop';
+          }
+          return '${p1.name} Loop';
+        } else {
+          if (p2 != null && p2.isNamed && p1.name != p2.name) {
+            return '${p1.name} & ${p2.name} Out & Back';
+          }
+          return '${p1.name} Out & Back';
         }
-        return '${p1.name} Loop';
       } else {
-        if (p2 != null && p2.isNamed && p1.name != p2.name) {
-          return '${p1.name} & ${p2.name} Out & Back';
-        }
-        return '${p1.name} Out & Back';
+        // Real OSM feature without an explicit place name (e.g. "Mapped Footway")
+        return isLoop ? '${p1.name} Loop' : '${p1.name} Out & Back';
       }
     } else {
       // Synthetic grid waypoint — label by direction + route type

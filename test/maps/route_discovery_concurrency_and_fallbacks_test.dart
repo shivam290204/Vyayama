@@ -2464,6 +2464,7 @@ class _StaticOverpass extends OverpassService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async =>
       _places;
 }
@@ -2477,6 +2478,7 @@ class _StaticNominatim extends NominatimService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async =>
       _places;
 }
@@ -2556,6 +2558,7 @@ class _ControllableOverpass extends OverpassService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) {
     if (_callIndex < _completers.length) {
       return _completers[_callIndex++].future;
@@ -2574,6 +2577,7 @@ class _CountingOverpass extends OverpassService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     onQuery();
     await Future<void>.delayed(delay);

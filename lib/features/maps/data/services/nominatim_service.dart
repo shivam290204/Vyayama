@@ -216,13 +216,19 @@ class NominatimService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     final cacheKey = RouteCache.buildNominatimNearbyKey(center, radiusMeters);
-    final cached = _cache.get<List<OverpassPlace>>(cacheKey);
-    if (cached != null) return cached;
+    if (forceRefresh) {
+      _cache.invalidate(cacheKey);
+      _inFlightNearby.remove(cacheKey);
+    } else {
+      final cached = _cache.get<List<OverpassPlace>>(cacheKey);
+      if (cached != null) return cached;
 
-    if (_inFlightNearby.containsKey(cacheKey)) {
-      return _inFlightNearby[cacheKey]!;
+      if (_inFlightNearby.containsKey(cacheKey)) {
+        return _inFlightNearby[cacheKey]!;
+      }
     }
 
     final future = _executeFindNearby(center, radiusMeters, cacheKey, requestId: requestId);

@@ -448,6 +448,7 @@ class _FakeOverpassService extends OverpassService {
     required LatLng center,
     double radiusMeters = 5000,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     if (errorToThrow != null) {
       throw errorToThrow!;
@@ -470,6 +471,7 @@ class _FakeNominatimService extends NominatimService {
     required LatLng center,
     double radiusMeters = 5000,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     if (errorToThrow != null) {
       throw errorToThrow!;

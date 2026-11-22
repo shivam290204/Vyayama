@@ -258,8 +258,18 @@ class OverpassService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
-    _circuitBreaker.protect();
+    if (forceRefresh) {
+      _circuitBreaker.reset();
+      _endpointCooldowns.clear();
+      _allCancelled = false;
+      if (requestId != null) {
+        _cancelledRequestIds.remove(requestId);
+      }
+    } else {
+      _circuitBreaker.protect();
+    }
 
     if (_rateLimitedUntil != null &&
         DateTime.now().isBefore(_rateLimitedUntil!)) {
@@ -279,8 +289,12 @@ class OverpassService {
 
     final cacheKey = RouteCache.buildOverpassKey(center, radiusMeters);
 
-    final cached = _cache.get<List<OverpassPlace>>(cacheKey);
-    if (cached != null) return cached;
+    if (forceRefresh) {
+      _cache.invalidate(cacheKey);
+    } else {
+      final cached = _cache.get<List<OverpassPlace>>(cacheKey);
+      if (cached != null) return cached;
+    }
 
     // Fast-path: if device is confirmed offline, fail immediately without wasting time on network timeouts
     final initialReachability = await _determineReachability();
@@ -345,7 +359,7 @@ class OverpassService {
       }
     }
 
-    if (!_isCancelled(requestId)) {
+    if (!_isCancelled(requestId) && results.isNotEmpty) {
       _cache.set(cacheKey, results);
     }
     _circuitBreaker.recordSuccess();

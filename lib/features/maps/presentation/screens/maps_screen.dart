@@ -84,6 +84,8 @@ class _MapsScreenState extends ConsumerState<MapsScreen> {
     _mapMoveDebounce?.cancel();
     if (_currentCameraCenter != null) {
       ref.read(selectedMapCenterProvider.notifier).state = _currentCameraCenter;
+      ref.read(forceRefreshProvider.notifier).trigger();
+      ref.invalidate(discoveredRoutesProvider);
       setState(() => _showSearchThisArea = false);
     }
   }

@@ -66,6 +66,7 @@ class RouteDiscoveryDiagnostics {
     this.nominatimCount = 0,
     this.nominatimError,
     this.candidatesCount = 0,
+    this.candidateRejectionReason,
     this.valhallaAttempts = 0,
     this.valhallaSuccesses = 0,
     this.valhallaNulls = 0,
@@ -112,6 +113,9 @@ class RouteDiscoveryDiagnostics {
 
   /// Number of candidate waypoints selected for Valhalla routing.
   final int candidatesCount;
+
+  /// Specific filtering gate that rejected candidates when places > 0 but candidates == 0.
+  final String? candidateRejectionReason;
 
   /// Total Valhalla routing requests attempted.
   final int valhallaAttempts;
@@ -187,6 +191,9 @@ class RouteDiscoveryDiagnostics {
 
     buf.writeln('4. CANDIDATES & ROUTING');
     buf.writeln('   • Candidates Selected: $candidatesCount');
+    if (candidateRejectionReason != null) {
+      buf.writeln('   • Gate Rejection Reason: $candidateRejectionReason');
+    }
     buf.writeln('   • Valhalla Attempts: $valhallaAttempts');
     buf.writeln('   • Valhalla Successes: $valhallaSuccesses');
     buf.writeln('   • Valhalla Nulls: $valhallaNulls');

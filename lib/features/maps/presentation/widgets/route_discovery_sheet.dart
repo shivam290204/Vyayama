@@ -12,6 +12,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
+/// Plain, calm language explaining why no routes were discovered.
+String formatInlineEmptyReason(RouteDiscoveryDiagnostics diag) {
+  switch (diag.emptyReason) {
+    case EmptyReason.noPlacesFound:
+      final km = (diag.searchRadiusMeters / 1000).toStringAsFixed(
+        diag.searchRadiusMeters % 1000 == 0 ? 0 : 1,
+      );
+      return 'Overpass returned 0 places within $km km';
+    case EmptyReason.noCandidates:
+      return 'Found places nearby, but none met distance criteria for route generation';
+    case EmptyReason.allRoutesFiltered:
+      return 'Generated routes were too short (under 300 m) or duplicates';
+    case EmptyReason.genuineEmpty:
+      return 'No walkable routes could be formed from nearby map data';
+    case EmptyReason.allRoutesFailed:
+      return 'Found nearby paths, but routing service could not connect them';
+    case EmptyReason.serviceTimeout:
+      return 'Mapping service timed out while querying nearby paths';
+    case EmptyReason.rateLimited:
+      return 'Mapping services are temporarily busy (rate limited)';
+    case EmptyReason.serviceError:
+      return 'Mapping service returned an unexpected response';
+    case EmptyReason.noLocation:
+      return 'No location available to search';
+    case EmptyReason.none:
+      return '';
+  }
+}
+
 /// Draggable bottom sheet displaying nearby discoverable routes and quick record action.
 class RouteDiscoverySheet extends ConsumerWidget {
   const RouteDiscoverySheet({
@@ -65,7 +94,15 @@ class RouteDiscoverySheet extends ConsumerWidget {
               ),
             ],
           ),
-          child: ListView(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.read(forceRefreshProvider.notifier).trigger();
+              ref.invalidate(discoveredRoutesProvider);
+              try {
+                await ref.read(discoveredRoutesProvider.future);
+              } catch (_) {}
+            },
+            child: ListView(
             controller: scrollController,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             children: [
@@ -181,7 +218,10 @@ class RouteDiscoverySheet extends ConsumerWidget {
                 ),
                 error: (err, _) => _RouteErrorView(
                   error: err,
-                  onRetry: () => ref.invalidate(discoveredRoutesProvider),
+                  onRetry: () {
+                    ref.read(forceRefreshProvider.notifier).trigger();
+                    ref.invalidate(discoveredRoutesProvider);
+                  },
                 ),
                 data: (routes) {
                   if (routes.isEmpty) {
@@ -450,6 +490,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                                 foregroundColor: AppPalette.limeGreen,
                               ),
                               onPressed: () {
+                                ref.read(forceRefreshProvider.notifier).trigger();
                                 ref.invalidate(discoveredRoutesProvider);
                               },
                               icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -509,6 +550,23 @@ class RouteDiscoverySheet extends ConsumerWidget {
                               style: TextStyle(color: textMuted, fontSize: 12),
                             ),
                           ),
+                          if (diag != null &&
+                              diag.emptyReason != EmptyReason.none) ...[
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                formatInlineEmptyReason(diag),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: textMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           if (hasActiveFilter)
                             OutlinedButton.icon(
@@ -525,6 +583,7 @@ class RouteDiscoverySheet extends ConsumerWidget {
                                 ref
                                     .read(userLocationNotifierProvider.notifier)
                                     .refreshLocation();
+                                ref.read(forceRefreshProvider.notifier).trigger();
                                 ref.invalidate(discoveredRoutesProvider);
                               },
                               icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -592,7 +651,8 @@ class RouteDiscoverySheet extends ConsumerWidget {
               ),
             ],
           ),
-        );
+        ),
+      );
       },
     );
   }

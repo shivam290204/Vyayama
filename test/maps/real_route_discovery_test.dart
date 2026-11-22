@@ -24,6 +24,7 @@ class _FakeOverpass extends OverpassService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;
@@ -74,6 +75,7 @@ class _FakeNominatim extends NominatimService {
     required LatLng center,
     required double radiusMeters,
     int? requestId,
+    bool forceRefresh = false,
   }) async {
     if (exceptionToThrow != null) {
       throw exceptionToThrow!;

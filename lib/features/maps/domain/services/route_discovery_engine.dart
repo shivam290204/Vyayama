@@ -51,6 +51,7 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) {
     return _realService.discoverRoutes(
       center: center,
@@ -58,6 +59,7 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
       filter: filter,
       searchCenterSource: searchCenterSource,
       hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+      forceRefresh: forceRefresh,
     );
   }
 
@@ -68,6 +70,7 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
     RouteFilter? filter,
     SearchCenterSource searchCenterSource = SearchCenterSource.userGps,
     bool hasValidNonFallbackLocation = true,
+    bool forceRefresh = false,
   }) {
     return _realService.discoverRoutesProgressive(
       center: center,
@@ -75,6 +78,7 @@ class RouteDiscoveryEngine implements RouteDiscoveryProvider {
       filter: filter,
       searchCenterSource: searchCenterSource,
       hasValidNonFallbackLocation: hasValidNonFallbackLocation,
+      forceRefresh: forceRefresh,
     );
   }
 

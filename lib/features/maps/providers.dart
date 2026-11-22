@@ -259,6 +259,33 @@ final effectiveMapCenterProvider = Provider<LatLng?>((ref) {
   return LatLng(roundedLat, roundedLon);
 });
 
+/// Manages one-time forced refresh tokens for route discovery.
+class ForceRefreshNotifier extends StateNotifier<int> {
+  ForceRefreshNotifier() : super(0);
+
+  int _consumed = 0;
+
+  /// Triggers a forced refresh.
+  void trigger() {
+    state++;
+  }
+
+  /// Checks if there is an unconsumed trigger and consumes it for this build.
+  bool checkAndConsume() {
+    if (state > _consumed) {
+      _consumed = state;
+      return true;
+    }
+    return false;
+  }
+}
+
+/// Provider managing forced-refresh requests that bypass caches and cooldowns.
+final forceRefreshProvider =
+    StateNotifierProvider<ForceRefreshNotifier, int>((ref) {
+  return ForceRefreshNotifier();
+});
+
 /// Discovered routes near the effective center.
 /// Streams verified routes progressively as candidate batches complete.
 /// NEVER queries using arbitrary fallback coordinates.
@@ -267,6 +294,11 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
   final center = ref.watch(effectiveMapCenterProvider);
   final filter = ref.watch(activeRouteFilterProvider);
   final isManual = ref.watch(selectedMapCenterProvider) != null;
+
+  // React to force-refresh events
+  ref.watch(forceRefreshProvider);
+  final forceRefresh =
+      ref.read(forceRefreshProvider.notifier).checkAndConsume();
 
   final source = isManual
       ? SearchCenterSource.mapCenter
@@ -290,6 +322,7 @@ final discoveredRoutesProvider = StreamProvider<List<SavedRoute>>((ref) async* {
     filter: filter,
     searchCenterSource: source,
     hasValidNonFallbackLocation: true,
+    forceRefresh: forceRefresh,
   )) {
     hasEmitted = true;
     yield routes;
