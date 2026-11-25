@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -61,39 +63,13 @@ Future<void> main() async {
     }
   }
 
-  // Initialize native local notification channels and timezones early
-  try {
-    await NotificationService.instance.initialize();
-  } catch (e) {
-    debugPrint('NotificationService.initialize error: $e');
-  }
-
-  // Initialize background sync service for social notifications when app is closed
-  try {
-    await BackgroundSyncService.instance.initialize();
-  } catch (e) {
-    debugPrint('BackgroundSyncService.initialize error: $e');
-  }
-
-  // Initialize Firebase Cloud Messaging for instant push notifications
-  try {
-    await PushNotificationService.instance.initialize();
-  } catch (e) {
-    debugPrint('PushNotificationService.initialize error: $e');
-  }
-
   final prefs = await SharedPreferences.getInstance();
 
+  String? initialUid;
   if (Env.isSupabaseConfigured) {
     try {
-      final currentUid = Supabase.instance.client.auth.currentUser?.id;
-      if (currentUid != null && currentUid.isNotEmpty) {
-        await BackgroundSyncService.instance.syncCurrentUserId(currentUid);
-        await PushNotificationService.instance.syncCurrentUserId(currentUid);
-      }
-    } catch (e) {
-      debugPrint('BackgroundSyncService.syncCurrentUserId error: $e');
-    }
+      initialUid = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {}
   }
 
   runApp(
@@ -102,4 +78,39 @@ Future<void> main() async {
       child: const VyayamaApp(),
     ),
   );
+
+  // Initialize heavy native & network services after first frame is queued
+  // so app startup is never stalled waiting on timezone DB, WorkManager, or FCM.
+  unawaited(_initializeDeferredServices(initialUid));
+}
+
+Future<void> _initializeDeferredServices(String? currentUid) async {
+  await Future.wait([
+    NotificationService.instance.initialize().catchError((Object e) {
+      debugPrint('NotificationService.initialize error: $e');
+    }),
+    BackgroundSyncService.instance.initialize().catchError((Object e) {
+      debugPrint('BackgroundSyncService.initialize error: $e');
+    }),
+    PushNotificationService.instance.initialize().catchError((Object e) {
+      debugPrint('PushNotificationService.initialize error: $e');
+    }),
+  ]);
+
+  if (Env.isSupabaseConfigured && currentUid != null && currentUid.isNotEmpty) {
+    unawaited(
+      BackgroundSyncService.instance.syncCurrentUserId(currentUid).catchError(
+        (Object e) {
+          debugPrint('BackgroundSyncService.syncCurrentUserId error: $e');
+        },
+      ),
+    );
+    unawaited(
+      PushNotificationService.instance.syncCurrentUserId(currentUid).catchError(
+        (Object e) {
+          debugPrint('PushNotificationService.syncCurrentUserId error: $e');
+        },
+      ),
+    );
+  }
 }

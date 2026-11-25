@@ -13,11 +13,13 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 class SupabaseAuthRepository implements AuthRepository {
   final _client = supa.Supabase.instance.client.auth;
   final _recoveryController = StreamController<bool>.broadcast();
+  final _authOverrideController = StreamController<AuthUser?>.broadcast();
 
   @override
   Stream<bool> get onPasswordRecovery => _recoveryController.stream;
 
   static AuthUser? _cachedUser;
+  static bool _signedOut = false;
   static bool _googleSignInInitialized = false;
 
   static Future<void> _ensureGoogleSignInInitialized() async {
@@ -42,6 +44,7 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   static void _cacheUser(AuthUser user) {
+    _signedOut = false;
     _cachedUser = user;
     final session = supa.Supabase.instance.client.auth.currentSession;
     SecureAuthStorage.instance.saveSession(
@@ -53,14 +56,15 @@ class SupabaseAuthRepository implements AuthRepository {
     );
   }
 
-  static void _clearCachedUser() {
+  static Future<void> _clearCachedUser() async {
     _cachedUser = null;
-    BackgroundSyncService.instance.clearUser();
-    SecureAuthStorage.instance.clearSession();
+    await BackgroundSyncService.instance.clearUser();
+    await SecureAuthStorage.instance.clearSession();
   }
 
   @override
   AuthUser? get currentUser {
+    if (_signedOut) return null;
     final user = _client.currentUser;
     if (user != null) return _mapUser(user);
 
@@ -70,69 +74,102 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Stream<AuthUser?> authStateChanges() async* {
-    // 1. Immediately yield current or cached user so stream never blocks when offline
-    var current = currentUser;
-    if (current == null) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final id = prefs.getString('last_signed_in_user_id');
-        if (id != null && id.isNotEmpty) {
-          final email = prefs.getString('last_signed_in_user_email') ?? '';
-          final name = prefs.getString('last_signed_in_user_name');
-          current = AuthUser(id: id, email: email, displayName: name);
-          _cachedUser = current;
-        }
-      } catch (_) {}
-    }
-    yield current;
+  Stream<AuthUser?> authStateChanges() {
+    final controller = StreamController<AuthUser?>();
+    StreamSubscription<supa.AuthState>? sub;
+    StreamSubscription<AuthUser?>? overrideSub;
+    var closed = false;
 
-    // 2. Stream subsequent auth state changes from Supabase
-    await for (final event in _client.onAuthStateChange) {
-      if (event.event == supa.AuthChangeEvent.passwordRecovery) {
-        _recoveryController.add(true);
-      }
-      if (event.session != null) {
-        SharedPreferences.getInstance().then((prefs) {
-          prefs.setString('cached_auth_access_token', event.session!.accessToken);
-          if (event.session!.refreshToken != null) {
-            prefs.setString('cached_auth_refresh_token', event.session!.refreshToken!);
-          }
-          if (event.session!.user.id.isNotEmpty) {
-            prefs.setString('last_signed_in_user_id', event.session!.user.id);
-          }
-        }).catchError((_) {});
-        final mapped = _mapUser(event.session!.user);
-        BackgroundSyncService.instance.syncCurrentUserId(mapped.id);
-        yield mapped;
-      } else if (event.event == supa.AuthChangeEvent.signedOut) {
-        _clearCachedUser();
-        yield null;
-      } else {
-        // Offline or initial session loading with temporary null session:
-        // DO NOT log the user out! Keep cached session if available.
-        if (_cachedUser != null) {
-          yield _cachedUser;
-        } else {
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            final id = prefs.getString('last_signed_in_user_id');
-            if (id != null && id.isNotEmpty) {
-              final email = prefs.getString('last_signed_in_user_email') ?? '';
-              final name = prefs.getString('last_signed_in_user_name');
-              _cachedUser = AuthUser(id: id, email: email, displayName: name);
-              yield _cachedUser;
-              continue;
-            }
-          } catch (_) {}
-          yield null;
-        }
+    void emit(AuthUser? user) {
+      if (!closed && !controller.isClosed) {
+        controller.add(user);
       }
     }
+
+    Future<void> start() async {
+      // 1. Immediately yield current or cached user so stream never blocks when offline
+      var current = currentUser;
+      if (!_signedOut && current == null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final id = prefs.getString('last_signed_in_user_id');
+          if (id != null && id.isNotEmpty) {
+            final email = prefs.getString('last_signed_in_user_email') ?? '';
+            final name = prefs.getString('last_signed_in_user_name');
+            current = AuthUser(id: id, email: email, displayName: name);
+            _cachedUser = current;
+          }
+        } catch (_) {}
+      }
+      emit(current);
+
+      overrideSub = _authOverrideController.stream.listen(emit);
+
+      // 2. Stream subsequent auth state changes from Supabase
+      sub = _client.onAuthStateChange.listen((event) async {
+        if (event.event == supa.AuthChangeEvent.passwordRecovery) {
+          _recoveryController.add(true);
+        }
+        if (event.session != null) {
+          if (_signedOut &&
+              event.event != supa.AuthChangeEvent.signedIn &&
+              event.event != supa.AuthChangeEvent.passwordRecovery) {
+            return;
+          }
+          _signedOut = false;
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString('cached_auth_access_token', event.session!.accessToken);
+            if (event.session!.refreshToken != null) {
+              prefs.setString(
+                  'cached_auth_refresh_token', event.session!.refreshToken!);
+            }
+            if (event.session!.user.id.isNotEmpty) {
+              prefs.setString('last_signed_in_user_id', event.session!.user.id);
+            }
+          }).catchError((_) {});
+          final mapped = _mapUser(event.session!.user);
+          unawaited(BackgroundSyncService.instance.syncCurrentUserId(mapped.id));
+          emit(mapped);
+        } else if (event.event == supa.AuthChangeEvent.signedOut) {
+          _signedOut = true;
+          await _clearCachedUser();
+          emit(null);
+        } else if (!_signedOut) {
+          // Offline or initial session loading with temporary null session:
+          // DO NOT log the user out! Keep cached session if available.
+          if (_cachedUser != null) {
+            emit(_cachedUser);
+          } else {
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              final id = prefs.getString('last_signed_in_user_id');
+              if (id != null && id.isNotEmpty) {
+                final email = prefs.getString('last_signed_in_user_email') ?? '';
+                final name = prefs.getString('last_signed_in_user_name');
+                _cachedUser = AuthUser(id: id, email: email, displayName: name);
+                emit(_cachedUser);
+                return;
+              }
+            } catch (_) {}
+            emit(null);
+          }
+        }
+      });
+    }
+
+    controller.onCancel = () {
+      closed = true;
+      sub?.cancel();
+      overrideSub?.cancel();
+    };
+
+    unawaited(start());
+    return controller.stream;
   }
 
   @override
   Future<void> signInWithEmail({required String email, required String password}) async {
+    _signedOut = false;
     try {
       await _client.signInWithPassword(email: email, password: password);
     } on supa.AuthException catch (e) {
@@ -149,6 +186,7 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
     String? username,
   }) async {
+    _signedOut = false;
     try {
       final cleanUsername = (username != null && username.trim().isNotEmpty)
           ? username.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '')
@@ -185,6 +223,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
+    _signedOut = false;
     try {
       final serverClientId = Env.googleWebClientId;
       if (!kIsWeb && serverClientId.isNotEmpty) {
@@ -256,20 +295,48 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
-    _clearCachedUser();
-    if (!kIsWeb && Env.googleWebClientId.isNotEmpty) {
+    _signedOut = true;
+    _cachedUser = null;
+    _authOverrideController.add(null);
+
+    // Best-effort remote push/Google cleanup capped at 2s so Log out never hangs
+    final cleanupTasks = <Future<void>>[
+      PushNotificationService.instance
+          .unregisterDeviceToken()
+          .timeout(const Duration(seconds: 2))
+          .catchError((_) {}),
+      if (!kIsWeb && Env.googleWebClientId.isNotEmpty)
+        () async {
+          await _ensureGoogleSignInInitialized()
+              .timeout(const Duration(seconds: 2));
+          await GoogleSignIn.instance
+              .signOut()
+              .timeout(const Duration(seconds: 2));
+        }()
+            .catchError((_) {}),
+    ];
+    try {
+      await Future.wait(cleanupTasks);
+    } catch (_) {}
+
+    await _clearCachedUser();
+
+    try {
+      await _client
+          .signOut(scope: supa.SignOutScope.local)
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {}
+
+    if (Env.isSupabaseConfigured) {
       try {
-        await GoogleSignIn.instance.signOut();
+        final sessionKey =
+            'sb-${Uri.parse(Env.supabaseUrl).host.split(".").first}-auth-token';
+        await SupabaseSecureLocalStorage(persistSessionKey: sessionKey)
+            .removePersistedSession();
       } catch (_) {}
     }
-    try {
-      await PushNotificationService.instance.unregisterDeviceToken();
-    } catch (_) {}
-    try {
-      await _client.signOut();
-    } catch (e) {
-      throw AuthFailure('Failed to sign out.');
-    }
+
+    _authOverrideController.add(null);
   }
 
   @override

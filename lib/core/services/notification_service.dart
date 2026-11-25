@@ -30,6 +30,7 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+  Future<void>? _initFuture;
 
   String? _lastSchedulingError;
   String? get lastSchedulingError => _lastSchedulingError;
@@ -67,7 +68,12 @@ class NotificationService {
           defaultTargetPlatform == TargetPlatform.linux);
 
   /// Initializes timezone data, notification channels, and native plugin.
-  Future<void> initialize() async {
+  Future<void> initialize() {
+    if (!isSupportedPlatform || _isInitialized) return Future.value();
+    return _initFuture ??= _doInitialize();
+  }
+
+  Future<void> _doInitialize() async {
     if (!isSupportedPlatform || _isInitialized) return;
 
     try {
@@ -296,6 +302,7 @@ class NotificationService {
 
       _isInitialized = true;
     } catch (e) {
+      _initFuture = null;
       if (!e.toString().contains('LateInitializationError')) {
         debugPrint('NotificationService initialization failed: $e');
       }

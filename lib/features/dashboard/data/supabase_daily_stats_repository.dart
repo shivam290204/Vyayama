@@ -36,6 +36,7 @@ class SupabaseDailyStatsRepository implements DailyStatsRepository {
     final localMap = <String, DailyStats>{
       for (final r in localRows) dayKey(r.date): r,
     };
+    final pendingDates = (await _localStorage.getPendingSyncDates()).toSet();
 
     // 2. If online and authenticated, pull remote rows and merge
     final uid = _userId;
@@ -50,15 +51,18 @@ class SupabaseDailyStatsRepository implements DailyStatsRepository {
             .eq('user_id', uid)
             .gte('date', fromStr)
             .lte('date', toStr)
-            .order('date', ascending: true);
+            .order('date', ascending: true)
+            .timeout(const Duration(seconds: 4));
 
         for (final row in res) {
           final remote = DailyStats.fromJson(Map<String, dynamic>.from(row));
           final k = dayKey(remote.date);
           final local = localMap[k];
 
-          // If local offline steps are higher than remote, keep local and sync to cloud
-          if (local != null && local.steps > remote.steps) {
+          // Preserve local when it has unsynced changes (including an explicit reset to 0)
+          // or is ahead of remote.
+          if (local != null &&
+              (local.steps > remote.steps || pendingDates.contains(k))) {
             unawaited(upsert(local));
           } else {
             localMap[k] = remote;
@@ -92,7 +96,8 @@ class SupabaseDailyStatsRepository implements DailyStatsRepository {
 
         await _client
             .from('daily_stats')
-            .upsert(data, onConflict: 'user_id, date');
+            .upsert(data, onConflict: 'user_id, date')
+            .timeout(const Duration(seconds: 4));
 
         // Cloud sync succeeded: remove from pending queue
         await _localStorage.clearPendingSyncDate(dayKey(stats.date));
@@ -119,7 +124,8 @@ class SupabaseDailyStatsRepository implements DailyStatsRepository {
 
             await _client
                 .from('daily_stats')
-                .upsert(data, onConflict: 'user_id, date');
+                .upsert(data, onConflict: 'user_id, date')
+                .timeout(const Duration(seconds: 4));
 
             await _localStorage.clearPendingSyncDate(dateStr);
           }

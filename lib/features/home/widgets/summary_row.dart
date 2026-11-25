@@ -69,9 +69,6 @@ class _SummaryRowState extends ConsumerState<SummaryRow>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(liveStepStatsProvider, (previous, next) {
-      ref.invalidate(recentStatsProvider);
-    });
     final stats = ref.watch(todayStatsProvider);
     final targets = ref.watch(dailyTargetsProvider);
 

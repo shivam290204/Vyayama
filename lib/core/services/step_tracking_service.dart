@@ -439,7 +439,8 @@ class StepTrackingService with WidgetsBindingObserver {
 
     // 3. Fallback or user-enabled external health sync
     final isHealthSyncOn = await HealthService.instance.isSyncEnabled();
-    if ((!isSensorActive.value || isHealthSyncOn) && HealthService.instance.isSupported) {
+    if ((isHealthSyncOn || (!isSensorActive.value && !hasPermission.value)) &&
+        HealthService.instance.isSupported) {
       await syncWithHealthService(currentTime: now);
     }
 
@@ -528,6 +529,9 @@ class StepTrackingService with WidgetsBindingObserver {
 
     final storedDate = prefs.getString('global_last_hardware_date');
     final storedLastRaw = prefs.getInt('global_last_hardware_steps');
+    final storedBootTimeMs = prefs.getInt('global_last_boot_time_ms');
+    final bootTimeMs = overrideBootTimeMs ?? await getDeviceBootTimeMs();
+    final todayStart = DateTime(now.year, now.month, now.day);
     int currentDaySteps = prefs.getInt('today_steps_$todayKeyStr') ?? _todaySteps;
 
     // Fast-path: duplicate event on the same day with same raw reading
@@ -541,12 +545,11 @@ class StepTrackingService with WidgetsBindingObserver {
       _lastRawSensorSteps = raw;
       _lastProcessedEventTime = now;
 
-      // Check if device booted today
-      final bootTimeMs = overrideBootTimeMs ?? await getDeviceBootTimeMs();
-      final todayStart = DateTime(now.year, now.month, now.day);
-      if (bootTimeMs != null && bootTimeMs >= todayStart.millisecondsSinceEpoch) {
+      // Check if device booted today (within sanity bound)
+      if (bootTimeMs != null &&
+          bootTimeMs >= todayStart.millisecondsSinceEpoch &&
+          raw <= 20000) {
         // Device booted today, so the hardware step counter started from 0 today.
-        // Therefore, ALL raw steps since boot occurred today!
         currentDaySteps = math.max(currentDaySteps, raw);
       }
 
@@ -554,6 +557,9 @@ class StepTrackingService with WidgetsBindingObserver {
       isSensorActive.value = true;
       await prefs.setInt('global_last_hardware_steps', raw);
       await prefs.setString('global_last_hardware_date', todayKeyStr);
+      if (bootTimeMs != null) {
+        await prefs.setInt('global_last_boot_time_ms', bootTimeMs);
+      }
       await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
       debugPrint(
           'StepTrackingService: Initial hardware baseline set at $raw steps (today: $_todaySteps)');
@@ -566,7 +572,7 @@ class StepTrackingService with WidgetsBindingObserver {
       debugPrint(
           'StepTrackingService: Midnight rollover detected ($storedDate -> $todayKeyStr)');
 
-      // Archive yesterday's stats in local storage for history & weekly charts
+      // Archive yesterday's/previous day's stats in local storage for history & weekly charts
       try {
         final yesterdaySteps =
             prefs.getInt('today_steps_$storedDate') ?? _todaySteps;
@@ -585,39 +591,59 @@ class StepTrackingService with WidgetsBindingObserver {
         debugPrint('StepTrackingService: Error archiving yesterday stats: $e');
       }
 
-      // Compute steps accumulated overnight since yesterday's last reading
+      final storedDay = DateTime.tryParse(storedDate);
+      final dayDiff = storedDay != null
+          ? dayOnly(now).difference(dayOnly(storedDay)).inDays
+          : 1;
+
       int overnightDelta = 0;
-      if (raw >= storedLastRaw) {
-        overnightDelta = raw - storedLastRaw;
+      if (dayDiff == 1) {
+        if (raw >= storedLastRaw) {
+          overnightDelta = raw - storedLastRaw;
+        } else if (bootTimeMs == null ||
+            bootTimeMs >= todayStart.millisecondsSinceEpoch) {
+          // Only attribute post-reboot raw steps to today when the reboot happened today
+          overnightDelta = raw;
+        }
       } else {
-        // Device rebooted overnight
-        overnightDelta = raw;
+        debugPrint(
+            'StepTrackingService: Multi-day gap ($dayDiff days) detected ($storedDate -> $todayKeyStr); re-baselining cleanly at raw=$raw');
       }
 
-      // Sanitize delta against impossible hardware jumps
-      if (overnightDelta < 0 || overnightDelta > 50000) {
+      // Sanitize delta against impossible hardware jumps or multi-day backlog
+      if (overnightDelta < 0 || overnightDelta > 20000) {
         debugPrint(
             'StepTrackingService: Anomalous overnight delta $overnightDelta ignored (raw=$raw, last=$storedLastRaw)');
-        return _todaySteps;
+        overnightDelta = 0;
       }
 
-      // New day starts fresh with overnight delta
+      // New day starts fresh with overnight delta (if any)
       final existingToday = prefs.getInt('today_steps_$todayKeyStr') ?? 0;
       currentDaySteps = existingToday + overnightDelta;
     } else {
       // Case 3: Same day accumulation
       int delta = 0;
       if (raw < storedLastRaw) {
-        // Guard against minor transient sensor jitter
-        if ((storedLastRaw - raw) < 100 && raw > 1000) {
+        final sameBootSession = bootTimeMs != null &&
+            storedBootTimeMs != null &&
+            (bootTimeMs - storedBootTimeMs).abs() < 60000;
+        if (sameBootSession) {
+          // Hardware counter decreased during the same boot session (sensor hub recalibration):
+          // re-baseline at current raw without treating cumulative steps as post-reboot steps.
+          debugPrint(
+              'StepTrackingService: Sensor decreased within same boot ($raw < $storedLastRaw); re-baselining cleanly');
+          delta = 0;
+        } else if ((storedLastRaw - raw) < 100 && raw > 1000) {
+          // Guard against minor transient sensor jitter
           debugPrint(
               'StepTrackingService: Ignored minor sensor jitter ($raw < last $storedLastRaw)');
           return _todaySteps;
+        } else {
+          // Device was rebooted: hardware counter reset to 0
+          debugPrint(
+              'StepTrackingService: Phone reboot detected ($raw < $storedLastRaw)');
+          delta = raw;
         }
-        // Device was rebooted: hardware counter reset to 0
-        debugPrint(
-            'StepTrackingService: Phone reboot detected ($raw < $storedLastRaw)');
-        delta = raw;
       } else {
         delta = raw - storedLastRaw;
       }
@@ -640,6 +666,9 @@ class StepTrackingService with WidgetsBindingObserver {
     // Persist all tracking state locally (100% offline)
     await prefs.setInt('global_last_hardware_steps', raw);
     await prefs.setString('global_last_hardware_date', todayKeyStr);
+    if (bootTimeMs != null) {
+      await prefs.setInt('global_last_boot_time_ms', bootTimeMs);
+    }
     await prefs.setInt('today_steps_$todayKeyStr', _todaySteps);
 
     final stats = DailyStats(
@@ -774,16 +803,33 @@ class StepTrackingService with WidgetsBindingObserver {
     final todayKeyStr = dayKey(now);
     _todaySteps = 0;
     await prefs.setInt('today_steps_$todayKeyStr', 0);
+
+    if (_lastRawSensorSteps == null) {
+      await flushNativeSensor();
+      final latest = await getLatestHardwareReading();
+      final nativeRaw = (latest?['rawSteps'] as num?)?.toInt();
+      if (nativeRaw != null && nativeRaw >= 0) {
+        _lastRawSensorSteps = nativeRaw;
+      }
+    }
     if (_lastRawSensorSteps != null) {
       await prefs.setInt('global_last_hardware_steps', _lastRawSensorSteps!);
-      await prefs.setString('global_last_hardware_date', todayKeyStr);
     }
-    await LocalDailyStatsStorage.instance.save(DailyStats(
-      date: now,
-      steps: 0,
-      calories: 0,
-      activeMinutes: 0,
-    ));
+    await prefs.setString('global_last_hardware_date', todayKeyStr);
+    final bootTimeMs = await getDeviceBootTimeMs();
+    if (bootTimeMs != null) {
+      await prefs.setInt('global_last_boot_time_ms', bootTimeMs);
+    }
+
+    await LocalDailyStatsStorage.instance.save(
+      DailyStats(
+        date: now,
+        steps: 0,
+        calories: 0,
+        activeMinutes: 0,
+      ),
+      markPendingSync: true,
+    );
     _emitCurrentStats(forceSync: true, currentTime: now);
   }
 

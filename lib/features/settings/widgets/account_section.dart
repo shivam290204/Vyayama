@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/settings/widgets/delete_account_dialogs.dart';
 import 'package:fitbuddy/features/settings/widgets/settings_section.dart';
+import 'package:go_router/go_router.dart';
 
 /// Log out and delete account. The router redirect handles navigation
 /// once the auth state becomes signed-out.
@@ -38,7 +40,12 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _run(() => ref.read(authRepositoryProvider).signOut());
+    await _run(() async {
+      await ref.read(authRepositoryProvider).signOut();
+      if (mounted) {
+        GoRouter.maybeOf(context)?.go(AppRoutes.login);
+      }
+    });
   }
 
   Future<void> _delete() async {
@@ -91,8 +98,14 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
           ],
           OutlinedButton.icon(
             onPressed: _busy ? null : _logOut,
-            icon: const Icon(Icons.logout_rounded),
-            label: const Text('Log out'),
+            icon: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout_rounded),
+            label: Text(_busy ? 'Logging out...' : 'Log out'),
           ),
           const SizedBox(height: AppSpacing.md),
           TextButton.icon(

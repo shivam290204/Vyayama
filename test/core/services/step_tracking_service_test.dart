@@ -335,5 +335,101 @@ void main() {
       await service.processStepReading(10520, eventTime: now);
       expect(service.todaySteps, equals(20));
     });
+
+    test('19. Multi-day absence does not dump prior days steps into today',
+        () async {
+      final threeDaysAgo = DateTime(2026, 10, 17, 18, 0);
+      final today = DateTime(2026, 10, 20, 10, 0);
+
+      // User last opened app 3 days ago at raw = 2,000
+      await service.processStepReading(2000, eventTime: threeDaysAgo);
+      expect(service.todaySteps, equals(0));
+
+      // Over 3 days user accumulated 15,000 steps before opening today
+      await service.processStepReading(15000, eventTime: today);
+      expect(
+        service.todaySteps,
+        equals(0),
+        reason: 'Multi-day cumulative steps must re-baseline instead of showing 15k today',
+      );
+
+      // Next 100 steps today count accurately as 100
+      await service.processStepReading(
+        15100,
+        eventTime: today.add(const Duration(minutes: 10)),
+      );
+      expect(service.todaySteps, equals(100));
+    });
+
+    test('20. Yesterday reboot does not attribute yesterday post-reboot steps to today',
+        () async {
+      final yesterdayMorning = DateTime(2026, 10, 19, 9, 0);
+      final yesterdayAfternoonBootMs =
+          DateTime(2026, 10, 19, 14, 0).millisecondsSinceEpoch;
+      final today = DateTime(2026, 10, 20, 9, 0);
+
+      await service.processStepReading(
+        20000,
+        eventTime: yesterdayMorning,
+        overrideBootTimeMs:
+            DateTime(2026, 10, 18, 8, 0).millisecondsSinceEpoch,
+      );
+
+      // Rebooted yesterday afternoon and walked 15,000 steps yesterday;
+      // app first opens today with raw = 15,000 (< 20,000).
+      await service.processStepReading(
+        15000,
+        eventTime: today,
+        overrideBootTimeMs: yesterdayAfternoonBootMs,
+      );
+      expect(service.todaySteps, equals(0));
+
+      // Walking 80 steps today adds only 80
+      await service.processStepReading(
+        15080,
+        eventTime: today.add(const Duration(minutes: 5)),
+        overrideBootTimeMs: yesterdayAfternoonBootMs,
+      );
+      expect(service.todaySteps, equals(80));
+    });
+
+    test('21. Sensor decrease within same boot session does not add raw counter as reboot',
+        () async {
+      final now = DateTime(2026, 10, 20, 10, 0);
+      final bootTimeMs =
+          DateTime(2026, 10, 18, 7, 0).millisecondsSinceEpoch;
+
+      await service.processStepReading(
+        15000,
+        eventTime: now,
+        overrideBootTimeMs: bootTimeMs,
+      );
+      await service.processStepReading(
+        15150,
+        eventTime: now.add(const Duration(minutes: 5)),
+        overrideBootTimeMs: bootTimeMs,
+      );
+      expect(service.todaySteps, equals(150));
+
+      // Sensor recalibrates downward by 150 within the exact same boot session
+      await service.processStepReading(
+        15000,
+        eventTime: now.add(const Duration(minutes: 6)),
+        overrideBootTimeMs: bootTimeMs,
+      );
+      expect(
+        service.todaySteps,
+        equals(150),
+        reason: 'Same-boot drop must re-baseline instead of adding +15,000',
+      );
+
+      // Subsequent 50 real steps still increment cleanly
+      await service.processStepReading(
+        15050,
+        eventTime: now.add(const Duration(minutes: 7)),
+        overrideBootTimeMs: bootTimeMs,
+      );
+      expect(service.todaySteps, equals(200));
+    });
   });
 }

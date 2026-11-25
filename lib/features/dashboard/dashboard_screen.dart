@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/features/dashboard/data/daily_stats.dart';
 import 'package:fitbuddy/features/dashboard/providers.dart';
 import 'package:fitbuddy/features/dashboard/widgets/calorie_breakdown_card.dart';
@@ -6,6 +9,7 @@ import 'package:fitbuddy/features/dashboard/widgets/history_list.dart';
 import 'package:fitbuddy/features/dashboard/monthly_activity_screen.dart';
 import 'package:fitbuddy/features/dashboard/widgets/rings_section.dart';
 import 'package:fitbuddy/features/dashboard/widgets/week_bar_chart.dart';
+import 'package:fitbuddy/features/schedule/day_key.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -165,8 +169,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.refresh, color: Colors.orange),
-                label: const Text('Reset Today to 0 Steps', style: TextStyle(color: Colors.orange)),
+                icon: Icon(Icons.refresh, color: context.colors.warning),
+                label: Text(
+                  'Reset Today to 0 Steps',
+                  style: TextStyle(color: context.colors.warning),
+                ),
                 onPressed: () async {
                   Navigator.pop(ctx);
                   await StepTrackingService.instance.resetTodaySteps();
@@ -218,9 +225,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(liveStepStatsProvider, (previous, next) {
-      ref.invalidate(recentStatsProvider);
-    });
     final recent = ref.watch(recentStatsProvider);
     return Scaffold(
       appBar: AppBar(
@@ -266,11 +270,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildContent(BuildContext context, List<DailyStats> days) {
+    final live = ref.watch(liveStepStatsProvider).asData?.value;
+    final effectiveDays = List<DailyStats>.from(days);
+    if (live != null &&
+        effectiveDays.isNotEmpty &&
+        isSameDay(effectiveDays.last.date, live.date)) {
+      final last = effectiveDays.last;
+      effectiveDays[effectiveDays.length - 1] = last.copyWith(
+        steps: math.max(last.steps, live.steps),
+        calories: math.max(last.calories, live.calories),
+        activeMinutes: math.max(last.activeMinutes, live.activeMinutes),
+      );
+    }
+
     final text = Theme.of(context).textTheme;
     final targets = ref.watch(dailyTargetsProvider);
     final breakdown = ref.watch(calorieBreakdownProvider).asData?.value;
-    final week = days.sublist(days.length > 7 ? days.length - 7 : 0);
-    final history = days.reversed.toList();
+    final week = effectiveDays.sublist(
+        effectiveDays.length > 7 ? effectiveDays.length - 7 : 0);
+    final history = effectiveDays.reversed.toList();
     final scheme = Theme.of(context).colorScheme;
 
     return ListView(
@@ -326,7 +344,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             );
           },
         ),
-        RingsSection(stats: days.last, targets: targets),
+        RingsSection(stats: effectiveDays.last, targets: targets),
         const SizedBox(height: 8),
         ValueListenableBuilder<String>(
           valueListenable: StepTrackingService.instance.pedestrianStatus,

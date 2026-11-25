@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,8 +28,13 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 
 /// The signed-in user's profile (null when logged out).
 class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
+  bool _disposed = false;
+
   @override
   Future<Profile?> build() async {
+    _disposed = false;
+    ref.onDispose(() => _disposed = true);
+
     // Watch only the id so token refreshes do not reload the profile.
     final userId = ref.watch(
       authStateProvider.select((auth) => auth.valueOrNull?.id),
@@ -37,11 +43,13 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
 
     // 1. Read locally cached profile (< 1ms)
     Profile? cached;
+    var hasRealCachedProfile = false;
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString('cached_profile_$userId');
       if (raw != null && raw.isNotEmpty) {
         cached = Profile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        hasRealCachedProfile = true;
       }
       final wasCompleted =
           prefs.getBool('onboarding_completed_$userId') ?? true;
@@ -50,7 +58,14 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
       cached = Profile(id: userId, onboardingCompleted: true);
     }
 
-    // 2. Attempt remote fetch with a 1.5-second timeout so offline startup NEVER hangs
+    // Returning users with a full cached profile should enter immediately;
+    // refresh remotely in the background instead of stalling on SplashScreen.
+    if (hasRealCachedProfile) {
+      unawaited(_refreshRemoteInBackground(userId, cached));
+      return cached;
+    }
+
+    // 2. First-time / uncached startup: attempt remote fetch with short timeout
     try {
       final remote = await ref
           .read(profileRepositoryProvider)
@@ -58,9 +73,24 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
           .timeout(const Duration(milliseconds: 1500));
       return remote ?? cached;
     } catch (e) {
-      debugPrint('[CurrentProfileNotifier] Offline or timeout, using cached profile: $e');
+      debugPrint(
+          '[CurrentProfileNotifier] Offline or timeout, using cached profile: $e');
       return cached;
     }
+  }
+
+  Future<void> _refreshRemoteInBackground(String userId, Profile? cached) async {
+    try {
+      final remote = await ref
+          .read(profileRepositoryProvider)
+          .fetchProfile(userId)
+          .timeout(const Duration(seconds: 4));
+      if (_disposed || remote == null) return;
+      if (jsonEncode(remote.toJson()) !=
+          (cached != null ? jsonEncode(cached.toJson()) : null)) {
+        state = AsyncData(remote);
+      }
+    } catch (_) {}
   }
 
   /// Saves [profile] and updates the cached value without a loading flash.

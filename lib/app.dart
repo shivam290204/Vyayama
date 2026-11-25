@@ -73,11 +73,14 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.inactive) {
-      final currentId = ref.read(currentUserIdProvider);
-      if (currentId.isNotEmpty && currentId != 'u-me') {
-        BackgroundSyncService.instance.syncCurrentUserId(currentId);
+      final isSignedIn = ref.read(authStateProvider).valueOrNull != null;
+      if (isSignedIn) {
+        final currentId = ref.read(currentUserIdProvider);
+        if (currentId.isNotEmpty && currentId != 'u-me') {
+          BackgroundSyncService.instance.syncCurrentUserId(currentId);
+        }
+        BackgroundSyncService.instance.scheduleOnAppClosed();
       }
-      BackgroundSyncService.instance.scheduleOnAppClosed();
     }
   }
 
