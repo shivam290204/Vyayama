@@ -56,6 +56,9 @@
                 <data
                     android:scheme="io.vyayama.fitbuddy"
                     android:host="login-callback" />
+                <data
+                    android:scheme="io.vyayama.fitbuddy"
+                    android:host="reset-password" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -65,6 +68,10 @@
                     android:scheme="https"
                     android:host="vyayama.app"
                     android:pathPrefix="/u" />
+                <data
+                    android:scheme="https"
+                    android:host="vyayama.app"
+                    android:pathPrefix="/invite" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -127,6 +134,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
         <package android:name="com.google.android.apps.healthdata" />
         <intent>

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:fitbuddy/core/constants/env.dart';
@@ -10,6 +12,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 class SupabaseAuthRepository implements AuthRepository {
   final _client = supa.Supabase.instance.client.auth;
+  final _recoveryController = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get onPasswordRecovery => _recoveryController.stream;
 
   static AuthUser? _cachedUser;
   static bool _googleSignInInitialized = false;
@@ -83,6 +89,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
     // 2. Stream subsequent auth state changes from Supabase
     await for (final event in _client.onAuthStateChange) {
+      if (event.event == supa.AuthChangeEvent.passwordRecovery) {
+        _recoveryController.add(true);
+      }
       if (event.session != null) {
         SharedPreferences.getInstance().then((prefs) {
           prefs.setString('cached_auth_access_token', event.session!.accessToken);
@@ -231,6 +240,17 @@ class SupabaseAuthRepository implements AuthRepository {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
       throw AuthFailure('Failed to send reset email.');
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.updateUser(supa.UserAttributes(password: newPassword));
+    } on supa.AuthException catch (e) {
+      throw AuthFailure(_friendlyAuthErrorMessage(e));
+    } catch (_) {
+      throw const AuthFailure('Failed to update password.');
     }
   }
 

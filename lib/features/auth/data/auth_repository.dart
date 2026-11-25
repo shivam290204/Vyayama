@@ -27,6 +27,9 @@ abstract class AuthRepository {
   /// Emits the current user first, then every change (null = signed out).
   Stream<AuthUser?> authStateChanges();
 
+  /// Emits when a password recovery link opens the app.
+  Stream<bool> get onPasswordRecovery => const Stream.empty();
+
   Future<void> signInWithEmail({required String email, required String password});
 
   Future<void> signUpWithEmail({
@@ -39,6 +42,9 @@ abstract class AuthRepository {
   Future<void> signInWithGoogle();
 
   Future<void> sendPasswordReset(String email);
+
+  /// Updates the signed-in (or recovery) user's password.
+  Future<void> updatePassword(String newPassword);
 
   Future<void> signOut();
 

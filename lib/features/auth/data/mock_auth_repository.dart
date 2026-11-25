@@ -113,9 +113,27 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Stream<bool> get onPasswordRecovery => const Stream.empty();
+
+  @override
   Future<void> sendPasswordReset(String email) async {
     // Never reveal whether the email exists.
     await Future<void>.delayed(_latency);
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    await Future<void>.delayed(_latency);
+    final user = _current;
+    if (user == null) {
+      throw const AuthFailure('Please open a valid password reset link first.');
+    }
+    _accounts[user.email] = _Account(
+      id: user.id,
+      name: user.displayName ?? 'Vyayama User',
+      email: user.email,
+      password: newPassword,
+    );
   }
 
   @override

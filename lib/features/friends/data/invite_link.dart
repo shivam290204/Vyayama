@@ -52,6 +52,9 @@ String? parseProfileIdentifier(String raw) {
       final schemeIdx = value.toLowerCase().indexOf('vyayama://u');
       if (schemeIdx >= 0) {
         value = value.substring(schemeIdx + 11).replaceFirst(RegExp(r'^/'), '');
+      } else if (value.contains('://')) {
+        // Unrecognized URL or deep-link scheme (e.g. reset-password callback)
+        return null;
       }
     }
   }

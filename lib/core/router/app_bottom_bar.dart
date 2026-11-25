@@ -8,14 +8,12 @@ class AppBottomBar extends StatelessWidget {
     super.key,
     required this.selectedBranch,
     required this.onBranchSelected,
-    this.onCameraPressed,
     this.snapBadgeCount = 0,
     this.friendsBadgeCount = 0,
   });
 
   final int selectedBranch;
   final ValueChanged<int> onBranchSelected;
-  final VoidCallback? onCameraPressed;
   final int snapBadgeCount;
   final int friendsBadgeCount;
 

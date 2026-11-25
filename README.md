@@ -8,7 +8,7 @@
 [![Dart](https://img.shields.io/badge/Dart-3.6+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Android](https://img.shields.io/badge/Android%20Target-API%2036%20(Android%2016)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Backend](https://img.shields.io/badge/Backend-Supabase%20PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/Tests-471%20Passing%20(100%25)-brightgreen?logo=checkmarx&logoColor=white)](./test)
+[![Tests](https://img.shields.io/badge/Tests-984%20Passing%20(100%25)-brightgreen?logo=checkmarx&logoColor=white)](./test)
 [![Static Analysis](https://img.shields.io/badge/Analysis-0%20Issues-brightgreen)](https://dart.dev/tools/analysis)
 [![License](https://img.shields.io/badge/License-Proprietary-blue.svg)](#license)
 
@@ -262,7 +262,7 @@ vyayama/
 ├── supabase/
 │   ├── migrations/           # 16 SQL migrations with strict RLS policies & RPCs
 │   └── functions/            # Edge functions (verify-snap vision model)
-└── test/                     # 471 unit, widget, and integration tests
+└── test/                     # 984 unit, widget, and integration tests
 ```
 
 ---
@@ -310,7 +310,7 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
    ```
 
 2. **Configure Environment Variables**:
-   Configuration is read from compile-time `--dart-define` flags or a local `.env` file in the project root:
+   Configuration is read from compile-time `--dart-define` / `--dart-define-from-file` flags (or a local filesystem `.env` during local desktop runs; `.env` is never bundled into release APKs):
    ```bash
    cp .env.example .env
    ```
@@ -353,7 +353,7 @@ Vyayama's backend runs on **Supabase PostgreSQL 15** with Row Level Security (RL
 
 ## 📦 Release & Production Builds
 
-Vyayama is configured for **Android 16 (API Level 36)** compliance. For production release builds, provide credentials via compile-time `--dart-define` parameters or via `.env`:
+Vyayama is configured for **Android 16 (API Level 36)** compliance. For production release builds (Android, iOS, and Web), provide credentials via compile-time `--dart-define` or `--dart-define-from-file` parameters (`.env` is excluded from release bundle assets):
 
 ### 1. Release Keystore Configuration
 Ensure `android/key.properties` exists and points to your release upload keystore:
@@ -389,7 +389,7 @@ flutter build appbundle --release \
 Vyayama maintains a rigorous test suite spanning Unit tests, Mock Repository tests, Riverpod State Notifier tests, and Widget trees:
 
 ```bash
-# Run all 471 automated tests
+# Run all 984 automated tests
 flutter test
 
 # Run static analysis (0 warnings / lint-clean)

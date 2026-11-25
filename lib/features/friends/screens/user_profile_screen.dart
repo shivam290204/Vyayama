@@ -1,4 +1,7 @@
+import 'package:fitbuddy/core/constants/env.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
+import 'package:fitbuddy/core/theme/app_theme.dart';
+import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/friends/data/friend.dart';
 import 'package:fitbuddy/features/friends/providers.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
@@ -143,7 +146,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Block'),
             ),
@@ -196,6 +202,58 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authState =
+        Env.isSupabaseConfigured ? ref.watch(authStateProvider) : null;
+    if (Env.isSupabaseConfigured &&
+        authState != null &&
+        !authState.isLoading &&
+        authState.valueOrNull == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 56,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Sign in to view profile & connect',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Log in to your Vyayama account or create one to connect with friends from invite links.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => context.go(AppRoutes.login),
+                  child: const Text('Log in'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => context.go(AppRoutes.signup),
+                  child: const Text('Create account'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final userAsync = ref.watch(userProfileByIdentifierProvider(widget.identifier));
     final currentUserId = ref.watch(currentUserIdProvider);
 
@@ -246,7 +304,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_rounded, size: 56, color: Colors.grey),
+                Icon(
+                  Icons.cloud_off_rounded,
+                  size: 56,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Could not load profile',
@@ -275,10 +337,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.person_off_outlined,
                       size: 64,
-                      color: Colors.grey,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -510,12 +572,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.schedule_rounded, color: Colors.orange),
-                SizedBox(width: 8),
-                Text(
+                Icon(Icons.schedule_rounded, color: context.colors.warning),
+                const SizedBox(width: 8),
+                const Text(
                   'Friend Request Pending',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
@@ -528,7 +590,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             Text(
               'Waiting for ${user.name} to accept your request.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 16),
             OutlinedButton(
@@ -595,12 +660,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                     ),
                     onPressed: _isActing ? null : () => _acceptRequest(user),
                     child: _isActing
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
                         : const Text('Accept'),
@@ -626,12 +691,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ),
             onPressed: _isActing ? null : () => _sendFriendRequest(user),
             icon: _isActing
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   )
                 : const Icon(Icons.person_add_rounded),
@@ -641,9 +706,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Connect to share workouts, photos, and maintain daily streaks.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

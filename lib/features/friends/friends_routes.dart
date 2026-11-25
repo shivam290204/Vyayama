@@ -26,6 +26,11 @@ final List<RouteBase> friendsRoutes = [
         UserProfileScreen(identifier: state.pathParameters['id']!),
   ),
   GoRoute(
+    path: '/invite/:id',
+    builder: (context, state) =>
+        UserProfileScreen(identifier: state.pathParameters['id']!),
+  ),
+  GoRoute(
     path: AppRoutes.friendDetail,
     builder: (context, state) =>
         FriendDetailScreen(friendId: state.pathParameters['id']!),

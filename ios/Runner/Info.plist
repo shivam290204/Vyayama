@@ -32,6 +32,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>io.vyayama.fitbuddy</string>
+				<string>vyayama</string>
 			</array>
 		</dict>
 	</array>

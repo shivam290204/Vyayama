@@ -240,7 +240,6 @@ class _AppShellState extends ConsumerState<AppShell>
                 index,
                 initialLocation: index == widget.navigationShell.currentIndex,
               ),
-              onCameraPressed: () => context.push(AppRoutes.snapsCamera),
             ),
     );
   }

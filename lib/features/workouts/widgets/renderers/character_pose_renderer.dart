@@ -16,8 +16,7 @@ class CharacterPoseRenderer implements ExerciseRenderer {
         asset.endsWith('.jpg') ||
         asset.endsWith('.webp');
     final isKnownPath = asset.contains('assets/exercises/') ||
-        asset.contains('assets/images/mascot/') ||
-        asset.contains('assets/mascot/');
+        asset.contains('assets/images/mascot/');
     return isRaster && isKnownPath;
   }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
+import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/features/friends/data/invite_link.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -35,6 +36,11 @@ class DeepLinkService {
 
     // Ignore OAuth login redirects (handled directly by Supabase auth listener)
     if (uri.scheme == 'io.vyayama.fitbuddy' && uri.host == 'login-callback') {
+      return;
+    }
+
+    if (uri.scheme == 'io.vyayama.fitbuddy' && uri.host == 'reset-password') {
+      router.go(AppRoutes.resetPassword);
       return;
     }
 

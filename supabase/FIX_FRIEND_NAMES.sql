@@ -36,10 +36,8 @@ create policy "update own profile" on public.profiles
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
-drop policy if exists "insert own profile" on public.profiles;
-create policy "insert own profile" on public.profiles
-  for insert to authenticated
-  with check (auth.uid() = id);
+-- Profile creation happens strictly via the handle_new_user trigger (Migration 015).
+-- Do not recreate an open authenticated INSERT policy on public.profiles.
 
 -- 2. Update friend_profiles view
 drop view if exists public.friend_profiles cascade;

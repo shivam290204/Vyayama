@@ -10,6 +10,7 @@ import 'package:fitbuddy/core/services/reminder_reconciliation_service.dart';
 import 'package:fitbuddy/core/services/step_tracking_service.dart';
 import 'package:fitbuddy/core/theme/app_theme.dart';
 import 'package:fitbuddy/core/theme/theme_provider.dart';
+import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/schedule/widgets/medicine_alert_dialog.dart';
 import 'package:fitbuddy/features/snap_streaks/providers.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ class VyayamaApp extends ConsumerStatefulWidget {
 class _VyayamaAppState extends ConsumerState<VyayamaApp>
     with WidgetsBindingObserver {
   StreamSubscription<NotificationResponse>? _notifSub;
+  StreamSubscription<bool>? _recoverySub;
 
   @override
   void initState() {
@@ -54,6 +56,11 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
     _notifSub = NotificationService.instance.onNotificationResponse.stream
         .listen((response) {
       _handleNotificationPayload(response.payload);
+    });
+    _recoverySub =
+        ref.read(authRepositoryProvider).onPasswordRecovery.listen((_) {
+      if (!mounted) return;
+      ref.read(goRouterProvider).go(AppRoutes.resetPassword);
     });
   }
 
@@ -153,6 +160,7 @@ class _VyayamaAppState extends ConsumerState<VyayamaApp>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notifSub?.cancel();
+    _recoverySub?.cancel();
     DeepLinkService.instance.dispose();
     super.dispose();
   }

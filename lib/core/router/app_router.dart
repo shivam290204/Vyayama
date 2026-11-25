@@ -32,6 +32,7 @@ const Set<String> _publicPaths = {
   AppRoutes.login,
   AppRoutes.signup,
   AppRoutes.forgot,
+  AppRoutes.resetPassword,
 };
 
 const Set<String> _entryPaths = {
@@ -44,7 +45,8 @@ const Set<String> _entryPaths = {
 
 /// Auth redirect rules (pure function so it can be unit tested).
 ///
-/// - not logged in -> `/login`
+/// - not logged in -> `/login` (except `/u/` and `/invite/` deep links & public auth)
+/// - `/reset-password` -> always allowed during recovery session
 /// - logged in, onboarding not completed -> `/onboarding`
 /// - otherwise -> into the app
 @visibleForTesting
@@ -55,12 +57,18 @@ String? appRedirect({
 }) {
   final atSplash = location == AppRoutes.splash;
 
+  if (location == AppRoutes.resetPassword) {
+    return null;
+  }
+
   if (auth.isLoading && !auth.hasValue) {
     return atSplash ? null : AppRoutes.splash;
   }
 
   if (auth.hasError || auth.valueOrNull == null) {
-    if (location.startsWith('/u/')) return null;
+    if (location.startsWith('/u/') || location.startsWith('/invite/')) {
+      return null;
+    }
     return _publicPaths.contains(location) ? null : AppRoutes.login;
   }
 

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/features/auth/screens/forgot_password_screen.dart';
 import 'package:fitbuddy/features/auth/screens/login_screen.dart';
+import 'package:fitbuddy/features/auth/screens/reset_password_screen.dart';
 import 'package:fitbuddy/features/auth/screens/signup_screen.dart';
 import 'package:fitbuddy/features/auth/screens/splash_screen.dart';
 
@@ -23,5 +24,9 @@ final List<RouteBase> authRoutes = [
   GoRoute(
     path: AppRoutes.forgot,
     builder: (context, state) => const ForgotPasswordScreen(),
+  ),
+  GoRoute(
+    path: AppRoutes.resetPassword,
+    builder: (context, state) => const ResetPasswordScreen(),
   ),
 ];
