@@ -70,7 +70,7 @@ class CurrentProfileNotifier extends AsyncNotifier<Profile?> {
       final remote = await ref
           .read(profileRepositoryProvider)
           .fetchProfile(userId)
-          .timeout(const Duration(milliseconds: 1500));
+          .timeout(const Duration(seconds: 4));
       return remote ?? cached;
     } catch (e) {
       debugPrint(

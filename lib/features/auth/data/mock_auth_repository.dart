@@ -75,7 +75,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signUpWithEmail({
+  Future<SignUpOutcome> signUpWithEmail({
     required String name,
     required String email,
     required String password,
@@ -94,7 +94,16 @@ class MockAuthRepository implements AuthRepository {
     );
     _accounts[key] = account;
     _setCurrent(account.toUser());
+    return SignUpOutcome.signedIn;
   }
+
+  @override
+  Future<void> resendConfirmationEmail(String email) async {
+    await Future<void>.delayed(_latency);
+  }
+
+  @override
+  Stream<String> get authErrors => const Stream.empty();
 
   @override
   Future<void> signInWithGoogle() async {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,8 +7,10 @@ import 'package:go_router/go_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/auth/auth_validators.dart';
+import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/auth/widgets/auth_action_mixin.dart';
+import 'package:fitbuddy/features/auth/widgets/auth_error_banner.dart';
 import 'package:fitbuddy/features/auth/widgets/auth_scaffold.dart';
 import 'package:fitbuddy/features/auth/widgets/button_spinner.dart';
 import 'package:fitbuddy/features/auth/widgets/google_sign_in_button.dart';
@@ -25,26 +29,70 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  StreamSubscription<String>? _authErrorSub;
+  String? _unconfirmedEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _authErrorSub = ref.read(authRepositoryProvider).authErrors.listen((msg) {
+      if (!mounted) return;
+      setState(() {
+        actionError = msg;
+        _unconfirmedEmail = null;
+      });
+      showMessage(msg);
+    });
+  }
 
   @override
   void dispose() {
+    _authErrorSub?.cancel();
     _email.dispose();
     _password.dispose();
     super.dispose();
   }
 
+  void _onFieldChanged(String _) {
+    if (_unconfirmedEmail != null || actionError != null) {
+      setState(() {
+        _unconfirmedEmail = null;
+        actionError = null;
+      });
+    }
+  }
+
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     FocusScope.of(context).unfocus();
+    setState(() => _unconfirmedEmail = null);
     runAction(
       () => ref.read(authRepositoryProvider).signInWithEmail(
             email: _email.text.trim(),
             password: _password.text,
           ),
+      onAuthFailure: (failure) {
+        if (failure is EmailNotConfirmedFailure && mounted) {
+          setState(() => _unconfirmedEmail = failure.email);
+        }
+      },
     );
   }
 
+  Future<void> _resendVerification() async {
+    final email = _unconfirmedEmail ?? _email.text.trim();
+    if (email.isEmpty) return;
+    final sent = await runAction(
+      () => ref.read(authRepositoryProvider).resendConfirmationEmail(email),
+    );
+    if (sent && mounted) {
+      setState(() => _unconfirmedEmail = email);
+      showMessage('Verification email sent to $email.');
+    }
+  }
+
   void _google() {
+    setState(() => _unconfirmedEmail = null);
     runAction(() => ref.read(authRepositoryProvider).signInWithGoogle());
   }
 
@@ -66,6 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 autofillHints: const [AutofillHints.email],
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: AuthValidators.email,
+                onChanged: _onFieldChanged,
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.mail_outline_rounded),
@@ -76,6 +125,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 controller: _password,
                 validator: AuthValidators.loginPassword,
                 textInputAction: TextInputAction.done,
+                onChanged: _onFieldChanged,
                 onSubmitted: (_) => _submit(),
               ),
               Align(
@@ -85,6 +135,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   child: const Text('Forgot password?'),
                 ),
               ),
+              if (actionError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AuthErrorBanner(
+                  message: actionError!,
+                  actionLabel: _unconfirmedEmail != null
+                      ? 'Resend verification email'
+                      : null,
+                  onAction: _unconfirmedEmail != null && !busy
+                      ? _resendVerification
+                      : null,
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               FilledButton(
                 onPressed: busy ? null : _submit,

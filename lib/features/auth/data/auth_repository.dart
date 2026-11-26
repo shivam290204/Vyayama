@@ -10,6 +10,15 @@ class AuthUser {
   final String? displayName;
 }
 
+/// Result of an email sign-up request.
+enum SignUpOutcome {
+  /// User immediately received an active session and is signed in.
+  signedIn,
+
+  /// Account created (or pending verification); email confirmation required.
+  confirmationRequired,
+}
+
 /// A friendly, user-facing authentication error.
 class AuthFailure implements Exception {
   const AuthFailure(this.message);
@@ -18,6 +27,13 @@ class AuthFailure implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Raised when email/password sign-in is blocked pending email confirmation.
+class EmailNotConfirmedFailure extends AuthFailure {
+  const EmailNotConfirmedFailure(this.email, super.message);
+
+  final String email;
 }
 
 /// Authentication contract. Antigravity swaps the mock for Supabase Auth.
@@ -30,14 +46,19 @@ abstract class AuthRepository {
   /// Emits when a password recovery link opens the app.
   Stream<bool> get onPasswordRecovery => const Stream.empty();
 
+  /// Emits friendly error messages from asynchronous auth flows (e.g. OAuth callbacks).
+  Stream<String> get authErrors => const Stream.empty();
+
   Future<void> signInWithEmail({required String email, required String password});
 
-  Future<void> signUpWithEmail({
+  Future<SignUpOutcome> signUpWithEmail({
     required String name,
     required String email,
     required String password,
     String? username,
   });
+
+  Future<void> resendConfirmationEmail(String email);
 
   Future<void> signInWithGoogle();
 

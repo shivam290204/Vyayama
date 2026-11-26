@@ -53,7 +53,9 @@ class SupabaseProfileRepository implements ProfileRepository {
           e.message.toLowerCase().contains('jwt') ||
           e.message.toLowerCase().contains('unauthorized')) {
         try {
-          await _client.auth.signOut();
+          await _client.auth
+              .signOut(scope: SignOutScope.local)
+              .timeout(const Duration(seconds: 2));
         } catch (_) {}
         return null;
       }

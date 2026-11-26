@@ -166,6 +166,13 @@ abstract final class AppTheme {
       textTheme: textTheme,
       scaffoldBackgroundColor: scheme.surface,
       splashFactory: InkRipple.splashFactory,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
+        selectionColor: (isDark ? AppPalette.limeGreen : AppPalette.forestGreen)
+            .withValues(alpha: 0.28),
+        selectionHandleColor:
+            isDark ? AppPalette.limeGreen : AppPalette.forestGreen,
+      ),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,

@@ -6,8 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'package:fitbuddy/core/router/app_routes.dart';
 import 'package:fitbuddy/core/theme/app_spacing.dart';
 import 'package:fitbuddy/features/auth/auth_validators.dart';
+import 'package:fitbuddy/features/auth/data/auth_repository.dart';
 import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/auth/widgets/auth_action_mixin.dart';
+import 'package:fitbuddy/features/auth/widgets/auth_error_banner.dart';
 import 'package:fitbuddy/features/auth/widgets/auth_scaffold.dart';
 import 'package:fitbuddy/features/auth/widgets/button_spinner.dart';
 import 'package:fitbuddy/features/auth/widgets/password_field.dart';
@@ -31,6 +33,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   final _password = TextEditingController();
   bool _agreed = false;
   bool _showTermsError = false;
+  String? _pendingConfirmationEmail;
 
   @override
   void dispose() {
@@ -41,24 +44,84 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
     setState(() => _showTermsError = !_agreed);
     if (!valid || !_agreed) return;
     FocusScope.of(context).unfocus();
-    runAction(
-      () => ref.read(authRepositoryProvider).signUpWithEmail(
+    final email = _email.text.trim();
+    await runAction(() async {
+      final outcome = await ref.read(authRepositoryProvider).signUpWithEmail(
             name: _name.text.trim(),
-            email: _email.text.trim(),
+            email: email,
             password: _password.text,
-            username: _username.text.trim().isEmpty ? null : _username.text.trim(),
-          ),
+            username:
+                _username.text.trim().isEmpty ? null : _username.text.trim(),
+          );
+      if (outcome == SignUpOutcome.confirmationRequired && mounted) {
+        setState(() => _pendingConfirmationEmail = email);
+      }
+    });
+  }
+
+  Future<void> _resendConfirmation() async {
+    final email = _pendingConfirmationEmail;
+    if (email == null || email.isEmpty) return;
+    final sent = await runAction(
+      () => ref.read(authRepositoryProvider).resendConfirmationEmail(email),
     );
+    if (sent && mounted) {
+      showMessage('Verification email resent to $email.');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pendingEmail = _pendingConfirmationEmail;
+
+    if (pendingEmail != null) {
+      return AuthScaffold(
+        title: 'Check your inbox',
+        subtitle:
+            'We sent a verification link to $pendingEmail. Confirm your email, then log in.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Icon(
+              Icons.mark_email_unread_outlined,
+              size: 56,
+              color: theme.colorScheme.primary,
+              semanticLabel: 'Confirmation email sent',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              "Didn't receive it? Check your spam folder, or resend the confirmation email below.",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (actionError != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AuthErrorBanner(message: actionError!),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            OutlinedButton(
+              onPressed: busy ? null : _resendConfirmation,
+              child: busy
+                  ? const ButtonSpinner()
+                  : const Text('Resend verification email'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton(
+              onPressed: busy ? null : () => context.go(AppRoutes.login),
+              child: const Text('Back to log in'),
+            ),
+          ],
+        ),
+      );
+    }
 
     return AuthScaffold(
       title: 'Create your account',
@@ -172,6 +235,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                     ),
                   ),
                 ),
+              if (actionError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AuthErrorBanner(message: actionError!),
+              ],
               const SizedBox(height: AppSpacing.sm),
               FilledButton(
                 onPressed: busy ? null : _submit,
