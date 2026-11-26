@@ -8,7 +8,7 @@
 [![Dart](https://img.shields.io/badge/Dart-3.6+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Android](https://img.shields.io/badge/Android%20Target-API%2036%20(Android%2016)-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Backend](https://img.shields.io/badge/Backend-Supabase%20PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
-[![Tests](https://img.shields.io/badge/Tests-989%20Passing%20(100%25)-brightgreen?logo=checkmarx&logoColor=white)](./test)
+[![Tests](https://img.shields.io/badge/Tests-992%20Passing%20(100%25)-brightgreen?logo=checkmarx&logoColor=white)](./test)
 [![Static Analysis](https://img.shields.io/badge/Analysis-0%20Issues-brightgreen)](https://dart.dev/tools/analysis)
 [![License](https://img.shields.io/badge/License-Proprietary-blue.svg)](#license)
 
@@ -262,7 +262,7 @@ vyayama/
 ├── supabase/
 │   ├── migrations/           # 16 SQL migrations with strict RLS policies & RPCs
 │   └── functions/            # Edge functions (verify-snap vision model)
-└── test/                     # 989 unit, widget, and integration tests
+└── test/                     # 992 unit, widget, and integration tests
 ```
 
 ---
@@ -389,7 +389,7 @@ flutter build appbundle --release \
 Vyayama maintains a rigorous test suite spanning Unit tests, Mock Repository tests, Riverpod State Notifier tests, and Widget trees:
 
 ```bash
-# Run all 989 automated tests
+# Run all 992 automated tests
 flutter test
 
 # Run static analysis (0 warnings / lint-clean)

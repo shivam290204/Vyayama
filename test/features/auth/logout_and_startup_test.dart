@@ -118,4 +118,30 @@ void main() {
     expect(loaded?.name, 'Cached Athlete');
     expect(sw.elapsedMilliseconds, lessThan(500));
   });
+
+  test('Account can sign out and sign back in without getting stuck', () async {
+    final mockAuth = MockAuthRepository();
+    final container = ProviderContainer(
+      overrides: [authRepositoryProvider.overrideWithValue(mockAuth)],
+    );
+    addTearDown(() {
+      container.dispose();
+      mockAuth.dispose();
+    });
+
+    await mockAuth.signInWithEmail(
+      email: 'demo@vyayama.app',
+      password: 'vyayama123',
+    );
+    expect(mockAuth.currentUser?.id, kDemoUserId);
+
+    await mockAuth.signOut();
+    expect(mockAuth.currentUser, isNull);
+
+    await mockAuth.signInWithEmail(
+      email: 'demo@vyayama.app',
+      password: 'vyayama123',
+    );
+    expect(mockAuth.currentUser?.id, kDemoUserId);
+  });
 }

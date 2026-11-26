@@ -34,7 +34,8 @@ class SupabaseFriendRepository implements FriendRepository {
       final res = await _client
           .from('friend_profiles')
           .select()
-          .neq('id', _userId);
+          .neq('id', _userId)
+          .timeout(const Duration(seconds: 5));
 
       final list = (res as List)
           .map((r) => FriendUser.fromJson(Map<String, dynamic>.from(r)))
@@ -67,7 +68,8 @@ class SupabaseFriendRepository implements FriendRepository {
           .from('friend_profiles')
           .select()
           .eq('id', id)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
       if (res != null) {
         final u = FriendUser.fromJson(Map<String, dynamic>.from(res as Map));
@@ -82,7 +84,8 @@ class SupabaseFriendRepository implements FriendRepository {
           .from('profiles')
           .select('id, username, name, avatar_url, timezone')
           .eq('id', id)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
       if (direct != null) {
         final u = FriendUser.fromJson(Map<String, dynamic>.from(direct as Map));
         cacheProfile(u);
@@ -127,10 +130,12 @@ class SupabaseFriendRepository implements FriendRepository {
     if (query.isEmpty) return null;
 
     try {
-      final res = await _client.rpc(
-        'find_profile_by_username',
-        params: {'p_username': query},
-      );
+      final res = await _client
+          .rpc(
+            'find_profile_by_username',
+            params: {'p_username': query},
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (res == null || (res as List).isEmpty) return null;
       final row = Map<String, dynamic>.from(res.first as Map);
@@ -147,10 +152,12 @@ class SupabaseFriendRepository implements FriendRepository {
 
     try {
       // Try unified RPC first
-      final res = await _client.rpc(
-        'find_profile_by_identifier',
-        params: {'p_query': query},
-      );
+      final res = await _client
+          .rpc(
+            'find_profile_by_identifier',
+            params: {'p_query': query},
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (res != null && (res as List).isNotEmpty) {
         final row = Map<String, dynamic>.from(res.first as Map);
@@ -197,7 +204,8 @@ class SupabaseFriendRepository implements FriendRepository {
           .from('friendships')
           .select()
           .or('and(requester_id.eq.$_userId,addressee_id.eq.$userId),and(requester_id.eq.$userId,addressee_id.eq.$_userId)')
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
       if (res == null) return FriendRelation.none;
       final status = res['status'] as String?;
@@ -275,7 +283,9 @@ class SupabaseFriendRepository implements FriendRepository {
   Future<List<FriendRequest>> requests() async {
     // 1. Try secure RPC get_my_friend_requests
     try {
-      final rpcRes = await _client.rpc('get_my_friend_requests');
+      final rpcRes = await _client
+          .rpc('get_my_friend_requests')
+          .timeout(const Duration(seconds: 5));
       if (rpcRes is List && rpcRes.isNotEmpty) {
         final list = <FriendRequest>[];
         for (final row in rpcRes) {
@@ -326,12 +336,14 @@ class SupabaseFriendRepository implements FriendRepository {
             .from('friendships')
             .select(
                 '*, requester:profiles!requester_id(id, username, name, avatar_url, timezone), addressee:profiles!addressee_id(id, username, name, avatar_url, timezone)')
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .timeout(const Duration(seconds: 5));
       } catch (_) {
         res = await _client
             .from('friendships')
             .select()
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .timeout(const Duration(seconds: 5));
       }
 
       final list = <FriendRequest>[];

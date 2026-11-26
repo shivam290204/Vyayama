@@ -25,7 +25,8 @@ class SupabaseSnapImageUrlSigner implements SnapImageUrlSigner {
           imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
       return await _client.storage
           .from('snaps')
-          .createSignedUrl(cleanPath, ttl.inSeconds);
+          .createSignedUrl(cleanPath, ttl.inSeconds)
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('Warning: Supabase signedUrl failed for $imagePath: $e');
       return '';
@@ -46,10 +47,12 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
     // Verification is authoritative and processed securely by the server-side Edge function.
     // Clients cannot self-approve arbitrary photos or bypass AI vision verification.
     try {
-      final res = await _client.functions.invoke(
-        'verify-snap',
-        body: {'snap_id': snapId},
-      );
+      final res = await _client.functions
+          .invoke(
+            'verify-snap',
+            body: {'snap_id': snapId},
+          )
+          .timeout(const Duration(seconds: 15));
 
       final data = res.data;
       if (data is Map<String, dynamic>) {
@@ -133,10 +136,12 @@ class SupabaseSnapVerificationService implements SnapVerificationService {
   @override
   Future<VerificationResult> appeal(String snapId) async {
     try {
-      final res = await _client.functions.invoke(
-        'verify-snap',
-        body: {'snap_id': snapId, 'action': 'appeal'},
-      );
+      final res = await _client.functions
+          .invoke(
+            'verify-snap',
+            body: {'snap_id': snapId, 'action': 'appeal'},
+          )
+          .timeout(const Duration(seconds: 15));
 
       final data = res.data;
       if (data is Map<String, dynamic>) {
@@ -303,7 +308,9 @@ class SupabaseSnapRepository implements SnapRepository {
   Future<List<ReceivedSnap>> inbox() async {
     // 1. Try secure RPC get_my_inbox_snaps first
     try {
-      final res = await _client.rpc('get_my_inbox_snaps');
+      final res = await _client
+          .rpc('get_my_inbox_snaps')
+          .timeout(const Duration(seconds: 5));
       if (res is List) {
         final list = <ReceivedSnap>[];
         for (final row in res) {
@@ -345,7 +352,8 @@ class SupabaseSnapRepository implements SnapRepository {
           .select('*, snap:snaps!inner(*, sender:profiles!sender_id(id, username, name, avatar_url))')
           .eq('recipient_id', _userId)
           .inFilter('snap.verification_status', const ['verified', 'appealed'])
-          .order('snap(created_at)', ascending: false);
+          .order('snap(created_at)', ascending: false)
+          .timeout(const Duration(seconds: 5));
 
       final list = <ReceivedSnap>[];
       for (final row in res as List) {
@@ -377,7 +385,9 @@ class SupabaseSnapRepository implements SnapRepository {
   Future<List<ReceivedSnap>> feed() async {
     // 1. Try secure RPC get_friends_feed_snaps first
     try {
-      final res = await _client.rpc('get_friends_feed_snaps');
+      final res = await _client
+          .rpc('get_friends_feed_snaps')
+          .timeout(const Duration(seconds: 5));
       if (res is List) {
         final list = <ReceivedSnap>[];
         for (final row in res) {
@@ -415,7 +425,8 @@ class SupabaseSnapRepository implements SnapRepository {
           .select('*, sender:profiles!sender_id(id, username, name, avatar_url)')
           .eq('is_story', true)
           .inFilter('verification_status', const ['verified', 'appealed'])
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 5));
 
       final list = <ReceivedSnap>[];
       for (final row in res as List) {
@@ -442,9 +453,11 @@ class SupabaseSnapRepository implements SnapRepository {
   Future<ReceivedSnap?> getReceived(String snapId) async {
     // 1. Try secure RPC get_single_snap_details first (handles both inbox and feed stories)
     try {
-      final res = await _client.rpc('get_single_snap_details', params: {
-        'p_snap_id': snapId,
-      });
+      final res = await _client
+          .rpc('get_single_snap_details', params: {
+            'p_snap_id': snapId,
+          })
+          .timeout(const Duration(seconds: 5));
       if (res is List && res.isNotEmpty) {
         final m = Map<String, dynamic>.from(res.first as Map);
         return ReceivedSnap(
@@ -482,7 +495,8 @@ class SupabaseSnapRepository implements SnapRepository {
           .select('*, snap:snaps!inner(*, sender:profiles!sender_id(id, username, name, avatar_url))')
           .eq('snap_id', snapId)
           .eq('recipient_id', _userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
       if (res != null) {
         final rMap = Map<String, dynamic>.from(res as Map);
@@ -512,7 +526,8 @@ class SupabaseSnapRepository implements SnapRepository {
           .from('snaps')
           .select('*, sender:profiles!sender_id(id, username, name, avatar_url)')
           .eq('id', snapId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
       if (res != null) {
         final snapMap = Map<String, dynamic>.from(res as Map);

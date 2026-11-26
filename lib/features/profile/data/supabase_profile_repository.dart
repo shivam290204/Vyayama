@@ -32,7 +32,8 @@ class SupabaseProfileRepository implements ProfileRepository {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
 
       if (res == null) return null;
       final profile = Profile.fromJson(Map<String, dynamic>.from(res));

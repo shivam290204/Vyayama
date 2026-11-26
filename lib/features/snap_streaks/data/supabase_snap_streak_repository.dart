@@ -23,7 +23,8 @@ class SupabaseSnapStreakRepository implements SnapStreakRepository {
       final res = await _client
           .from('snap_streaks')
           .select()
-          .or('user_a.eq.$uid,user_b.eq.$uid');
+          .or('user_a.eq.$uid,user_b.eq.$uid')
+          .timeout(const Duration(seconds: 5));
 
       final now = clock().toUtc();
       return (res as List)

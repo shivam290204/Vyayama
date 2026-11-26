@@ -1,3 +1,4 @@
+import 'package:fitbuddy/features/auth/providers.dart';
 import 'package:fitbuddy/features/health_profile/providers.dart';
 import 'package:fitbuddy/features/profile/data/profile.dart';
 import 'package:fitbuddy/features/profile/profile_providers.dart';
@@ -15,9 +16,10 @@ export 'package:fitbuddy/features/workouts/state/session_notifier.dart';
 export 'package:fitbuddy/features/workouts/state/workout_completed_notifier.dart';
 
 /// All library exercises.
-final exerciseLibraryProvider = FutureProvider<List<Exercise>>(
-  (ref) => ref.watch(workoutRepositoryProvider).getExercises(),
-);
+final exerciseLibraryProvider = FutureProvider<List<Exercise>>((ref) {
+  ref.watch(authStateProvider.select((a) => a.valueOrNull?.id));
+  return ref.watch(workoutRepositoryProvider).getExercises();
+});
 
 /// Allows overriding or adding custom YouTube video URLs for exercises dynamically.
 final customExerciseVideosProvider =
@@ -50,16 +52,19 @@ final exerciseByIdProvider =
 });
 
 /// System plans (browse tab).
-final systemPlansProvider = FutureProvider<List<WorkoutPlan>>(
-  (ref) => ref.watch(workoutRepositoryProvider).getSystemPlans(),
-);
+final systemPlansProvider = FutureProvider<List<WorkoutPlan>>((ref) {
+  ref.watch(authStateProvider.select((a) => a.valueOrNull?.id));
+  return ref.watch(workoutRepositoryProvider).getSystemPlans();
+});
 
 /// The user's custom plans, with save and delete.
 class MyPlansNotifier extends AsyncNotifier<List<WorkoutPlan>> {
   final Set<String> _inFlightPlanIds = {};
   @override
-  Future<List<WorkoutPlan>> build() =>
-      ref.read(workoutRepositoryProvider).getMyPlans();
+  Future<List<WorkoutPlan>> build() {
+    ref.watch(authStateProvider.select((a) => a.valueOrNull?.id));
+    return ref.read(workoutRepositoryProvider).getMyPlans();
+  }
 
   /// Creates or updates a custom plan.
   Future<WorkoutPlan> save(WorkoutPlan plan) async {

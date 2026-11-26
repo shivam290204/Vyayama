@@ -31,6 +31,7 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
   static const exercisesAsset = 'assets/data/exercises.json';
   static const plansAsset = 'assets/data/workout_plans.json';
+  static const Duration _remoteTimeout = Duration(seconds: 4);
 
   final SupabaseClient? _client;
   final AssetBundle _bundle;
@@ -123,7 +124,11 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     final client = _client;
     if (client != null) {
       try {
-        final res = await client.from('exercises').select().order('name');
+        final res = await client
+            .from('exercises')
+            .select()
+            .order('name')
+            .timeout(_remoteTimeout);
         if (res.isNotEmpty) {
           for (final r in res) {
             final dbId = r['id']?.toString();
@@ -156,7 +161,8 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
         final res = await client
             .from('workout_plans')
             .select('*, days:plan_days(*, exercises:plan_exercises(*))')
-            .eq('is_system', true);
+            .eq('is_system', true)
+            .timeout(_remoteTimeout);
 
         if (res.isNotEmpty) {
           return (res as List)
@@ -175,7 +181,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
     final uid = await _resolveUserId();
     final client = _client;
     if (client != null && uid != null && uid.isNotEmpty) {
-      await _syncPendingPlans(uid);
+      try {
+        await _syncPendingPlans(uid).timeout(_remoteTimeout);
+      } catch (_) {}
 
       try {
         final res = await client
@@ -183,7 +191,8 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             .select('*, days:plan_days(*, exercises:plan_exercises(*, exercise:exercises(id, catalog_id)))')
             .eq('is_system', false)
             .eq('owner_id', uid)
-            .order('created_at', ascending: false);
+            .order('created_at', ascending: false)
+            .timeout(_remoteTimeout);
 
         if (_catalogToDbUuid.isEmpty) {
           await _loadAssetExercises();
@@ -258,7 +267,8 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             .from('workout_plans')
             .select('*, days:plan_days(*, exercises:plan_exercises(*, exercise:exercises(id, catalog_id)))')
             .eq('id', targetId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(_remoteTimeout);
 
         if (res != null) {
           return WorkoutPlan.fromJson(Map<String, dynamic>.from(res));
@@ -301,7 +311,8 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             .from('plan_days')
             .select('plan_id')
             .eq('id', dayId)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(_remoteTimeout);
 
         if (dayRow != null && dayRow['plan_id'] != null) {
           return await getPlan(dayRow['plan_id'].toString());
@@ -389,7 +400,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             ],
           };
 
-          await client.rpc('save_workout_plan', params: {'p_plan': planPayload});
+          await client
+              .rpc('save_workout_plan', params: {'p_plan': planPayload})
+              .timeout(const Duration(seconds: 6));
 
           final savedOnlinePlan = plan.copyWith(
             id: stablePlanId,
@@ -607,7 +620,9 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
             ],
           };
 
-          await client.rpc('save_workout_plan', params: {'p_plan': planPayload});
+          await client
+              .rpc('save_workout_plan', params: {'p_plan': planPayload})
+              .timeout(const Duration(seconds: 6));
 
           pendingIds.remove(planId);
           await prefs.remove(attemptKey);
@@ -658,7 +673,11 @@ class SupabaseWorkoutRepository implements WorkoutRepository {
 
     if (client != null && uid != null && uid.isNotEmpty) {
       try {
-        await client.from('workout_plans').delete().eq('id', targetId);
+        await client
+            .from('workout_plans')
+            .delete()
+            .eq('id', targetId)
+            .timeout(_remoteTimeout);
       } catch (_) {}
     }
 

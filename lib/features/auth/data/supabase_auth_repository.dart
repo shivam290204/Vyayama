@@ -21,6 +21,7 @@ class SupabaseAuthRepository implements AuthRepository {
   static AuthUser? _cachedUser;
   static bool _signedOut = false;
   static bool _googleSignInInitialized = false;
+  static const Duration _authTimeout = Duration(seconds: 12);
 
   static Future<void> _ensureGoogleSignInInitialized() async {
     if (_googleSignInInitialized) return;
@@ -169,9 +170,18 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithEmail({required String email, required String password}) async {
-    _signedOut = false;
     try {
-      await _client.signInWithPassword(email: email, password: password);
+      final res = await _client
+          .signInWithPassword(email: email, password: password)
+          .timeout(_authTimeout);
+      _signedOut = false;
+      if (res.user != null) {
+        _authOverrideController.add(_mapUser(res.user!));
+      }
+    } on TimeoutException {
+      throw const AuthFailure(
+        'Connection timed out. Please check your internet connection and try again.',
+      );
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (e) {
@@ -186,19 +196,28 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
     String? username,
   }) async {
-    _signedOut = false;
     try {
       final cleanUsername = (username != null && username.trim().isNotEmpty)
           ? username.trim().toLowerCase().replaceFirst(RegExp(r'^@'), '')
           : null;
 
-      await _client.signUp(
-        email: email,
-        password: password,
-        data: {
-          'name': name,
-          if (cleanUsername != null) 'username': cleanUsername,
-        },
+      final res = await _client
+          .signUp(
+            email: email,
+            password: password,
+            data: {
+              'name': name,
+              if (cleanUsername != null) 'username': cleanUsername,
+            },
+          )
+          .timeout(_authTimeout);
+      if (res.session != null && res.user != null) {
+        _signedOut = false;
+        _authOverrideController.add(_mapUser(res.user!));
+      }
+    } on TimeoutException {
+      throw const AuthFailure(
+        'Connection timed out. Please check your internet connection and try again.',
       );
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
@@ -223,11 +242,10 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle() async {
-    _signedOut = false;
     try {
       final serverClientId = Env.googleWebClientId;
       if (!kIsWeb && serverClientId.isNotEmpty) {
-        await _ensureGoogleSignInInitialized();
+        await _ensureGoogleSignInInitialized().timeout(_authTimeout);
         final account = await GoogleSignIn.instance.authenticate();
         final idToken = account.authentication.idToken;
 
@@ -243,17 +261,30 @@ class SupabaseAuthRepository implements AuthRepository {
           throw const AuthFailure('Failed to obtain Google access token.');
         }
 
-        await _client.signInWithIdToken(
-          provider: supa.OAuthProvider.google,
-          idToken: idToken,
-          accessToken: authorization.accessToken,
-        );
+        final res = await _client
+            .signInWithIdToken(
+              provider: supa.OAuthProvider.google,
+              idToken: idToken,
+              accessToken: authorization.accessToken,
+            )
+            .timeout(_authTimeout);
+        _signedOut = false;
+        if (res.user != null) {
+          _authOverrideController.add(_mapUser(res.user!));
+        }
         return;
       }
 
-      await _client.signInWithOAuth(
-        supa.OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://login-callback',
+      _signedOut = false;
+      await _client
+          .signInWithOAuth(
+            supa.OAuthProvider.google,
+            redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://login-callback',
+          )
+          .timeout(_authTimeout);
+    } on TimeoutException {
+      throw const AuthFailure(
+        'Connection timed out. Please check your internet connection and try again.',
       );
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
@@ -271,9 +302,15 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPasswordReset(String email) async {
     try {
-      await _client.resetPasswordForEmail(
-        email,
-        redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://reset-password',
+      await _client
+          .resetPasswordForEmail(
+            email,
+            redirectTo: kIsWeb ? null : 'io.vyayama.fitbuddy://reset-password',
+          )
+          .timeout(_authTimeout);
+    } on TimeoutException {
+      throw const AuthFailure(
+        'Connection timed out. Please check your internet connection and try again.',
       );
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
@@ -285,7 +322,13 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> updatePassword(String newPassword) async {
     try {
-      await _client.updateUser(supa.UserAttributes(password: newPassword));
+      await _client
+          .updateUser(supa.UserAttributes(password: newPassword))
+          .timeout(_authTimeout);
+    } on TimeoutException {
+      throw const AuthFailure(
+        'Connection timed out. Please check your internet connection and try again.',
+      );
     } on supa.AuthException catch (e) {
       throw AuthFailure(_friendlyAuthErrorMessage(e));
     } catch (_) {

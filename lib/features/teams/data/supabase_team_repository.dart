@@ -24,7 +24,8 @@ class SupabaseTeamRepository implements TeamRepository {
       final res = await _client
           .from('teams')
           .select('*, team_members(count)')
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 5));
 
       return (res as List).map((r) => _parseTeam(Map<String, dynamic>.from(r))).toList();
     } catch (_) {
@@ -39,7 +40,8 @@ class SupabaseTeamRepository implements TeamRepository {
           .from('teams')
           .select('*, team_members(count)')
           .eq('id', id)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
       if (res == null) return null;
       return _parseTeam(Map<String, dynamic>.from(res));
@@ -139,7 +141,8 @@ class SupabaseTeamRepository implements TeamRepository {
           .from('team_members')
           .select('team_id, user_id, joined_at, profiles(name)')
           .eq('team_id', teamId)
-          .order('joined_at', ascending: true);
+          .order('joined_at', ascending: true)
+          .timeout(const Duration(seconds: 5));
 
       return (res as List)
           .map((r) => TeamMember.fromJson(Map<String, dynamic>.from(r)))
@@ -174,14 +177,16 @@ class SupabaseTeamRepository implements TeamRepository {
       String formatDate(DateTime d) =>
           '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-      final res = await _client.rpc(
-        'team_leaderboard',
-        params: {
-          'p_team_id': teamId,
-          'p_from': formatDate(from),
-          'p_to': formatDate(to),
-        },
-      );
+      final res = await _client
+          .rpc(
+            'team_leaderboard',
+            params: {
+              'p_team_id': teamId,
+              'p_from': formatDate(from),
+              'p_to': formatDate(to),
+            },
+          )
+          .timeout(const Duration(seconds: 5));
 
       return (res as List).map((row) {
         final m = Map<String, dynamic>.from(row);

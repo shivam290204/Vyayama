@@ -89,7 +89,11 @@ class SupabaseHealthRepository implements HealthRepository {
         // Local edits were made while offline: sync them up, NEVER overwrite them!
         try {
           final localKeys = _prefs.getStringList(_kConditionsKey) ?? const <String>[];
-          await client.from('user_conditions').delete().eq('user_id', uid);
+          await client
+              .from('user_conditions')
+              .delete()
+              .eq('user_id', uid)
+              .timeout(const Duration(seconds: 4));
           if (localKeys.isNotEmpty) {
             final rows = localKeys
                 .map((k) => <String, dynamic>{
@@ -97,7 +101,10 @@ class SupabaseHealthRepository implements HealthRepository {
                       'condition_key': k,
                     })
                 .toList();
-            await client.from('user_conditions').insert(rows);
+            await client
+                .from('user_conditions')
+                .insert(rows)
+                .timeout(const Duration(seconds: 4));
           }
           await _prefs.setBool(_kConditionsDirtyKey, false);
           return List<String>.unmodifiable(localKeys);
@@ -113,7 +120,8 @@ class SupabaseHealthRepository implements HealthRepository {
         final res = await client
             .from('user_conditions')
             .select('condition_key')
-            .eq('user_id', uid);
+            .eq('user_id', uid)
+            .timeout(const Duration(seconds: 4));
 
         final keys = (res as List<dynamic>)
             .map((row) => (row as Map<String, dynamic>)['condition_key'] as String)
@@ -144,7 +152,11 @@ class SupabaseHealthRepository implements HealthRepository {
 
     if (client != null && uid != null) {
       try {
-        await client.from('user_conditions').delete().eq('user_id', uid);
+        await client
+            .from('user_conditions')
+            .delete()
+            .eq('user_id', uid)
+            .timeout(const Duration(seconds: 4));
 
         if (keys.isNotEmpty) {
           final rows = keys
@@ -153,7 +165,10 @@ class SupabaseHealthRepository implements HealthRepository {
                     'condition_key': k,
                   })
               .toList();
-          await client.from('user_conditions').insert(rows);
+          await client
+              .from('user_conditions')
+              .insert(rows)
+              .timeout(const Duration(seconds: 4));
         }
         // Successfully synced to cloud: clear dirty flag
         await _prefs.setBool(_kConditionsDirtyKey, false);
@@ -182,7 +197,12 @@ class SupabaseHealthRepository implements HealthRepository {
       final remainingDeletes = <String>[];
       for (final id in pendingDeletes) {
         try {
-          await client.from('medicines').delete().eq('id', id).eq('user_id', uid);
+          await client
+              .from('medicines')
+              .delete()
+              .eq('id', id)
+              .eq('user_id', uid)
+              .timeout(const Duration(seconds: 4));
         } catch (_) {
           remainingDeletes.add(id);
         }
@@ -201,7 +221,10 @@ class SupabaseHealthRepository implements HealthRepository {
         );
         if (med.id.isNotEmpty) {
           try {
-            await client.from('medicines').upsert(med.toJson());
+            await client
+                .from('medicines')
+                .upsert(med.toJson())
+                .timeout(const Duration(seconds: 4));
           } catch (_) {
             remainingSync.add(medId);
           }
@@ -235,7 +258,8 @@ class SupabaseHealthRepository implements HealthRepository {
         final res = await client
             .from('medicines')
             .select()
-            .eq('user_id', uid);
+            .eq('user_id', uid)
+            .timeout(const Duration(seconds: 4));
 
         final medicines = (res as List<dynamic>)
             .map((row) => Medicine.fromJson(Map<String, dynamic>.from(row as Map)))
@@ -292,7 +316,10 @@ class SupabaseHealthRepository implements HealthRepository {
     final client = _client;
     if (client != null && uid.isNotEmpty) {
       try {
-        await client.from('medicines').upsert(toSave.toJson());
+        await client
+            .from('medicines')
+            .upsert(toSave.toJson())
+            .timeout(const Duration(seconds: 4));
         final updatedPending = _prefs.getStringList(_kPendingMedicinesSyncKey) ?? [];
         if (updatedPending.remove(toSave.id)) {
           await _prefs.setStringList(_kPendingMedicinesSyncKey, updatedPending);
@@ -329,7 +356,11 @@ class SupabaseHealthRepository implements HealthRepository {
     final uid = _currentUserId;
     if (client != null && uid != null) {
       try {
-        await client.from('medicines').delete().eq('id', id);
+        await client
+            .from('medicines')
+            .delete()
+            .eq('id', id)
+            .timeout(const Duration(seconds: 4));
         final updatedDeletes = _prefs.getStringList(_kPendingMedicineDeletesKey) ?? [];
         if (updatedDeletes.remove(id)) {
           await _prefs.setStringList(_kPendingMedicineDeletesKey, updatedDeletes);

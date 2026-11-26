@@ -55,13 +55,18 @@ class SupabaseWorkoutLogRepository implements WorkoutLogRepository {
 
     if (client != null && uid != 'local_user') {
       try {
-        final res = await client.from('workout_logs').insert({
-          'user_id': uid,
-          'plan_day_id': planDayId.isEmpty ? null : planDayId,
-          'completed_at': time.toIso8601String(),
-          'duration_min': durationMin,
-          'calories_burned': caloriesBurned,
-        }).select().single();
+        final res = await client
+            .from('workout_logs')
+            .insert({
+              'user_id': uid,
+              'plan_day_id': planDayId.isEmpty ? null : planDayId,
+              'completed_at': time.toIso8601String(),
+              'duration_min': durationMin,
+              'calories_burned': caloriesBurned,
+            })
+            .select()
+            .single()
+            .timeout(const Duration(seconds: 4));
 
         final remoteLog = WorkoutLog.fromJson(Map<String, dynamic>.from(res));
         await _saveLogToLocalCache(remoteLog, uid: uid);
@@ -90,14 +95,18 @@ class SupabaseWorkoutLogRepository implements WorkoutLogRepository {
     final client = _client;
 
     if (client != null && uid != 'local_user') {
-      await syncPendingLogs();
+      try {
+        await syncPendingLogs().timeout(const Duration(seconds: 4));
+      } catch (_) {}
 
       try {
         var query = client.from('workout_logs').select().eq('user_id', uid);
         if (since != null) {
           query = query.gte('completed_at', since.toUtc().toIso8601String());
         }
-        final res = await query.order('completed_at', ascending: false);
+        final res = await query
+            .order('completed_at', ascending: false)
+            .timeout(const Duration(seconds: 4));
         final remoteLogs = (res as List)
             .map((row) => WorkoutLog.fromJson(Map<String, dynamic>.from(row)))
             .toList();
@@ -146,7 +155,8 @@ class SupabaseWorkoutLogRepository implements WorkoutLogRepository {
             .eq('user_id', uid)
             .gte('completed_at', start.toIso8601String())
             .lte('completed_at', end.toIso8601String())
-            .limit(1);
+            .limit(1)
+            .timeout(const Duration(seconds: 4));
 
         if ((res as List).isNotEmpty) return true;
       } catch (_) {}
@@ -175,13 +185,16 @@ class SupabaseWorkoutLogRepository implements WorkoutLogRepository {
       for (final raw in pendingRawList) {
         try {
           final log = WorkoutLog.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
-          await client.from('workout_logs').insert({
-            'user_id': uid,
-            'plan_day_id': log.planDayId.isEmpty ? null : log.planDayId,
-            'completed_at': log.completedAt.toUtc().toIso8601String(),
-            'duration_min': log.durationMin,
-            'calories_burned': log.caloriesBurned,
-          });
+          await client
+              .from('workout_logs')
+              .insert({
+                'user_id': uid,
+                'plan_day_id': log.planDayId.isEmpty ? null : log.planDayId,
+                'completed_at': log.completedAt.toUtc().toIso8601String(),
+                'duration_min': log.durationMin,
+                'calories_burned': log.caloriesBurned,
+              })
+              .timeout(const Duration(seconds: 4));
         } catch (_) {
           remaining.add(raw);
         }

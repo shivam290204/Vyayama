@@ -27,7 +27,10 @@ class SupabaseChallengeRepository implements ChallengeRepository {
   @override
   Future<List<Challenge>> fetchChallenges() async {
     try {
-      final res = await client.from('challenges').select();
+      final res = await client
+          .from('challenges')
+          .select()
+          .timeout(const Duration(seconds: 4));
       if (res.isEmpty) return await loadChallengesFromAsset();
 
       return res
@@ -58,7 +61,8 @@ class SupabaseChallengeRepository implements ChallengeRepository {
             .from('challenge_completions')
             .select()
             .eq('user_id', uid)
-            .order('date', ascending: false);
+            .order('date', ascending: false)
+            .timeout(const Duration(seconds: 4));
 
         return res
             .map((row) => ChallengeCompletion(
@@ -85,11 +89,16 @@ class SupabaseChallengeRepository implements ChallengeRepository {
 
     try {
       if (client.auth.currentUser != null) {
-        final res = await client.from('challenge_completions').upsert({
-          'user_id': uid,
-          'challenge_id': challengeId,
-          'date': dateStr,
-        }, onConflict: 'user_id, date').select().single();
+        final res = await client
+            .from('challenge_completions')
+            .upsert({
+              'user_id': uid,
+              'challenge_id': challengeId,
+              'date': dateStr,
+            }, onConflict: 'user_id, date')
+            .select()
+            .single()
+            .timeout(const Duration(seconds: 4));
 
         return ChallengeCompletion(
           id: res['id'] as String,
@@ -134,7 +143,8 @@ class SupabaseChallengeRepository implements ChallengeRepository {
             .from('streaks')
             .select()
             .eq('user_id', uid)
-            .maybeSingle();
+            .maybeSingle()
+            .timeout(const Duration(seconds: 4));
 
         if (res != null) {
           final serverStreak = StreakState(
@@ -179,7 +189,7 @@ class SupabaseChallengeRepository implements ChallengeRepository {
           'last_active_date':
               state.lastActiveDate?.toIso8601String().split('T')[0],
           'xp': state.xp,
-        });
+        }).timeout(const Duration(seconds: 4));
       }
     } catch (_) {}
   }
